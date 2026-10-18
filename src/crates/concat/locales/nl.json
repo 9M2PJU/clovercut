@@ -958,5 +958,13 @@
   "voices.styles": "Stijlen",
   "voices.stylesHint": "Een stijl is een stem met effecten. Kies er een om erin te schrijven: de effecten komen op de spraakclip, waar je ze kunt aanpassen.",
   "voices.voices": "Stemmen",
-  "voices.yours": "Jouw stemmen"
+  "voices.yours": "Jouw stemmen",
+  "export.photosNotAllowed": "Concat may not add to Photos; allow it under Settings, Concat, Photos",
+  "mediaPane.dropToImport": "Drop video and audio files anywhere in the window to import them.",
+  "studio.freezeFrame": "Freeze frame",
+  "studio.newTitle": "New title",
+  "studio.parkPlayheadToFreeze": "Park the playhead inside a picture clip to freeze",
+  "studio.sortAdded": "Sort by: Added",
+  "studio.sortName": "Sort by: Name",
+  "studio.sortType": "Sort by: Type"
 }

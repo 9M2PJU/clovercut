@@ -958,5 +958,13 @@
   "voices.styles": "স্টাইল",
   "voices.stylesHint": "স্টাইল মানে ইফেক্টসহ একটি কণ্ঠ। কোনোটি দিয়ে লিখতে সেটি বেছে নিন: ইফেক্টগুলো স্পিচ ক্লিপে যায়, সেখানে বদলানো যায়।",
   "voices.voices": "কণ্ঠ",
-  "voices.yours": "আপনার কণ্ঠ"
+  "voices.yours": "আপনার কণ্ঠ",
+  "export.photosNotAllowed": "Concat may not add to Photos; allow it under Settings, Concat, Photos",
+  "mediaPane.dropToImport": "Drop video and audio files anywhere in the window to import them.",
+  "studio.freezeFrame": "Freeze frame",
+  "studio.newTitle": "New title",
+  "studio.parkPlayheadToFreeze": "Park the playhead inside a picture clip to freeze",
+  "studio.sortAdded": "Sort by: Added",
+  "studio.sortName": "Sort by: Name",
+  "studio.sortType": "Sort by: Type"
 }

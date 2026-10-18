@@ -958,5 +958,13 @@
   "voices.styles": "Gaya",
   "voices.stylesHint": "Gaya adalah suara dengan efek. Pilih satu untuk menulis dengannya: efeknya dipasang di klip ucapan, tempat kamu bisa mengubahnya.",
   "voices.voices": "Suara narator",
-  "voices.yours": "Suaramu"
+  "voices.yours": "Suaramu",
+  "export.photosNotAllowed": "Concat may not add to Photos; allow it under Settings, Concat, Photos",
+  "mediaPane.dropToImport": "Drop video and audio files anywhere in the window to import them.",
+  "studio.freezeFrame": "Freeze frame",
+  "studio.newTitle": "New title",
+  "studio.parkPlayheadToFreeze": "Park the playhead inside a picture clip to freeze",
+  "studio.sortAdded": "Sort by: Added",
+  "studio.sortName": "Sort by: Name",
+  "studio.sortType": "Sort by: Type"
 }

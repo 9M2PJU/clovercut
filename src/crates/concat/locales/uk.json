@@ -958,5 +958,13 @@
   "voices.styles": "Стилі",
   "voices.stylesHint": "Стиль — це голос з ефектами. Виберіть стиль, щоб писати ним: ефекти ляжуть на мовний кліп, де їх можна змінити.",
   "voices.voices": "Голоси",
-  "voices.yours": "Ваші голоси"
+  "voices.yours": "Ваші голоси",
+  "export.photosNotAllowed": "Concat may not add to Photos; allow it under Settings, Concat, Photos",
+  "mediaPane.dropToImport": "Drop video and audio files anywhere in the window to import them.",
+  "studio.freezeFrame": "Freeze frame",
+  "studio.newTitle": "New title",
+  "studio.parkPlayheadToFreeze": "Park the playhead inside a picture clip to freeze",
+  "studio.sortAdded": "Sort by: Added",
+  "studio.sortName": "Sort by: Name",
+  "studio.sortType": "Sort by: Type"
 }

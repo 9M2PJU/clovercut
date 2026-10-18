@@ -958,5 +958,13 @@
   "voices.styles": "انداز",
   "voices.stylesHint": "انداز ایفیکٹس والی صوت ہے۔ اس میں لکھنے کے لیے کوئی ایک چنیں: ایفیکٹس تقریر کی کلپ پر لگتے ہیں، جہاں آپ انہیں بدل سکتے ہیں۔",
   "voices.voices": "صوتیں",
-  "voices.yours": "آپ کی صوتیں"
+  "voices.yours": "آپ کی صوتیں",
+  "export.photosNotAllowed": "Concat may not add to Photos; allow it under Settings, Concat, Photos",
+  "mediaPane.dropToImport": "Drop video and audio files anywhere in the window to import them.",
+  "studio.freezeFrame": "Freeze frame",
+  "studio.newTitle": "New title",
+  "studio.parkPlayheadToFreeze": "Park the playhead inside a picture clip to freeze",
+  "studio.sortAdded": "Sort by: Added",
+  "studio.sortName": "Sort by: Name",
+  "studio.sortType": "Sort by: Type"
 }

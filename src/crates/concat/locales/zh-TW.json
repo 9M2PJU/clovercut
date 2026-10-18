@@ -958,5 +958,13 @@
   "voices.styles": "風格",
   "voices.stylesHint": "風格就是加了效果的嗓音。選一個用它來寫：效果會加在語音片段上，之後可以修改。",
   "voices.voices": "嗓音",
-  "voices.yours": "你的嗓音"
+  "voices.yours": "你的嗓音",
+  "export.photosNotAllowed": "Concat may not add to Photos; allow it under Settings, Concat, Photos",
+  "mediaPane.dropToImport": "Drop video and audio files anywhere in the window to import them.",
+  "studio.freezeFrame": "Freeze frame",
+  "studio.newTitle": "New title",
+  "studio.parkPlayheadToFreeze": "Park the playhead inside a picture clip to freeze",
+  "studio.sortAdded": "Sort by: Added",
+  "studio.sortName": "Sort by: Name",
+  "studio.sortType": "Sort by: Type"
 }

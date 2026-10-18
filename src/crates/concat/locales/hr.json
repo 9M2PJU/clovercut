@@ -958,5 +958,13 @@
   "voices.styles": "Stilovi",
   "voices.stylesHint": "Stil je glas s efektima. Odaberite jedan da biste njime pisali: efekti idu na govorni isječak, gdje ih možete mijenjati.",
   "voices.voices": "Glasovi",
-  "voices.yours": "Vaši glasovi"
+  "voices.yours": "Vaši glasovi",
+  "export.photosNotAllowed": "Concat may not add to Photos; allow it under Settings, Concat, Photos",
+  "mediaPane.dropToImport": "Drop video and audio files anywhere in the window to import them.",
+  "studio.freezeFrame": "Freeze frame",
+  "studio.newTitle": "New title",
+  "studio.parkPlayheadToFreeze": "Park the playhead inside a picture clip to freeze",
+  "studio.sortAdded": "Sort by: Added",
+  "studio.sortName": "Sort by: Name",
+  "studio.sortType": "Sort by: Type"
 }

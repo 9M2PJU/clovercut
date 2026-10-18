@@ -958,5 +958,13 @@
   "voices.styles": "Estilos",
   "voices.stylesHint": "Um estilo é uma voz com efeitos. Escolha um para escrever com ele: os efeitos vão para o clipe de fala, onde você pode mudá-los.",
   "voices.voices": "Vozes",
-  "voices.yours": "Suas vozes"
+  "voices.yours": "Suas vozes",
+  "export.photosNotAllowed": "O Concat não tem permissão para adicionar em Fotos; permita em Ajustes, Concat, Fotos",
+  "mediaPane.dropToImport": "Solte arquivos de vídeo e áudio em qualquer lugar da janela para importá-los.",
+  "studio.freezeFrame": "Congelar quadro",
+  "studio.newTitle": "Novo título",
+  "studio.parkPlayheadToFreeze": "Coloque o cursor dentro de um clipe de imagem para congelar",
+  "studio.sortAdded": "Ordenar por: Adição",
+  "studio.sortName": "Ordenar por: Nome",
+  "studio.sortType": "Ordenar por: Tipo"
 }

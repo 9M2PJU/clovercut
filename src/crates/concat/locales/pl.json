@@ -958,5 +958,13 @@
   "voices.styles": "Style",
   "voices.stylesHint": "Styl to głos z efektami. Wybierz jeden, aby nim pisać: efekty trafią na klip mowy, gdzie możesz je zmienić.",
   "voices.voices": "Głosy",
-  "voices.yours": "Twoje głosy"
+  "voices.yours": "Twoje głosy",
+  "export.photosNotAllowed": "Concat may not add to Photos; allow it under Settings, Concat, Photos",
+  "mediaPane.dropToImport": "Drop video and audio files anywhere in the window to import them.",
+  "studio.freezeFrame": "Freeze frame",
+  "studio.newTitle": "New title",
+  "studio.parkPlayheadToFreeze": "Park the playhead inside a picture clip to freeze",
+  "studio.sortAdded": "Sort by: Added",
+  "studio.sortName": "Sort by: Name",
+  "studio.sortType": "Sort by: Type"
 }

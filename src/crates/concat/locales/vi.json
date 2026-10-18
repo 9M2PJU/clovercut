@@ -958,5 +958,13 @@
   "voices.styles": "Phong cách",
   "voices.stylesHint": "Phong cách là một giọng có hiệu ứng. Chọn một phong cách để viết bằng nó: hiệu ứng được đặt lên clip giọng nói, nơi bạn có thể thay đổi.",
   "voices.voices": "Giọng nói",
-  "voices.yours": "Giọng của bạn"
+  "voices.yours": "Giọng của bạn",
+  "export.photosNotAllowed": "Concat may not add to Photos; allow it under Settings, Concat, Photos",
+  "mediaPane.dropToImport": "Drop video and audio files anywhere in the window to import them.",
+  "studio.freezeFrame": "Freeze frame",
+  "studio.newTitle": "New title",
+  "studio.parkPlayheadToFreeze": "Park the playhead inside a picture clip to freeze",
+  "studio.sortAdded": "Sort by: Added",
+  "studio.sortName": "Sort by: Name",
+  "studio.sortType": "Sort by: Type"
 }
