@@ -36,6 +36,9 @@ export component NumberField inherits Rectangle {
     in property <bool> keyframe;
     in-out property <bool> keyframed;
     in property <bool> enabled: true;
+    /// Inspector sliders provide the drag target; their number remains a
+    /// click-to-type field rather than a second, hidden scrub control.
+    in property <bool> scrubbable: true;
     /// The corners, a side at a time; see Field.
     in property <length> radius-left: Theme.r;
     in property <length> radius-right: Theme.r;
@@ -233,7 +236,7 @@ export component NumberField inherits Rectangle {
         width: root.width - root.keyframe-slot;
         height: root.height;
         enabled: root.enabled && !ti.has-focus;
-        mouse-cursor: ew-resize;
+        mouse-cursor: root.scrubbable ? MouseCursor.ew-resize : MouseCursor.text;
 
         property <float> origin;
         property <bool> travelled;
@@ -252,7 +255,7 @@ export component NumberField inherits Rectangle {
         }
 
         moved => {
-            if (Math.abs((self.mouse-x - self.pressed-x) / 1px) > 3) {
+            if (root.scrubbable && Math.abs((self.mouse-x - self.pressed-x) / 1px) > 3) {
                 self.travelled = true;
             }
             if (self.travelled) {
