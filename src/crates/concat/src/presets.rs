@@ -116,6 +116,7 @@ impl PresetStyle {
     fn over(self, name: &str) -> TextStyle {
         let base = TextStyle::default();
         TextStyle {
+            caption_group: None,
             content: self.content.unwrap_or_else(|| name.to_owned()),
             font_family: self
                 .font_family
@@ -126,6 +127,9 @@ impl PresetStyle {
                 .unwrap_or(base.font_weight)
                 .clamp(100.0, 900.0),
             italic: self.italic.unwrap_or(false),
+            underline: false,
+            vertical_align: 1,
+            vertical: false,
             color: self.color.unwrap_or(base.color),
             align: match self.align.as_deref() {
                 Some("left") => TextAlign::Left,

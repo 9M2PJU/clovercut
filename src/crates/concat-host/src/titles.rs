@@ -71,17 +71,18 @@ struct Art {
 }
 
 /// The title painter and its cache.
+#[derive(Clone)]
 pub struct Titles {
     dir: PathBuf,
     /// The system's faces plus the project's files, loaded once each.
-    fonts: Mutex<Option<Fonts>>,
-    loaded_files: Mutex<HashSet<String>>,
+    fonts: Arc<Mutex<Option<Fonts>>>,
+    loaded_files: Arc<Mutex<HashSet<String>>>,
     /// What is known to be on disk, by key.
-    memo: Mutex<HashMap<u64, Art>>,
+    memo: Arc<Mutex<HashMap<u64, Art>>>,
     /// Titles painted live, by key: every title on the timeline, and the
     /// most recently asked for of the rest, so a width dragged back and
     /// forth over the same values paints each once.
-    live: Mutex<LivePaintings>,
+    live: Arc<Mutex<LivePaintings>>,
 }
 
 /// The live paintings kept, in bytes of pixels, beyond the ones the
@@ -196,10 +197,10 @@ impl Titles {
         sweep(&dir, TITLES_KEPT);
         Titles {
             dir,
-            fonts: Mutex::new(None),
-            loaded_files: Mutex::new(HashSet::new()),
-            memo: Mutex::new(HashMap::new()),
-            live: Mutex::new(LivePaintings::new(LIVE_BYTES, LIVE_CEILING)),
+            fonts: Arc::new(Mutex::new(None)),
+            loaded_files: Arc::new(Mutex::new(HashSet::new())),
+            memo: Arc::new(Mutex::new(HashMap::new())),
+            live: Arc::new(Mutex::new(LivePaintings::new(LIVE_BYTES, LIVE_CEILING))),
         }
     }
 
@@ -207,7 +208,7 @@ impl Titles {
     /// each, for a `width` × `height` frame. One that fails to paint is left
     /// out and said once on stderr; the rest of the edit still renders.
     pub fn clips(&self, project: &Project, width: u32, height: u32) -> Vec<TitleClip> {
-        self.clips_with(project, width, height, false)
+        self.clips_with(project, width, height, false, None)
     }
 
     /// [`Titles::clips`] for a monitor showing a change as it is made:
@@ -217,20 +218,82 @@ impl Titles {
     /// touches the disk, which is what makes a drag smooth: a PNG per
     /// pointer step, encoded, written and decoded again, was the lag.
     pub fn clips_live(&self, project: &Project, width: u32, height: u32) -> Vec<TitleClip> {
-        self.clips_with(project, width, height, true)
+        self.clips_with(project, width, height, true, None)
     }
 
-    fn clips_with(&self, project: &Project, width: u32, height: u32, live: bool) -> Vec<TitleClip> {
+    /// Visible titles only, for one preview instant. Export uses `clips`
+    /// instead, so captions outside this frame still appear in the output.
+    pub fn clips_live_at(
+        &self,
+        project: &Project,
+        width: u32,
+        height: u32,
+        time: f64,
+    ) -> Vec<TitleClip> {
+        self.clips_with(project, width, height, true, Some(time))
+    }
+
+    /// The preview list changes only at a visible title's start or end.
+    /// Keeping this in the preview cache key also handles seeking backwards.
+    pub fn preview_ids(project: &Project, time: f64) -> Vec<String> {
+        project
+            .active()
+            .clips
+            .iter()
+            .filter(|clip| Self::visible_at(project, clip, time))
+            .map(|clip| clip.id.clone())
+            .collect()
+    }
+
+    fn visible_at(project: &Project, clip: &concat_project::model::Clip, time: f64) -> bool {
+        // Match the compositor's rounded frame grid, including cue boundaries.
+        let fps = project.active().video.rate();
+        let frame = (time * fps).round();
+        let start = (clip.start * fps).round();
+        let duration = (clip.duration * fps).round();
+        matches!(clip.kind, ModelClipKind::Text | ModelClipKind::Shape)
+            && frame >= start
+            && frame < start + duration
+            && project
+                .active()
+                .tracks
+                .iter()
+                .any(|track| track.id == clip.track_id && track.visible)
+    }
+
+    fn clips_with(
+        &self,
+        project: &Project,
+        width: u32,
+        height: u32,
+        live: bool,
+        time: Option<f64>,
+    ) -> Vec<TitleClip> {
         if live {
             self.live.lock().unwrap_or_else(|e| e.into_inner()).begin();
         }
         let timeline = project.active();
         let mut out = Vec::new();
         for clip in &timeline.clips {
+            if time.is_some_and(|at| !Self::visible_at(project, clip, at)) {
+                continue;
+            }
             let (text, shape);
             let painting = match clip.kind {
                 ModelClipKind::Text => {
-                    text = clip.text.clone().unwrap_or_default();
+                    text = if let Some(time) = time {
+                        let fps = timeline.video.rate();
+                        let start = (clip.start * fps).round();
+                        let duration = (clip.duration * fps).round();
+                        let at = if duration > 0.0 {
+                            ((time * fps).round() - start) / duration
+                        } else {
+                            0.0
+                        };
+                        clip.text_at(at.clamp(0.0, 1.0))
+                    } else {
+                        clip.text.clone().unwrap_or_default()
+                    };
                     Painting::Title(&text)
                 }
                 ModelClipKind::Shape => {
@@ -264,6 +327,15 @@ impl Titles {
             out.push(TitleClip {
                 clip_id: clip.id.clone(),
                 clip: ExportClip {
+                    generated: (clip.kind == ModelClipKind::Text
+                        && clip.keys.iter().any(|key| key.property.is_text()))
+                    .then(|| {
+                        concat_export::GeneratedImage(Arc::new(AnimatedTitle {
+                            titles: self.clone(),
+                            project: project.clone(),
+                            clip: (**clip).clone(),
+                        }))
+                    }),
                     path: path.to_string_lossy().into_owned(),
                     hidden: !track.visible,
                     muted: true,
@@ -273,10 +345,22 @@ impl Titles {
                     flip_v: clip.flip_v,
                     blend: clip.blend.clone(),
                     effects: clip.video_effects.clone(),
-                    scale: clip.scale,
-                    offset_x: clip.offset_x,
-                    offset_y: clip.offset_y,
-                    rotation: clip.rotation,
+                    scale: concat_export::flatten::export_base(
+                        clip,
+                        concat_project::model::KeyProperty::Scale,
+                    ),
+                    offset_x: concat_export::flatten::export_base(
+                        clip,
+                        concat_project::model::KeyProperty::OffsetX,
+                    ),
+                    offset_y: concat_export::flatten::export_base(
+                        clip,
+                        concat_project::model::KeyProperty::OffsetY,
+                    ),
+                    rotation: concat_export::flatten::export_base(
+                        clip,
+                        concat_project::model::KeyProperty::Rotation,
+                    ),
                     // A title is never pulled along an axis: its box is
                     // sized by the style, and its glyphs keep their shape.
                     // 0.2.2's side grips wrote a stretch onto title clips
@@ -296,8 +380,16 @@ impl Titles {
                     // The style's own opacity multiplies the clip's: a
                     // half-transparent title fades to half, not to solid.
                     opacity: match painting {
-                        Painting::Title(text) => (clip.opacity * text.opacity).clamp(0.0, 1.0),
-                        Painting::Shape(_) => clip.opacity.clamp(0.0, 1.0),
+                        Painting::Title(text) => (concat_export::flatten::export_base(
+                            clip,
+                            concat_project::model::KeyProperty::Opacity,
+                        ) * text.opacity)
+                            .clamp(0.0, 1.0),
+                        Painting::Shape(_) => concat_export::flatten::export_base(
+                            clip,
+                            concat_project::model::KeyProperty::Opacity,
+                        )
+                        .clamp(0.0, 1.0),
                     },
                     media_width: Some(width),
                     media_height: Some(height),
@@ -452,6 +544,28 @@ impl Titles {
     }
 }
 
+struct AnimatedTitle {
+    titles: Titles,
+    project: Project,
+    clip: concat_project::model::Clip,
+}
+
+impl concat_export::ImageSource for AnimatedTitle {
+    fn frame(&self, at: f64, width: u32, height: u32) -> Result<Arc<Frame>, String> {
+        let style = self.clip.text_at(at);
+        // Reuse the shared, byte-bounded cache, including while scrubbing
+        // back over an animation. Fonts are shared with static titles.
+        self.titles
+            .live
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .begin();
+        self.titles
+            .painted_live(&self.project, Painting::Title(&style), width, height)
+            .map(|(_, _, frame)| frame)
+    }
+}
+
 /// Everything the pixels depend on, hashed. Placement and timing are left
 /// out on purpose; see the module docs.
 ///
@@ -485,7 +599,7 @@ fn key_of(project: &Project, painting: Painting<'_>, width: u32, height: u32) ->
     // files are not mistaken for current ones. 3: left- and right-aligned
     // blocks moved to their anchors. 4: the sidecar gained each word's box,
     // for a per-word reveal effect to read back.
-    bytes.extend_from_slice(&4u32.to_le_bytes());
+    bytes.extend_from_slice(&6u32.to_le_bytes());
     crate::media::fnv1a(&bytes)
 }
 
@@ -566,6 +680,9 @@ fn title_style(style: &TextStyle) -> TitleStyle {
         font_size: style.font_size,
         font_weight: style.font_weight,
         italic: style.italic,
+        underline: style.underline,
+        vertical_align: style.vertical_align,
+        vertical: style.vertical,
         color: style.color.clone(),
         align: match style.align {
             TextAlign::Left => Align::Left,
@@ -749,6 +866,61 @@ mod tests {
         assert_eq!(
             cold[0].clip.reveal_map.as_ref().map(|r| &*r.gray),
             left[0].clip.reveal_map.as_ref().map(|r| &*r.gray)
+        );
+        let _ = std::fs::remove_dir_all(dirs.data.parent().unwrap());
+    }
+
+    #[test]
+    fn caption_preview_paints_only_the_current_cue_and_follows_seeks() {
+        let dirs = scratch("caption_preview");
+        let mut project = Project::new();
+        for index in 0..213 {
+            let mut clip = concat_project::model::Clip::blank(
+                format!("cue-{index}"),
+                "T1",
+                ModelClipKind::Text,
+                "Caption",
+                index as f64 * 2.0,
+                2.0,
+            );
+            clip.text = Some(TextStyle {
+                content: format!("Caption number {index}"),
+                caption_group: Some("captions".into()),
+                ..Default::default()
+            });
+            project.active_mut().clips.push(clip.into());
+        }
+        let titles = Titles::new(&dirs);
+        let started = std::time::Instant::now();
+        let first = titles.clips_live_at(&project, 1920, 1080, 0.0);
+        assert_eq!(first.len(), 1);
+        assert_eq!(first[0].clip_id, "cue-0");
+        assert_eq!(
+            titles.live.lock().unwrap().kept.len(),
+            1,
+            "off-screen captions must never be painted"
+        );
+        assert!(!titles.dir.exists(), "preview must not encode PNG files");
+        let again = titles.clips_live_at(&project, 1920, 1080, 1.5);
+        assert!(Arc::ptr_eq(
+            first[0].frame.as_ref().unwrap(),
+            again[0].frame.as_ref().unwrap()
+        ));
+        // Exact ends are exclusive, including when playing or seeking backwards.
+        for (time, id) in [(2.0, "cue-1"), (425.0, "cue-212"), (0.0, "cue-0")] {
+            assert_eq!(Titles::preview_ids(&project, time), vec![id.to_owned()]);
+            let frame = titles.clips_live_at(&project, 1920, 1080, time);
+            assert_eq!(frame.len(), 1);
+            assert_eq!(frame[0].clip_id, id);
+        }
+        assert!(Titles::preview_ids(&project, 426.0).is_empty());
+        project.active_mut().tracks[0].visible = false;
+        assert!(titles.clips_live_at(&project, 1920, 1080, 0.0).is_empty());
+        // Export still includes every cue, even on a hidden track.
+        assert_eq!(titles.clips(&project, 160, 90).len(), 213);
+        eprintln!(
+            "213-cue preview/seek/export regression: {:?}",
+            started.elapsed()
         );
         let _ = std::fs::remove_dir_all(dirs.data.parent().unwrap());
     }

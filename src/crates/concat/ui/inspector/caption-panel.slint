@@ -1,0 +1,309 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Clovercut contributors
+
+import { I18n } from "../i18n.slint";
+import { Theme } from "../theme/theme.slint";
+import { Glyph } from "../icons.slint";
+import { Row, Section, SectionBody, SectionHeader } from "../primitives/panel.slint";
+import { Button } from "../primitives/modal.slint";
+import { SegmentedControl } from "../primitives/segmented-control.slint";
+import { Check, ColourField, KeyCluster, Param, ParamFormat, PositionRow, ValueControl } from "controls.slint";
+import { FontPicker } from "font-picker.slint";
+import { CaptionsLibrary } from "../workspace/captions-panel.slint";
+import { ClipField, ClipTextField, SelectedClipData, TextAlignment } from "../timeline/model.slint";
+
+component CaptionLook inherits Rectangle {
+    in property <color> ink;
+    in property <color> edge;
+    in property <string> label;
+    callback chosen();
+    height: 46px;
+    border-radius: Theme.r;
+    background: area.has-hover ? Theme.field-hover : Theme.well;
+    border-width: 1px;
+    border-color: Theme.line;
+    // Small outlined samples use the same colours as the actual preset.
+    for offset in [-1, 1]: Text {
+        x: offset * 1px;
+        y: offset * 1px;
+        width: parent.width;
+        height: parent.height;
+        text: "Aa";
+        color: root.edge;
+        font-size: 24px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    Text {
+        width: parent.width;
+        height: parent.height;
+        text: "Aa";
+        color: root.ink;
+        font-size: 24px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    accessible-role: button;
+    accessible-label: root.label;
+    area := TouchArea { mouse-cursor: pointer; clicked => { root.chosen(); } }
+}
+
+export component CaptionPanel inherits VerticalLayout {
+    in property <SelectedClipData> selected;
+    callback set(field: ClipField, value: float);
+    callback set-text(field: ClipTextField, value: string);
+    callback set-colour(field: ClipTextField, value: color);
+    callback commit();
+    property <float> size;
+    property <float> tracking;
+    property <float> line-height;
+    property <float> scale;
+    property <float> x-pos;
+    property <float> y-pos;
+    property <float> rotation;
+    property <float> alpha;
+    property <float> stroke-alpha;
+    property <float> stroke-width;
+    property <float> frame-h: Math.max(1, root.selected.frame-height);
+    function seed() {
+        root.size = root.selected.font-size;
+        root.tracking = root.selected.tracking;
+        root.line-height = root.selected.line-height;
+        root.scale = root.selected.scale;
+        root.x-pos = root.selected.offset-x;
+        root.y-pos = root.selected.offset-y;
+        root.rotation = root.selected.rotation;
+        root.alpha = root.selected.opacity;
+        root.stroke-alpha = root.selected.stroke-opacity;
+        root.stroke-width = root.selected.stroke-width;
+    }
+    init => { root.seed(); }
+    changed selected => { root.seed(); }
+    function look(ink: color, edge: color, width: float) {
+        root.set-colour(ClipTextField.color, ink);
+        root.set-colour(ClipTextField.stroke-color, edge);
+        root.set(ClipField.stroke-opacity, 1);
+        root.set(ClipField.stroke-width, width);
+        root.set(ClipField.font-weight, 700);
+        root.set(ClipField.shadow, 0);
+        root.commit();
+    }
+    SectionBody {
+        padding-left: Theme.pad;
+        padding-right: Theme.pad;
+        padding-top: 12px;
+        HorizontalLayout {
+            spacing: 8px;
+            Check {
+                checked: CaptionsLibrary.apply-all;
+                toggled(all) => { CaptionsLibrary.scope-changed(all); }
+            }
+            Text {
+                text: I18n.t("captions.applyAll");
+                color: Theme.fg;
+                font-size: Theme.fs;
+                wrap: word-wrap;
+                TouchArea { mouse-cursor: pointer; clicked => { CaptionsLibrary.scope-changed(!CaptionsLibrary.apply-all); } }
+            }
+        }
+    }
+    Section {
+        first: true;
+        SectionHeader { title: I18n.t("common.text"); }
+        SectionBody {
+            padding-left: Theme.pad;
+            padding-right: Theme.pad;
+            Rectangle {
+                height: 80px;
+                background: Theme.field;
+                border-radius: Theme.r;
+                border-width: 1px;
+                border-color: body.has-focus ? Theme.accent : Theme.line;
+                clip: true;
+                body := TextInput {
+                    x: 8px; y: 6px;
+                    width: parent.width - 16px;
+                    height: parent.height - 12px;
+                    text: root.selected.content;
+                    color: Theme.fg;
+                    font-size: Theme.fs;
+                    single-line: false;
+                    wrap: word-wrap;
+                    selection-background-color: Theme.accent;
+                    selection-foreground-color: Theme.on-accent;
+                    property <string> clip-id: root.selected.id;
+                    property <string> typed-for;
+                    property <string> words: root.selected.content;
+                    changed clip-id => { self.text = root.selected.content; }
+                    changed words => { if !self.has-focus { self.text = self.words; } }
+                    edited => {
+                        self.typed-for = root.selected.id;
+                        root.set-text(ClipTextField.content, self.text);
+                    }
+                    changed has-focus => {
+                        if !self.has-focus {
+                            if self.typed-for == root.selected.id { root.set-text(ClipTextField.content, self.text); }
+                            self.typed-for = "";
+                            root.commit();
+                        }
+                    }
+                    key-pressed(event) => {
+                        if event.text == Key.Home { self.set-selection-offsets(0, 0); return accept; }
+                        if event.text == Key.End { self.set-selection-offsets(1000000000, 1000000000); return accept; }
+                        return reject;
+                    }
+                }
+            }
+        }
+        Row {
+            label: I18n.t("textPanel.font");
+            FontPicker {
+                family: root.selected.font-family;
+                missing: root.selected.font-missing;
+                picked(family) => { root.set-text(ClipTextField.font-family, family); root.commit(); }
+            }
+        }
+        Param {
+            label: I18n.t("common.size");
+            value <=> root.size;
+            minimum: 0.01; maximum: 0.5; step: 1 / root.frame-h;
+            default-value: 0.06;
+            unit: "px"; unit-scale: root.frame-h;
+            changed(v) => { root.set(ClipField.font-size, v); root.commit(); }
+        }
+        Row {
+            label: I18n.t("captions.fontStyle");
+            Button {
+                label: "B";
+                primary: root.selected.font-weight >= 700;
+                clicked => { root.set(ClipField.font-weight, root.selected.font-weight >= 700 ? 400 : 700); root.commit(); }
+            }
+            Button {
+                label: "I"; primary: root.selected.italic;
+                clicked => { root.set(ClipField.italic, root.selected.italic ? 0 : 1); root.commit(); }
+            }
+            Button {
+                label: "U"; primary: root.selected.underline;
+                clicked => { root.set(ClipField.underline, root.selected.underline ? 0 : 1); root.commit(); }
+            }
+        }
+        HorizontalLayout {
+            ColourField {
+                label: I18n.t("common.color"); value: root.selected.fill; alpha: false;
+                changed(c) => { root.set-colour(ClipTextField.color, c); root.commit(); }
+            }
+            VerticalLayout { alignment: center; KeyCluster { compact: true; field: ClipField.text-color; } }
+            Rectangle { width: Theme.pad; }
+        }
+        SectionBody {
+            padding-left: Theme.pad; padding-right: Theme.pad;
+            HorizontalLayout {
+                spacing: 8px;
+                VerticalLayout {
+                    spacing: 4px;
+                    Text { text: I18n.t("textPanel.tracking"); color: Theme.fg-muted; font-size: Theme.fs; }
+                    ValueControl {
+                        value <=> root.tracking; minimum: -0.05; maximum: 0.3;
+                        step: 1 / root.frame-h; unit: "px"; unit-scale: root.frame-h;
+                        changed(v) => { root.set(ClipField.tracking, v); root.commit(); }
+                    }
+                }
+                VerticalLayout {
+                    spacing: 4px;
+                    Text { text: root.selected.text-vertical ? I18n.t("captions.columnSpacing") : I18n.t("textPanel.lineHeight"); color: Theme.fg-muted; font-size: Theme.fs; }
+                    ValueControl {
+                        value <=> root.line-height; minimum: 0.7; maximum: 2.5; step: 0.05; unit: "x";
+                        changed(v) => { root.set(ClipField.line-height, v); root.commit(); }
+                    }
+                }
+            }
+        }
+        Row {
+            label: I18n.t("textPanel.textAlign");
+            SegmentedControl {
+                options: [I18n.t("common.left"), I18n.t("textPanel.center"), I18n.t("common.right")];
+                icons: [Glyph.align-left, Glyph.align-center-x, Glyph.align-right];
+                current: root.selected.align == TextAlignment.left ? 0 : root.selected.align == TextAlignment.right ? 2 : 1;
+                changed(i) => { root.set(ClipField.align, i); root.commit(); }
+            }
+        }
+        Row {
+            label: I18n.t("captions.writingDirection");
+            SegmentedControl {
+                options: [I18n.t("captions.horizontalWriting"), I18n.t("captions.verticalWriting")];
+                icons: [Glyph.text-mark, Glyph.vertical-text];
+                current: root.selected.text-vertical ? 1 : 0;
+                changed(i) => { root.set(ClipField.text-vertical, i == 1 ? 1 : 0); root.commit(); }
+            }
+        }
+    }
+    Section {
+        SectionHeader { title: I18n.t("captions.styles"); }
+        SectionBody {
+            padding-left: Theme.pad; padding-right: Theme.pad;
+            HorizontalLayout {
+                spacing: 6px;
+                CaptionLook { ink: #ffffff; edge: #000000; label: I18n.t("captions.lookClassic"); chosen => { root.look(#ffffff, #000000, 0.003); } }
+                CaptionLook { ink: #ffdf36; edge: #000000; label: I18n.t("captions.lookYellow"); chosen => { root.look(#ffdf36, #000000, 0.004); } }
+                CaptionLook { ink: #000000; edge: #ffffff; label: I18n.t("captions.lookLight"); chosen => { root.look(#000000, #ffffff, 0.004); } }
+                CaptionLook { ink: #ffffff; edge: #8b3dff; label: I18n.t("captions.lookViolet"); chosen => { root.look(#ffffff, #8b3dff, 0.005); } }
+            }
+        }
+    }
+    Section {
+        SectionHeader { title: I18n.t("textPanel.position"); }
+        Param {
+            label: I18n.t("captions.totalSize"); value <=> root.scale;
+            minimum: 0.05; maximum: 8; step: 0.01; default-value: 1;
+            unit: "%"; unit-scale: 100;
+            keyable: true; field: ClipField.scale;
+            changed(v) => { root.set(ClipField.scale, v); root.commit(); }
+        }
+        PositionRow {
+            x-value <=> root.x-pos; y-value <=> root.y-pos;
+            changed(x, y) => { root.set(ClipField.offset-x, x); root.set(ClipField.offset-y, y); root.commit(); }
+        }
+        Param {
+            label: I18n.t("common.rotation"); value <=> root.rotation;
+            minimum: -180; maximum: 180; step: 1; default-value: 0; unit: "°"; rail: false;
+            keyable: true; field: ClipField.rotation;
+            changed(v) => { root.set(ClipField.rotation, v); root.commit(); }
+        }
+    }
+    Section {
+        SectionHeader { title: I18n.t("common.opacity"); }
+        Param {
+            label: I18n.t("common.opacity"); value <=> root.alpha;
+            minimum: 0; maximum: 1; step: 0.01; default-value: 1;
+            unit: "%"; unit-scale: 100; keyable: true; field: ClipField.opacity;
+            changed(v) => { root.set(ClipField.opacity, v); root.commit(); }
+        }
+    }
+    Section {
+        border := SectionHeader { title: I18n.t("textPanel.stroke"); collapsible: true; open: false; }
+        if border.open: VerticalLayout {
+            HorizontalLayout {
+                ColourField {
+                    label: I18n.t("common.color"); value: root.selected.stroke.with-alpha(1); alpha: false;
+                    changed(c) => { root.set-colour(ClipTextField.stroke-color, c); root.commit(); }
+                }
+                VerticalLayout { alignment: center; KeyCluster { compact: true; field: ClipField.stroke-color-key; } }
+                Rectangle { width: Theme.pad; }
+            }
+            Param {
+                label: I18n.t("common.opacity"); value <=> root.stroke-alpha;
+                minimum: 0; maximum: 1; step: 0.01; default-value: 1;
+                unit: "%"; unit-scale: 100; keyable: true; field: ClipField.stroke-opacity;
+                changed(v) => { root.set(ClipField.stroke-opacity, v); root.commit(); }
+            }
+            Param {
+                label: I18n.t("captions.thickness"); value <=> root.stroke-width;
+                minimum: 0; maximum: 0.15; step: 0.5 / root.frame-h; default-value: 0;
+                unit: "px"; unit-scale: root.frame-h; keyable: true; field: ClipField.stroke-width;
+                changed(v) => { root.set(ClipField.stroke-width, v); root.commit(); }
+            }
+        }
+    }
+}

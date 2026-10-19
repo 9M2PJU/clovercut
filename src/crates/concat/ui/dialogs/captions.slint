@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Jareer and Concat contributors
 
+import { CaptionsLibrary } from "../workspace/captions-panel.slint";
 import { I18n } from "../i18n.slint";
 import { Theme } from "../theme/theme.slint";
 import { Glyph, Icon } from "../icons.slint";
@@ -219,7 +220,7 @@ export component CaptionsDialog inherits Modal {
         if !root.data.running: DialogSection {
             title: I18n.t("captions.captions");
 
-            DialogRow {
+            if CaptionsLibrary.rows.length == 0: DialogRow {
                 label: I18n.t("captions.placement");
                 SegmentedControl {
                     options: [I18n.t("common.bottom"), I18n.t("captions.centre"), I18n.t("common.top")];
@@ -228,7 +229,7 @@ export component CaptionsDialog inherits Modal {
                 }
             }
 
-            DialogRow {
+            if CaptionsLibrary.rows.length == 0: DialogRow {
                 label: I18n.t("common.size");
                 SegmentedControl {
                     options: [I18n.t("common.small"), I18n.t("common.medium"), I18n.t("common.large")];
@@ -237,6 +238,12 @@ export component CaptionsDialog inherits Modal {
                 }
             }
 
+            if CaptionsLibrary.rows.length > 0: Text {
+                text: I18n.t("captions.usesExistingStyle");
+                color: Theme.fg-muted;
+                font-size: Theme.fs-sm;
+                wrap: word-wrap;
+            }
             Text {
                 text: root.from-voice
                     ? I18n.t("captions.oneTitlePerPhrase")

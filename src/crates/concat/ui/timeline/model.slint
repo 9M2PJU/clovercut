@@ -167,7 +167,7 @@ export enum ClipField {
     scale, offset-x, offset-y, rotation, stretch-x, stretch-y, opacity,
     volume, speed, preserve-pitch, fade-in, fade-out,
     flip-h, flip-v, blend, crop-left, crop-top, crop-right, crop-bottom,
-    font-size, font-weight, italic, text-opacity, align,
+    font-size, font-weight, italic, underline, vertical-align, text-vertical, text-color, text-green-key, text-blue-key, stroke-color-key, stroke-green-key, stroke-blue-key, text-opacity, align,
     stroke-width, shadow, line-height, tracking, text-width, text-height,
     stroke-opacity,
     /// the background's opacity is its colour's alpha, as the stroke's is;
@@ -246,11 +246,11 @@ export global Keyframes {
         return { field: field, keyed: false, here: false, prev: false, next: false };
     }
 
-    /// This field's row. Slint has no lookup and the list is thirteen
+    /// This field's row. Slint has no lookup and the list is twenty-one
     /// long, so the order Rust publishes them in *is* the index; `blank`
     /// covers the moment before the first publish.
     pure public function row(field: ClipField) -> ClipKeyData {
-        if (Keyframes.rows.length < 13) {
+        if (Keyframes.rows.length < 21) {
             return Keyframes.blank(field);
         }
         return field == ClipField.scale ? Keyframes.rows[0]
@@ -266,6 +266,22 @@ export global Keyframes {
             : field == ClipField.mask-rotation ? Keyframes.rows[10]
             : field == ClipField.mask-roundness ? Keyframes.rows[11]
             : field == ClipField.mask-feather ? Keyframes.rows[12]
+            : field == ClipField.text-color ? {
+                field: field,
+                keyed: Keyframes.rows[13].keyed || Keyframes.rows[14].keyed || Keyframes.rows[15].keyed,
+                here: Keyframes.rows[13].here && Keyframes.rows[14].here && Keyframes.rows[15].here,
+                prev: Keyframes.rows[13].prev || Keyframes.rows[14].prev || Keyframes.rows[15].prev,
+                next: Keyframes.rows[13].next || Keyframes.rows[14].next || Keyframes.rows[15].next,
+            }
+            : field == ClipField.stroke-color-key ? {
+                field: field,
+                keyed: Keyframes.rows[16].keyed || Keyframes.rows[17].keyed || Keyframes.rows[18].keyed,
+                here: Keyframes.rows[16].here && Keyframes.rows[17].here && Keyframes.rows[18].here,
+                prev: Keyframes.rows[16].prev || Keyframes.rows[17].prev || Keyframes.rows[18].prev,
+                next: Keyframes.rows[16].next || Keyframes.rows[17].next || Keyframes.rows[18].next,
+            }
+            : field == ClipField.stroke-opacity ? Keyframes.rows[19]
+            : field == ClipField.stroke-width ? Keyframes.rows[20]
             : Keyframes.blank(field);
     }
 }
@@ -486,6 +502,9 @@ export struct SelectedClipData {
     font-size: float,
     font-weight: float,
     italic: bool,
+    underline: bool,
+    vertical-align: int,
+    text-vertical: bool,
     fill: color,
     fill-hex: string,
     align: TextAlignment,

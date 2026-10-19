@@ -658,6 +658,175 @@ fn video(width: u32, height: u32, rate_num: i64, rate_den: i64) -> VideoSettings
     }
 }
 
+#[test]
+fn vertical_writing_survives_export_and_project_reopening() {
+    let scratch = Scratch::new("vertical-captions");
+    let mut studio = Studio::new(
+        scratch.path(),
+        "Vertical captions",
+        video(WIDTH, HEIGHT, 6, 1),
+    );
+    let style = TextStyle {
+        content: "ABCD".into(),
+        font_size: 0.15,
+        shadow: false,
+        caption_group: Some("captions".into()),
+        ..Default::default()
+    };
+    let id = studio
+        .apply(Command::AddTextClip {
+            above: false,
+            track_id: None,
+            start: 0.0,
+            duration: Some(1.0),
+            offset_y: Some(0.0),
+            style: Some(style.clone()),
+        })
+        .unwrap();
+    let bounds = |frame: &Frame| {
+        let mut edges = (u32::MAX, 0u32, u32::MAX, 0u32);
+        for y in 0..frame.height() {
+            for x in 0..frame.width() {
+                let pixel = frame.pixel(x, y).unwrap();
+                if pixel[0] > 100 && pixel[1] > 100 && pixel[2] > 100 {
+                    edges = (
+                        edges.0.min(x),
+                        edges.1.max(x),
+                        edges.2.min(y),
+                        edges.3.max(y),
+                    );
+                }
+            }
+        }
+        assert_ne!(edges.0, u32::MAX, "caption contains visible letters");
+        (edges.1 - edges.0 + 1, edges.3 - edges.2 + 1)
+    };
+    let horizontal = studio.export("horizontal writing");
+    let (w, h) = bounds(&horizontal.frames[0]);
+    assert!(w > h * 2, "horizontal caption is wide: {w}x{h}");
+    studio.apply(Command::UpdateClip {
+        clip_id: id.clone(),
+        patch: ClipPatch {
+            text: Some(Some(TextStyle {
+                vertical: true,
+                ..style
+            })),
+            ..Default::default()
+        },
+    });
+    let vertical = studio.export("vertical writing");
+    let (w, h) = bounds(&vertical.frames[0]);
+    assert!(h > w * 2, "vertical caption is tall: {w}x{h}");
+    let reopened = Session::open(studio.session.path(), studio.session.settings()).unwrap();
+    assert!(
+        reopened
+            .project()
+            .active()
+            .clip(&id)
+            .unwrap()
+            .text
+            .as_ref()
+            .unwrap()
+            .vertical
+    );
+}
+
+#[test]
+fn caption_paint_keyframes_reach_the_exported_video() {
+    let scratch = Scratch::new("caption-paint-keys");
+    let mut studio = Studio::new(scratch.path(), "Caption paint", video(WIDTH, HEIGHT, 10, 1));
+    let id = studio
+        .apply(Command::AddTextClip {
+            above: false,
+            track_id: None,
+            start: 0.0,
+            duration: Some(1.0),
+            offset_y: Some(0.0),
+            style: Some(TextStyle {
+                content: "Aa".into(),
+                font_size: 0.35,
+                underline: true,
+                shadow: false,
+                color: "#ff0000".into(),
+                stroke_color: "#00ff0000".into(),
+                caption_group: Some("captions".into()),
+                ..Default::default()
+            }),
+        })
+        .unwrap();
+    let mut commands = Vec::new();
+    for (property, first, last) in [
+        (KeyProperty::TextRed, 1.0, 0.0),
+        (KeyProperty::TextBlue, 0.0, 1.0),
+        (KeyProperty::StrokeWidth, 0.0, 0.015),
+        (KeyProperty::StrokeOpacity, 0.0, 1.0),
+    ] {
+        for (at, value) in [(0.0, first), (1.0, last)] {
+            commands.push(Command::SetClipKey {
+                clip_id: id.clone(),
+                property,
+                at,
+                value,
+                ease: KeyEase::LINEAR,
+            });
+        }
+    }
+    studio.apply(Command::Batch { commands });
+    // The same generated source is used for preview, including at other sizes.
+    let titles = studio.titles.clips(studio.project(), WIDTH, HEIGHT);
+    let pool = concat_media::ReaderPool::with_defaults();
+    let mut colours = Vec::new();
+    for time in [0.0, 0.9] {
+        let sources = concat_export::preview_sources(
+            &pool,
+            &concat_export::PreviewFrameRequest {
+                time,
+                width: WIDTH * 2,
+                height: HEIGHT * 2,
+                rate_num: 10,
+                rate_den: 1,
+                color_space: Default::default(),
+                clips: titles.iter().map(|t| t.clip.clone()).collect(),
+            },
+        )
+        .expect("animated caption previews without decoding a file");
+        let frame = sources.plan().layers[0].source.as_ref().unwrap();
+        assert_eq!(frame.width(), WIDTH * 2);
+        colours.push(
+            frame
+                .pixels()
+                .chunks_exact(4)
+                .fold([0u64; 3], |mut sum, p| {
+                    for c in 0..3 {
+                        sum[c] += u64::from(p[c]) * u64::from(p[3]);
+                    }
+                    sum
+                }),
+        );
+    }
+    assert!(colours[0][0] > colours[0][2]);
+    assert!(colours[1][2] > colours[1][0]);
+    assert!(colours[1][1] > colours[0][1], "green outline animates too");
+    let exported = studio.export("animated caption fill and outline");
+    exported.expect_length(1.0);
+    let sum = |frame: &Frame| {
+        frame
+            .pixels()
+            .chunks_exact(4)
+            .fold([0u64; 3], |mut sum, p| {
+                for c in 0..3 {
+                    sum[c] += u64::from(p[c]);
+                }
+                sum
+            })
+    };
+    let first = sum(exported.frames.first().unwrap());
+    let last = sum(exported.frames.last().unwrap());
+    assert!(first[0] > first[2] * 2, "first frame is red: {first:?}");
+    assert!(last[2] > last[0] * 2, "last frame is blue: {last:?}");
+    assert!(last[1] > first[1], "outline reaches exported frames");
+}
+
 // ── the tests ──
 
 /// Issue #112: a 60 fps export froze at three-quarters of its length and

@@ -1035,6 +1035,23 @@ impl ClipMask {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum KeyProperty {
+    // Text paint properties are resolved before rasterization.
+    /// Animated TextRed paint component.
+    TextRed,
+    /// Animated TextGreen paint component.
+    TextGreen,
+    /// Animated TextBlue paint component.
+    TextBlue,
+    /// Animated StrokeRed paint component.
+    StrokeRed,
+    /// Animated StrokeGreen paint component.
+    StrokeGreen,
+    /// Animated StrokeBlue paint component.
+    StrokeBlue,
+    /// Animated StrokeOpacity paint component.
+    StrokeOpacity,
+    /// Animated StrokeWidth paint component.
+    StrokeWidth,
     /// `Clip::scale`.
     Scale,
     /// `Clip::offset_x`.
@@ -1064,10 +1081,34 @@ pub enum KeyProperty {
 }
 
 impl KeyProperty {
+    /// Properties resolved by the text painter rather than the compositor.
+    pub const TEXT: [Self; 8] = [
+        Self::TextRed,
+        Self::TextGreen,
+        Self::TextBlue,
+        Self::StrokeRed,
+        Self::StrokeGreen,
+        Self::StrokeBlue,
+        Self::StrokeOpacity,
+        Self::StrokeWidth,
+    ];
+    /// Whether this property changes the text pixels.
+    pub fn is_text(self) -> bool {
+        Self::TEXT.contains(&self)
+    }
+
     /// The name this property carries in a document and across the export
     /// boundary. Matches the `ExportKey::property` vocabulary.
     pub fn name(self) -> &'static str {
         match self {
+            KeyProperty::TextRed => "textRed",
+            KeyProperty::TextGreen => "textGreen",
+            KeyProperty::TextBlue => "textBlue",
+            KeyProperty::StrokeRed => "strokeRed",
+            KeyProperty::StrokeGreen => "strokeGreen",
+            KeyProperty::StrokeBlue => "strokeBlue",
+            KeyProperty::StrokeOpacity => "strokeOpacity",
+            KeyProperty::StrokeWidth => "strokeWidth",
             KeyProperty::Scale => "scale",
             KeyProperty::OffsetX => "offsetX",
             KeyProperty::OffsetY => "offsetY",
@@ -1087,6 +1128,14 @@ impl KeyProperty {
     /// The property of that name, or None.
     pub fn from_name(name: &str) -> Option<KeyProperty> {
         Some(match name {
+            "textRed" => KeyProperty::TextRed,
+            "textGreen" => KeyProperty::TextGreen,
+            "textBlue" => KeyProperty::TextBlue,
+            "strokeRed" => KeyProperty::StrokeRed,
+            "strokeGreen" => KeyProperty::StrokeGreen,
+            "strokeBlue" => KeyProperty::StrokeBlue,
+            "strokeOpacity" => KeyProperty::StrokeOpacity,
+            "strokeWidth" => KeyProperty::StrokeWidth,
             "scale" => KeyProperty::Scale,
             "offsetX" => KeyProperty::OffsetX,
             "offsetY" => KeyProperty::OffsetY,
@@ -1105,7 +1154,7 @@ impl KeyProperty {
     }
 
     /// Every property that can be keyed, in the order a panel lists them.
-    pub const ALL: [KeyProperty; 13] = [
+    pub const ALL: [KeyProperty; 21] = [
         KeyProperty::Scale,
         KeyProperty::OffsetX,
         KeyProperty::OffsetY,
@@ -1119,6 +1168,14 @@ impl KeyProperty {
         KeyProperty::MaskRotation,
         KeyProperty::MaskRoundness,
         KeyProperty::MaskFeather,
+        KeyProperty::TextRed,
+        KeyProperty::TextGreen,
+        KeyProperty::TextBlue,
+        KeyProperty::StrokeRed,
+        KeyProperty::StrokeGreen,
+        KeyProperty::StrokeBlue,
+        KeyProperty::StrokeOpacity,
+        KeyProperty::StrokeWidth,
     ];
 
     /// The mask's numbers: the properties a clip's mask carries.
@@ -1442,6 +1499,21 @@ impl Default for ShapeStyle {
     }
 }
 
+fn text_rgba(color: &str) -> [f64; 4] {
+    let hex = color.trim_start_matches('#');
+    let mut out = [0.0, 0.0, 0.0, 1.0];
+    if hex.len() == 6 || hex.len() == 8 {
+        for (i, v) in out.iter_mut().enumerate().take(hex.len() / 2) {
+            *v = hex
+                .get(i * 2..i * 2 + 2)
+                .and_then(|s| u8::from_str_radix(s, 16).ok())
+                .unwrap_or(0) as f64
+                / 255.0;
+        }
+    }
+    out
+}
+
 /// A title's styling. Sizes are fractions of the frame, so a title composed
 /// against 1080p lands correctly exported at 4K. A style arriving in a
 /// command needs only the fields it changes; the rest are the default's, so
@@ -1451,6 +1523,10 @@ impl Default for ShapeStyle {
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct TextStyle {
+    /// Caption collection membership; absent on ordinary titles. Styling a
+    /// caption applies to this collection, while its words and times stay local.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub caption_group: Option<String>,
     /// The words themselves, newlines included. The clip's display name is
     /// snapshotted from the first non-empty line.
     pub content: String,
@@ -1464,6 +1540,12 @@ pub struct TextStyle {
     pub font_weight: f64,
     /// Italic when true. A style flag, not a separate face.
     pub italic: bool,
+    /// Whether the text is underlined.
+    pub underline: bool,
+    /// Vertical placement in the text box: top (0), centre (1), bottom (2).
+    pub vertical_align: u8,
+    /// Top-to-bottom writing, with columns ordered right to left.
+    pub vertical: bool,
     /// Fill colour as a CSS hex string, e.g. "#ffffff".
     pub color: String,
     /// Line alignment within the block; see [`TextAlign`].
@@ -1522,6 +1604,7 @@ impl TextStyle {
     /// hand-edited zero size would render an invisible title, and lines
     /// cannot collapse onto each other.
     pub fn tidy(mut self) -> TextStyle {
+        self.vertical_align = self.vertical_align.min(2);
         fn finite(value: f64, fallback: f64) -> f64 {
             if value.is_finite() { value } else { fallback }
         }
@@ -1546,11 +1629,15 @@ impl TextStyle {
 impl Default for TextStyle {
     fn default() -> Self {
         Self {
+            caption_group: None,
             content: "Your text".to_owned(),
             font_family: "\"Cabinet Grotesk\"".to_owned(),
             font_size: 0.09,
             font_weight: 700.0,
             italic: false,
+            underline: false,
+            vertical_align: 1,
+            vertical: false,
             color: "#ffffff".to_owned(),
             align: TextAlign::Center,
             opacity: 1.0,
@@ -2035,6 +2122,13 @@ impl Clip {
         for key in &mut self.keys {
             key.value = match key.property {
                 KeyProperty::Scale => key.value.clamp(MIN_SCALE, MAX_SCALE),
+                property if property.is_text() => {
+                    if property == KeyProperty::StrokeWidth {
+                        key.value.clamp(0.0, 0.15)
+                    } else {
+                        key.value.clamp(0.0, 1.0)
+                    }
+                }
                 KeyProperty::Opacity => key.value.clamp(0.0, 1.0),
                 KeyProperty::Volume => key.value.max(0.0),
                 KeyProperty::OffsetX | KeyProperty::OffsetY => {
@@ -2069,10 +2163,82 @@ impl Clip {
             KeyProperty::Rotation => self.rotation,
             KeyProperty::Opacity => self.opacity,
             KeyProperty::Volume => self.volume,
+            property if property.is_text() => self.text_constant(property),
             // A clip with no mask answers with a new one's numbers, so a
             // panel opening on it shows what the first shape will start at.
             mask => self.mask.unwrap_or_default().get(mask).unwrap_or_default(),
         }
+    }
+
+    fn text_constant(&self, property: KeyProperty) -> f64 {
+        let text = self.text.clone().unwrap_or_default();
+        if property == KeyProperty::StrokeWidth {
+            return text.stroke_width;
+        }
+        let stroke = matches!(
+            property,
+            KeyProperty::StrokeRed
+                | KeyProperty::StrokeGreen
+                | KeyProperty::StrokeBlue
+                | KeyProperty::StrokeOpacity
+        );
+        let rgba = text_rgba(if stroke {
+            &text.stroke_color
+        } else {
+            &text.color
+        });
+        rgba[match property {
+            KeyProperty::TextGreen | KeyProperty::StrokeGreen => 1,
+            KeyProperty::TextBlue | KeyProperty::StrokeBlue => 2,
+            KeyProperty::StrokeOpacity => 3,
+            _ => 0,
+        }]
+    }
+
+    /// Write an unanimated text paint component, preserving the other channels.
+    pub fn set_text_constant(&mut self, property: KeyProperty, value: f64) {
+        let text = self.text.get_or_insert_with(TextStyle::default);
+        if property == KeyProperty::StrokeWidth {
+            text.stroke_width = value.clamp(0.0, 0.15);
+            return;
+        }
+        let stroke = matches!(
+            property,
+            KeyProperty::StrokeRed
+                | KeyProperty::StrokeGreen
+                | KeyProperty::StrokeBlue
+                | KeyProperty::StrokeOpacity
+        );
+        let color = if stroke {
+            &mut text.stroke_color
+        } else {
+            &mut text.color
+        };
+        let mut rgba = text_rgba(color);
+        let index = match property {
+            KeyProperty::TextGreen | KeyProperty::StrokeGreen => 1,
+            KeyProperty::TextBlue | KeyProperty::StrokeBlue => 2,
+            KeyProperty::StrokeOpacity => 3,
+            _ => 0,
+        };
+        rgba[index] = value.clamp(0.0, 1.0);
+        let [r, g, b, a] = rgba.map(|v| (v * 255.0).round() as u8);
+        *color = if stroke {
+            format!("#{r:02x}{g:02x}{b:02x}{a:02x}")
+        } else {
+            format!("#{r:02x}{g:02x}{b:02x}")
+        };
+    }
+
+    /// Resolve paint keys with the same easing used for transforms.
+    pub fn text_at(&self, at: f64) -> TextStyle {
+        let mut resolved = self.clone();
+        for property in KeyProperty::TEXT {
+            if self.is_keyed(property) {
+                resolved.set_text_constant(property, self.value_at(property, at));
+            }
+        }
+        resolved.text.unwrap_or_default()
     }
 
     /// The scale at which this clip's picture, from media `width` by
@@ -2129,6 +2295,7 @@ impl Clip {
             KeyProperty::Rotation => self.rotation = value,
             KeyProperty::Opacity => self.opacity = value,
             KeyProperty::Volume => self.volume = value,
+            property if property.is_text() => self.set_text_constant(property, value),
             // The mask's numbers are the mask's; a number written on a
             // clip with none puts one on, the shape a new one starts as.
             mask => self

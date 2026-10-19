@@ -348,6 +348,8 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         let editor = app.global::<Editor>();
         let models = &shell.models;
         editor.set_timeline_tabs(ModelRc::from(models.tabs.clone()));
+        app.global::<crate::ui::CaptionsLibrary>()
+            .set_rows(ModelRc::from(models.caption_rows.clone()));
         editor.set_tracks(ModelRc::from(models.tracks.clone()));
         editor.set_clips(ModelRc::from(models.clips.clone()));
         editor.set_stage_items(ModelRc::from(models.stage.clone()));
@@ -1952,6 +1954,39 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     }));
     app.on_model_remove(on_window!(|state, id: SharedString| {
         state.handle(Msg::Settings(SettingsMsg::ModelRemove(id.to_string())));
+    }));
+
+    let caption_library = app.global::<crate::ui::CaptionsLibrary>();
+    caption_library.on_scope_changed(on_window!(|state, all: bool| {
+        state.flush_commit();
+        state.caption_apply_all = all;
+    }));
+    caption_library.on_create(on_window!(|state, automatic: bool| {
+        let running = state.captions.running;
+        state.handle(Msg::Captions(CaptionsMsg::Open));
+        if !running {
+            state.handle(Msg::Captions(CaptionsMsg::VoiceToggled(automatic)));
+        }
+    }));
+    caption_library.on_import_srt(on_window!(|state| {
+        state.handle(Msg::Captions(CaptionsMsg::ImportSrt));
+    }));
+    caption_library.on_export_srt(on_window!(|state| {
+        state.handle(Msg::Captions(CaptionsMsg::ExportSrt));
+    }));
+    caption_library.on_adopt(on_window!(|state| {
+        state.adopt_caption_track();
+    }));
+    caption_library.on_select(on_lanes!(|state, id: SharedString| {
+        let start = state.clip(id.as_str()).map(|clip| clip.start);
+        state.clip_pressed(id.as_str(), false, 0);
+        state.clip_released();
+        if let Some(start) = start {
+            state.seek(start as f32);
+        }
+    }));
+    caption_library.on_edit(on_lanes!(|state, id: SharedString, text: SharedString| {
+        state.edit_caption(id.as_str(), text.as_str());
     }));
 
     // ── the tray's sound and word tools ──

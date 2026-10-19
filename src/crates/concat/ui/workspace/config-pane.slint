@@ -15,6 +15,8 @@ import {
 import {
     CurveData, CurveGroupData, WheelData, WheelGroupData,
 } from "../inspector/grading.slint";
+import { CaptionsLibrary } from "captions-panel.slint";
+import { CaptionPanel } from "../inspector/caption-panel.slint";
 import { TextPanel } from "../inspector/text-panel.slint";
 import {
     ClipField, ClipKind, ClipTextField, SelectedClipData, SelectedTransitionData,
@@ -243,7 +245,7 @@ export component ConfigPane inherits Rectangle {
         : ["Video", "Audio", "Effects"];
     /// The same tabs in the interface's language. `tabs` stays English,
     /// because the panels are picked by comparing against it.
-    property <[string]> tabs-shown: root.selected.batch-volume ? [I18n.t("common.audio")] : root.is-text ? [I18n.t("common.text")]
+    property <[string]> tabs-shown: root.selected.batch-volume ? [I18n.t("common.audio")] : root.is-text ? [CaptionsLibrary.style-count > 0 ? I18n.t("captions.captions") : I18n.t("common.text")]
         : root.is-layer ? [I18n.t("configPane.filter")]
         : root.is-shape ? [I18n.t("configPane.vectorImage")]
         : root.is-image ? [I18n.t("common.video"), I18n.t("common.effects")]
@@ -295,7 +297,7 @@ export component ConfigPane inherits Rectangle {
             ? (root.selected.batch-volume ? [I18n.t("configPane.basic")]
                 : [I18n.t("configPane.basic"), I18n.t("configPane.audioEffects")])
         : root.heading == "Effects" ? [I18n.t("common.effects")]
-        : root.heading == "Text" ? [I18n.t("common.text")]
+        : root.heading == "Text" ? [CaptionsLibrary.style-count > 0 ? I18n.t("captions.captions") : I18n.t("common.text")]
         : [I18n.t("common.layer"), I18n.t("common.adjust"), I18n.t("common.effects")];
 
     // Each tab remembers its own section, so flipping to Audio and back
@@ -694,7 +696,14 @@ export component ConfigPane inherits Rectangle {
                     commit => { root.clip-commit(); }
                 }
 
-                if root.showing == "Text": TextPanel {
+                if root.showing == "Text" && CaptionsLibrary.style-count > 0: CaptionPanel {
+                    selected: root.selected;
+                    set(field, value) => { root.clip-set(field, value); }
+                    set-text(field, value) => { root.clip-set-text(field, value); }
+                    set-colour(field, value) => { root.clip-set-colour(field, value); }
+                    commit => { root.clip-commit(); }
+                }
+                if root.showing == "Text" && CaptionsLibrary.style-count == 0: TextPanel {
                     selected: root.selected;
                     families: root.font-families;
                     set(field, value) => { root.clip-set(field, value); }

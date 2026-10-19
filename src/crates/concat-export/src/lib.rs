@@ -75,10 +75,34 @@ impl ClipKind {
     }
 }
 
+/// A generated image evaluated on the rendering worker, at clip-relative time.
+/// Shared by preview and export; no temporary movie or PNG sequence is needed.
+pub trait ImageSource: Send + Sync {
+    /// Render one frame at normalized clip-relative time and the requested size.
+    fn frame(
+        &self,
+        at: f64,
+        width: u32,
+        height: u32,
+    ) -> Result<Arc<concat_core::frame::Frame>, String>;
+}
+
+#[derive(Clone)]
+/// Shared, identity-comparable source for generated image clips.
+pub struct GeneratedImage(pub Arc<dyn ImageSource>);
+impl PartialEq for GeneratedImage {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
 /// One clip, as the frontend's flattener describes it.
 #[derive(Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportClip {
+    #[serde(skip)]
+    /// An in-process source; absent when the clip reads a media file.
+    pub generated: Option<GeneratedImage>,
     /// The media file this clip shows or plays.
     pub path: String,
     /// Which of the file's audio streams the clip plays, by stream index;
@@ -341,6 +365,7 @@ impl ExportClip {
             motion_dir: String::new(),
             highlighted: false,
             reveal_map: None,
+            generated: None,
             backdrop: None,
         }
     }
@@ -1625,6 +1650,7 @@ fn render_picture(
         ranges,
         chains,
         reveal_maps,
+        generated,
         cutouts,
         stabilized,
         highlight: _,
@@ -1685,7 +1711,7 @@ fn render_picture(
 
         let mut layers: Vec<PlannedLayer> = Vec::with_capacity(plan.layers.len());
         for layer in &plan.layers {
-            if !layer.paced {
+            if !layer.paced || generated.contains_key(&layer.clip) {
                 let (decode_width, decode_height) = decode_sizes
                     .get(&layer.clip)
                     .copied()
@@ -1696,21 +1722,28 @@ fn render_picture(
                 // last frame. This path used to drop a failed frame on the
                 // floor, so a reversed or retimed clip whose file had gone
                 // bad exported as a missing layer and nobody was told.
-                let frame = sought
-                    .frame_at(
-                        &layer.media,
-                        layer.source_time,
-                        decode_width,
-                        decode_height,
-                        stills.contains(&layer.clip),
-                        None,
-                        None,
-                        ranges.get(&layer.clip).copied(),
-                        // Deep where the frame goes to the GPU as it is: a
-                        // cutout cuts eight bits.
-                        !cutouts.contains_key(&layer.clip),
-                    )
-                    .map_err(|error| error.to_string())?;
+                let frame = if let Some(source) = generated.get(&layer.clip) {
+                    let at = timeline
+                        .clip(layer.clip)
+                        .map_or(0.0, |clip| clip.fraction_at(time));
+                    source.0.frame(at, request.width, request.height)?
+                } else {
+                    sought
+                        .frame_at(
+                            &layer.media,
+                            layer.source_time,
+                            decode_width,
+                            decode_height,
+                            stills.contains(&layer.clip),
+                            None,
+                            None,
+                            ranges.get(&layer.clip).copied(),
+                            // Deep where the frame goes to the GPU as it is: a
+                            // cutout cuts eight bits.
+                            !cutouts.contains_key(&layer.clip),
+                        )
+                        .map_err(|error| error.to_string())?
+                };
                 let frame = cutouts
                     .get(&layer.clip)
                     .and_then(|job| job.cut(&frame, layer.source_time))
@@ -2240,6 +2273,7 @@ pub fn preview_sources_of(
         ranges: _,
         chains,
         reveal_maps,
+        generated,
         cutouts,
         stabilized,
         highlight,
@@ -2258,13 +2292,22 @@ pub fn preview_sources_of(
             .unwrap_or((plan.width, plan.height));
         // A source that fails to decode contributes nothing rather than
         // blanking the monitor - same grace the exporter extends.
-        match pool.frame(&frame_request(
-            plan,
-            layer,
-            (decode_width, decode_height),
-            stills.contains(&layer.clip),
-            proxy,
-        )) {
+        let decoded = if let Some(source) = generated.get(&layer.clip) {
+            let at = timeline
+                .clip(layer.clip)
+                .map_or(0.0, |clip| clip.fraction_at(time));
+            source.0.frame(at, plan.width, plan.height)
+        } else {
+            pool.frame(&frame_request(
+                plan,
+                layer,
+                (decode_width, decode_height),
+                stills.contains(&layer.clip),
+                proxy,
+            ))
+            .map_err(|error| error.to_string())
+        };
+        match decoded {
             Ok(frame) => {
                 let highlighted = highlight == Some(layer.clip);
                 let frame = match cutouts.get(&layer.clip).and_then(|job| {
@@ -2474,6 +2517,7 @@ pub fn preview_moments(
                 frames: plan_at
                     .layers
                     .iter()
+                    .filter(|layer| !plan.built.generated.contains_key(&layer.clip))
                     .map(|layer| {
                         let size = decode_sizes
                             .get(&layer.clip)

@@ -199,8 +199,17 @@ impl CaptionsPane {
                         let Some(subject) = subject else {
                             return;
                         };
-                        let look = subject.look;
-                        let base = studio.prefs.title_style.clone();
+                        let look = if studio
+                            .timeline()
+                            .clips
+                            .iter()
+                            .any(|clip| concat_project::captions::is_caption(clip))
+                        {
+                            self.collection_look(studio)
+                        } else {
+                            subject.look
+                        };
+                        let base = collection_style(studio);
                         let commands: Vec<Command> = segments
                             .into_iter()
                             .filter_map(|segment| {
@@ -271,8 +280,8 @@ impl CaptionsPane {
                 return;
             }
         };
-        let look = self.look();
-        let base = studio.prefs.title_style.clone();
+        let look = self.collection_look(studio);
+        let base = collection_style(studio);
         let commands = srt_commands(cues, look, base.as_ref());
         if commands.is_empty() {
             self.message = t("captions.noSubtitlesInFile");
@@ -339,7 +348,26 @@ impl CaptionsPane {
             self.message = t("captions.noCaptionsToExport");
             return;
         };
-        let cues = srt::title_cues(studio.timeline(), Some(&lane.track_id));
+        let marked: Vec<_> = studio
+            .timeline()
+            .clips
+            .iter()
+            .filter(|clip| concat_project::captions::is_caption(clip))
+            .collect();
+        let cues = if marked.is_empty() {
+            srt::title_cues(studio.timeline(), Some(&lane.track_id))
+        } else {
+            let mut cues: Vec<_> = marked
+                .into_iter()
+                .map(|clip| srt::Cue {
+                    start: clip.start,
+                    end: clip.start + clip.duration,
+                    text: clip.text.as_ref().unwrap().content.clone(),
+                })
+                .collect();
+            cues.sort_by(|a, b| a.start.total_cmp(&b.start));
+            cues
+        };
         if let Err(error) = std::fs::write(path, srt::write(&cues)) {
             log::warn!("captions: could not write {}: {error}", path.display());
             self.message = tf("captions.couldNotWriteSubtitles", &[&error]);
@@ -355,7 +383,13 @@ impl CaptionsPane {
         // Which lane was written goes without saying when it was the
         // selected title's, or the only lane with titles; otherwise the
         // notice says it was the busiest, and how to pick another.
-        let busiest = lane.busiest && srt::title_lanes(studio.timeline()) > 1;
+        let busiest = !studio
+            .timeline()
+            .clips
+            .iter()
+            .any(|clip| concat_project::captions::is_caption(clip))
+            && lane.busiest
+            && srt::title_lanes(studio.timeline()) > 1;
         let say = move |studio: &mut Studio, place: &str| {
             // Each key spelled out where it is used: scripts/locales.py
             // finds the strings the source asks for by reading it.
@@ -434,6 +468,21 @@ impl CaptionsPane {
         )
     }
 
+    fn collection_look(&self, studio: &Studio) -> (f64, f64) {
+        studio
+            .timeline()
+            .clips
+            .iter()
+            .find(|clip| {
+                clip.text
+                    .as_ref()
+                    .and_then(|style| style.caption_group.as_deref())
+                    == Some(concat_project::captions::DEFAULT_GROUP)
+            })
+            .map(|clip| (clip.offset_y, clip.text.as_ref().unwrap().font_size))
+            .unwrap_or_else(|| self.look())
+    }
+
     /// A caption's look, by the sheet's rows: where it sits and its size.
     fn look(&self) -> (f64, f64) {
         (
@@ -449,9 +498,9 @@ impl CaptionsPane {
             self.message = t("captions.nothingToCaptionYet");
             return;
         }
-        let look = self.look();
+        let look = self.collection_look(studio);
         let mut at = f64::from(studio.playhead);
-        let base = studio.prefs.title_style.clone();
+        let base = collection_style(studio);
         let commands: Vec<Command> = lines
             .into_iter()
             .map(|(text, seconds)| {
@@ -521,7 +570,7 @@ impl CaptionsPane {
         self.subject = Some(Subject {
             start: clip.start,
             speed: clip.speed,
-            look: self.look(),
+            look: self.collection_look(studio),
             model,
             windows,
         });
@@ -735,6 +784,21 @@ fn source_label(name: &str, start: f64) -> String {
     }
 }
 
+fn collection_style(studio: &Studio) -> Option<TextStyle> {
+    studio
+        .timeline()
+        .clips
+        .iter()
+        .find(|clip| {
+            clip.text
+                .as_ref()
+                .and_then(|style| style.caption_group.as_deref())
+                == Some(concat_project::captions::DEFAULT_GROUP)
+        })
+        .and_then(|clip| clip.text.clone())
+        .or_else(|| studio.prefs.title_style.clone())
+}
+
 /// One caption as a title clip: its words, when and for how long, and
 /// its look.
 fn caption_clip(
@@ -748,7 +812,7 @@ fn caption_clip(
     // The kept look where there is one - family, weight, colours, stroke,
     // shadow, background - at the caption's own size and place; the
     // bundled face otherwise.
-    let style = match base {
+    let mut style = match base {
         Some(base) => TextStyle {
             content: text,
             font_size,
@@ -764,6 +828,7 @@ fn caption_clip(
             ..TextStyle::default()
         },
     };
+    style.caption_group = Some(concat_project::captions::DEFAULT_GROUP.to_owned());
     Command::AddTextClip {
         track_id: None,
         above: true,

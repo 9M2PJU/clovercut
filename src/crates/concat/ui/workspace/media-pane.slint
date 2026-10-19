@@ -15,6 +15,8 @@ import { ContextMenu, MenuItemData } from "../primitives/context-menu.slint";
 import { SourcePreview } from "source-preview.slint";
 import { Sounds, SoundList, VoiceList } from "audio-page.slint";
 
+import { CaptionsPanel, CaptionsLibrary } from "captions-panel.slint";
+
 export { SourcePreview }
 
 // The library pane: a strip of pages across the top, then a narrow category
@@ -1943,6 +1945,12 @@ export component MediaPane inherits Rectangle {
                             clicked => { root.tab = 1; }
                         }
                         LibraryTab {
+                            glyph: Glyph.captions;
+                            label: I18n.t("captions.captions");
+                            current: root.tab == 9;
+                            clicked => { root.tab = 9; }
+                        }
+                        LibraryTab {
                             glyph: Glyph.sticker;
                             label: I18n.t("mediaPane.stickers");
                             current: root.tab == 2;
@@ -2204,6 +2212,19 @@ export component MediaPane inherits Rectangle {
                         }
                     }
 
+                    if root.tab == 9: VerticalLayout {
+                        CategoryHeading {
+                            height: 26px;
+                            title: I18n.t("captions.captions");
+                            open: true;
+                        }
+                        CategoryRow {
+                            height: 24px;
+                            label: I18n.t("captions.allCaptions");
+                            count: CaptionsLibrary.rows.length;
+                            current: true;
+                        }
+                    }
                     if root.tab == 1: VerticalLayout {
                         spacing: 1px;
                         CategoryHeading {
@@ -2380,6 +2401,8 @@ export component MediaPane inherits Rectangle {
                 x: root.sidebar + 1px;
                 width: Math.max(0px, parent.width - root.sidebar - 1px);
                 height: parent.height;
+
+                if root.tab == 9: CaptionsPanel { width: parent.width; height: parent.height; }
 
                 if root.tab == 0: HorizontalLayout {
                     padding: 8px;

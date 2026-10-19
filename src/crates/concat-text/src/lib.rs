@@ -71,6 +71,12 @@ pub struct TitleStyle {
     pub font_weight: f64,
     /// Italic when true.
     pub italic: bool,
+    /// Draw an underline with the text fill and outline.
+    pub underline: bool,
+    /// Vertical alignment within a fixed-height box: top, centre, bottom.
+    pub vertical_align: u8,
+    /// Top-to-bottom writing with upright glyphs and right-to-left columns.
+    pub vertical: bool,
     /// Fill colour as `#rrggbb` or `#rrggbbaa`.
     pub color: String,
     /// Line alignment within the block.
@@ -903,6 +909,7 @@ impl ttf_parser::OutlineBuilder for Outliner<'_> {
 /// What setting a line needs: the title's faces, in [`Casting`]'s order,
 /// and its sizes in pixels.
 struct Setter<'a> {
+    vertical: bool,
     faces: &'a [rustybuzz::Face<'a>],
     em: f32,
     tracking: f32,
@@ -972,6 +979,10 @@ impl Setter<'_> {
     /// which for right-to-left text is not the order they are read; each
     /// run is split where its face changes, and shaped piece by piece.
     fn set(&self, para: &Paragraph<'_>, range: Range<usize>, outline: bool) -> Line {
+        if self.vertical {
+            return self.set_vertical(para, range, outline);
+        }
+
         if range.is_empty() {
             return Line {
                 path: None,
@@ -1060,6 +1071,79 @@ impl Setter<'_> {
                         .filter(|(cluster, _, _)| word.contains(cluster))
                         .fold(None, |span: Option<(f32, f32)>, &(_, left, right)| {
                             Some(span.map_or((left, right), |(l, r)| (l.min(left), r.max(right))))
+                        })
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        Line {
+            path: builder.finish(),
+            marks,
+            width,
+            words,
+        }
+    }
+
+    /// Shape a column with the font's vertical metrics and OpenType `vert`
+    /// substitutions (notably the vertical forms of CJK punctuation).
+    fn set_vertical(&self, para: &Paragraph<'_>, range: Range<usize>, outline: bool) -> Line {
+        let mut builder = PathBuilder::new();
+        let mut marks = Vec::new();
+        let mut spans = Vec::new();
+        let mut pen = 0.0_f32;
+        let mut start = range.start;
+        while start < range.end {
+            let mut end = start + para.text[start..].chars().next().unwrap().len_utf8();
+            while end < range.end && para.face_of[end] == para.face_of[start] {
+                end += para.text[end..].chars().next().unwrap().len_utf8();
+            }
+            let face = &self.faces[para.face_of[start]];
+            let scale = self.em / face.units_per_em() as f32;
+            let mut buffer = rustybuzz::UnicodeBuffer::new();
+            buffer.push_str(&para.text[start..end]);
+            buffer.set_direction(rustybuzz::Direction::TopToBottom);
+            buffer.guess_segment_properties();
+            let shaped = rustybuzz::shape(face, &[], buffer);
+            for (info, position) in shaped.glyph_infos().iter().zip(shaped.glyph_positions()) {
+                if outline {
+                    let glyph = ttf_parser::GlyphId(info.glyph_id as u16);
+                    let x = position.x_offset as f32 * scale;
+                    let y = pen - position.y_offset as f32 * scale;
+                    if let Some(mark) = self.mark(face, glyph, x, y, scale) {
+                        marks.push(mark);
+                    } else {
+                        face.outline_glyph(
+                            glyph,
+                            &mut Outliner {
+                                builder: &mut builder,
+                                scale,
+                                x,
+                                y,
+                            },
+                        );
+                    }
+                }
+                let advance = (-position.y_advance as f32 * scale).max(0.0);
+                spans.push((start + info.cluster as usize, pen, pen + advance));
+                pen += advance + if advance > 0.0 { self.tracking } else { 0.0 };
+            }
+            start = end;
+        }
+        let width = if spans.is_empty() {
+            0.0
+        } else {
+            (pen - self.tracking).max(0.0)
+        };
+        let words = if outline {
+            words(para.text, range)
+                .into_iter()
+                .filter_map(|word| {
+                    spans
+                        .iter()
+                        .filter(|(cluster, _, _)| word.contains(cluster))
+                        .fold(None, |span: Option<(f32, f32)>, &(_, top, bottom)| {
+                            Some(span.map_or((top, bottom), |(t, b)| (t.min(top), b.max(bottom))))
                         })
                 })
                 .collect()
@@ -1400,6 +1484,7 @@ fn paint(
     // `COLR` palette entry of 0xFFFF means "paint it with the text's own".
     let fill = colour(&style.color).unwrap_or(Color::WHITE);
     let setter = Setter {
+        vertical: style.vertical,
         faces: &faces,
         em,
         tracking,
@@ -1415,13 +1500,31 @@ fn paint(
                 bidi: ParagraphBidiInfo::new(text, None),
                 face_of,
             };
-            setter.wrap(&para, wrap_w)
+            let extent = if style.vertical {
+                if max_h > 0.0 {
+                    max_h
+                } else {
+                    (frame_h - 2.0 * pad_y).max(em)
+                }
+            } else {
+                wrap_w
+            };
+            setter.wrap(&para, extent)
         })
         .collect();
     let rows = lines.len().max(1);
-    let words_w = lines.iter().map(|line| line.width).fold(0.0, f32::max);
-    let words_h = (rows as f32 - 1.0) * pitch + ascent + descent;
-    if words_w <= 0.0 || lines.is_empty() {
+    let longest = lines.iter().map(|line| line.width).fold(0.0, f32::max);
+    let words_w = if style.vertical {
+        (rows as f32 - 1.0) * pitch + em
+    } else {
+        longest
+    };
+    let words_h = if style.vertical {
+        longest
+    } else {
+        (rows as f32 - 1.0) * pitch + ascent + descent
+    };
+    if longest <= 0.0 || lines.is_empty() {
         // Nothing to paint: an empty, valid canvas.
         return Ok((canvas, (0, 0, 0, 0), Vec::new()));
     }
@@ -1458,7 +1561,14 @@ fn paint(
     };
     let left = outer_left + pad_x;
     // The words are centred in a box taller than they are.
-    let top = (frame_h - outer_h) / 2.0 + pad_y + (box_h - words_h) / 2.0;
+    let top = (frame_h - outer_h) / 2.0
+        + pad_y
+        + (box_h - words_h)
+            * match style.vertical_align {
+                0 => 0.0,
+                2 => 1.0,
+                _ => 0.5,
+            };
     // Fractional edges paint partial pixels on both sides. Report the
     // enclosing pixel box rather than rounding the geometric size, which
     // can leave the monitor's outline smaller than the painted plate.
@@ -1470,33 +1580,65 @@ fn paint(
     let block_height = (block_bottom - block_top) as u32;
     let block_dx = ((block_left + block_right) / 2.0 - anchor_x).round() as i32;
 
-    // One path for all the words, placed. Each line is aligned within the
-    // box's width and sits on its own baseline. A word's box rides the
-    // same indent and baseline, in reading order - a line that paints
-    // its glyphs' own colours has no path to place but still has words.
+    // Both writing modes share the same painting path, including outlines,
+    // shadows, colour glyphs and word-reveal rectangles.
+    let origin = |row: usize, line: &Line| -> (f32, f32) {
+        if style.vertical {
+            let inset = match style.align {
+                Align::Left => 0.0,
+                Align::Center => (box_w - words_w) / 2.0,
+                Align::Right => box_w - words_w,
+            };
+            (
+                left + inset + (rows - 1 - row) as f32 * pitch + em / 2.0,
+                top,
+            )
+        } else {
+            let indent = match style.align {
+                Align::Left => 0.0,
+                Align::Center => (box_w - line.width) / 2.0,
+                Align::Right => box_w - line.width,
+            };
+            (left + indent, top + ascent + row as f32 * pitch)
+        }
+    };
     let mut words = PathBuilder::new();
     let mut word_rects = Vec::new();
     for (row, line) in lines.iter().enumerate() {
-        let indent = match style.align {
-            Align::Left => 0.0,
-            Align::Center => (box_w - line.width) / 2.0,
-            Align::Right => box_w - line.width,
-        };
-        let baseline = top + ascent + row as f32 * pitch;
+        let (x, y) = origin(row, line);
         if let Some(path) = &line.path {
             let placed = path
                 .clone()
-                .transform(Transform::from_translate(left + indent, baseline))
+                .transform(Transform::from_translate(x, y))
                 .expect("a translated glyph path stays finite");
             words.push_path(&placed);
         }
-        let line_top = baseline - ascent;
-        for &(start_x, end_x) in &line.words {
-            word_rects.push(WordRect {
-                x: (left + indent + start_x).round() as i32,
-                y: line_top.round() as i32,
-                width: (end_x - start_x).max(0.0).round() as u32,
-                height: (ascent + descent).round() as u32,
+        if style.underline && line.width > 0.0 {
+            let thickness = (em * 0.055).max(1.0);
+            let rect = if style.vertical {
+                Rect::from_xywh(x + em / 2.0, y, thickness, line.width)
+            } else {
+                Rect::from_xywh(x, y + descent * 0.3, line.width, thickness)
+            };
+            if let Some(rect) = rect {
+                words.push_rect(rect);
+            }
+        }
+        for &(start, end) in &line.words {
+            word_rects.push(if style.vertical {
+                WordRect {
+                    x: (x - em / 2.0).round() as i32,
+                    y: (y + start).round() as i32,
+                    width: em.round() as u32,
+                    height: (end - start).max(0.0).round() as u32,
+                }
+            } else {
+                WordRect {
+                    x: (x + start).round() as i32,
+                    y: (y - ascent).round() as i32,
+                    width: (end - start).max(0.0).round() as u32,
+                    height: (ascent + descent).round() as u32,
+                }
             });
         }
     }
@@ -1588,18 +1730,13 @@ fn paint(
         if line.marks.is_empty() {
             continue;
         }
-        let indent = match style.align {
-            Align::Left => 0.0,
-            Align::Center => (box_w - line.width) / 2.0,
-            Align::Right => box_w - line.width,
-        };
-        let baseline = top + ascent + row as f32 * pitch;
-        let placed = Transform::from_translate(left + indent, baseline);
+        let (x, y) = origin(row, line);
+        let placed = Transform::from_translate(x, y);
         for mark in &line.marks {
             match mark {
                 Mark::Bitmap {
-                    x,
-                    y,
+                    x: mark_x,
+                    y: mark_y,
                     width,
                     height,
                     pixmap,
@@ -1616,14 +1753,7 @@ fn paint(
                             quality: FilterQuality::Bilinear,
                             ..PixmapPaint::default()
                         },
-                        Transform::from_row(
-                            scale_x,
-                            0.0,
-                            0.0,
-                            scale_y,
-                            left + indent + *x,
-                            baseline + *y,
-                        ),
+                        Transform::from_row(scale_x, 0.0, 0.0, scale_y, x + *mark_x, y + *mark_y),
                         None,
                     );
                 }
@@ -1995,6 +2125,9 @@ mod tests {
             font_size: 0.09,
             font_weight: 700.0,
             italic: false,
+            underline: false,
+            vertical_align: 1,
+            vertical: false,
             color: "#ffffff".to_owned(),
             align: Align::Center,
             stroke_width: 0.0,
@@ -2009,6 +2142,98 @@ mod tests {
             max_width: 0.0,
             max_height: 0.0,
         }
+    }
+
+    #[test]
+    fn vertical_writing_keeps_glyphs_upright_and_columns_right_to_left() {
+        let fonts = Fonts::new();
+        let mut text = style("ABC\nDE");
+        text.font_size = 0.15;
+        text.shadow = false;
+        text.vertical = true;
+        let column = render_frame(&fonts, &text, 640, 360).unwrap();
+        assert_eq!(column.words.len(), 2);
+        assert!(
+            column.words[0].x > column.words[1].x,
+            "first column is on the right"
+        );
+        assert_eq!(
+            column.words[0].y, column.words[1].y,
+            "columns share their top"
+        );
+        assert!(column.words[0].height > column.words[1].height);
+        assert!(column.block_height > column.block_width);
+        // A tall asymmetric glyph retains its dimensions, rather than being rotated.
+        text.content = "L".into();
+        let upright = render(&fonts, &text, 640, 360).unwrap();
+        text.vertical = false;
+        let horizontal = render(&fonts, &text, 640, 360).unwrap();
+        let (vl, vr) = painted_span(&upright.png);
+        let (vt, vb) = painted_rows(&upright.png);
+        let (hl, hr) = painted_span(&horizontal.png);
+        let (ht, hb) = painted_rows(&horizontal.png);
+        assert!((vr - vl).abs_diff(hr - hl) <= 2, "glyph width is preserved");
+        assert!(
+            (vb - vt).abs_diff(hb - ht) <= 2,
+            "glyph height is preserved"
+        );
+    }
+
+    #[test]
+    fn vertical_cjk_wraps_to_new_columns_at_the_height_limit() {
+        let fonts = Fonts::new();
+        let mut text = style("日本語の縦書きです");
+        text.font_size = 0.15;
+        text.shadow = false;
+        text.vertical = true;
+        text.max_height = 0.3;
+        let rendered = render_frame(&fonts, &text, 640, 360).unwrap();
+        assert!(rendered.rgba.chunks_exact(4).any(|p| p[3] > 0));
+        assert!(
+            rendered.block_width > 100,
+            "height limit creates multiple columns"
+        );
+        assert!(
+            rendered.block_height <= 109,
+            "columns stay within the requested height"
+        );
+        assert!(
+            rendered.words.windows(2).any(|w| w[0].x > w[1].x),
+            "wrap progresses to the left"
+        );
+    }
+
+    #[test]
+    fn underlining_and_vertical_alignment_change_the_rendered_words() {
+        let fonts = Fonts::new();
+        let mut text = style("Caption");
+        text.shadow = false;
+        text.font_size = 0.15;
+        text.max_height = 0.8;
+        let plain = render_frame(&fonts, &text, 640, 360).unwrap();
+        text.underline = true;
+        let underlined = render_frame(&fonts, &text, 640, 360).unwrap();
+        let alpha = |frame: &RenderedFrame| {
+            frame
+                .rgba
+                .chunks_exact(4)
+                .map(|p| u64::from(p[3]))
+                .sum::<u64>()
+        };
+        assert!(
+            alpha(&underlined) > alpha(&plain),
+            "underline adds visible ink"
+        );
+        let mut tops = Vec::new();
+        for align in [0, 1, 2] {
+            text.vertical_align = align;
+            let rendered = render_frame(&fonts, &text, 640, 360).unwrap();
+            tops.push(rendered.words[0].y);
+        }
+        assert!(
+            tops[0] < tops[1] && tops[1] < tops[2],
+            "top/centre/bottom: {tops:?}"
+        );
     }
 
     /// A limit narrower than the words wraps them: the block comes out no

@@ -55,7 +55,7 @@ use crate::dock::{
     Dock, DockLayout, SEAT_GAP, default_dock, lay_out, nearest_row, row_at, row_top,
 };
 use crate::format::{
-    WAVE_BAR, WAVE_PITCH, colour_of, frames_timecode, hex_of, hex_rgba, hex_with_alpha, rate_label,
+    WAVE_BAR, WAVE_PITCH, colour_of, frames_timecode, hex_of, hex_with_alpha, rate_label,
     running_time, wave_columns, wave_path, when_phrase,
 };
 use crate::grading;
@@ -664,6 +664,7 @@ pub struct Models {
     pub bar: Rc<VecModel<MenuItemData>>,
     /// The sheets' option lists: what is installed, and who can speak.
     pub caption_models: Rc<VecModel<SharedString>>,
+    pub caption_rows: Rc<VecModel<crate::ui::CaptionRowData>>,
     pub speech_models: Rc<VecModel<SharedString>>,
     pub speech_model_details: Rc<VecModel<SharedString>>,
     pub speakers: Rc<VecModel<SharedString>>,
@@ -741,6 +742,7 @@ impl Models {
             menu: Rc::new(VecModel::default()),
             bar: Rc::new(VecModel::default()),
             caption_models: Rc::new(VecModel::default()),
+            caption_rows: Rc::new(VecModel::default()),
             speech_models: Rc::new(VecModel::default()),
             speech_model_details: Rc::new(VecModel::default()),
             speakers: Rc::new(VecModel::default()),
@@ -844,6 +846,7 @@ pub struct Studio {
     pub lanes: crate::panes::timeline::TimelinePane,
     pub selection: Vec<String>,
     pub playhead: f32,
+    pub caption_apply_all: bool,
     pub playing: bool,
     transport: slint::Timer,
     /// The phone's lanes carrying on after a finger throws them, and the
@@ -933,6 +936,7 @@ pub struct Studio {
         u32,
         u32,
         std::sync::Arc<Vec<concat_export::ExportClip>>,
+        Vec<String>,
     )>,
     /// An inspector commit waiting to land: a knob being dragged commits
     /// on every move, and each commit was a command, an undo of the last,
@@ -1138,6 +1142,7 @@ fn new_title_style(prefs: &crate::prefs::Preferences) -> TextStyle {
     });
     TextStyle {
         content: "New title".to_owned(),
+        caption_group: None,
         ..base
     }
 }
@@ -1319,6 +1324,14 @@ fn commit_key(commands: &[Command]) -> String {
 /// `Studio::key_property_of`, for handing a row back to the panel.
 fn key_field_of(property: model::KeyProperty) -> ClipField {
     match property {
+        model::KeyProperty::TextRed => ClipField::TextColor,
+        model::KeyProperty::TextGreen => ClipField::TextGreenKey,
+        model::KeyProperty::TextBlue => ClipField::TextBlueKey,
+        model::KeyProperty::StrokeRed => ClipField::StrokeColorKey,
+        model::KeyProperty::StrokeGreen => ClipField::StrokeGreenKey,
+        model::KeyProperty::StrokeBlue => ClipField::StrokeBlueKey,
+        model::KeyProperty::StrokeOpacity => ClipField::StrokeOpacity,
+        model::KeyProperty::StrokeWidth => ClipField::StrokeWidth,
         model::KeyProperty::Scale => ClipField::Scale,
         model::KeyProperty::OffsetX => ClipField::OffsetX,
         model::KeyProperty::OffsetY => ClipField::OffsetY,
@@ -1420,6 +1433,13 @@ fn model_value(property: model::KeyProperty, knob: f64) -> f64 {
 /// curve view's height spans. The same numbers as the inspector's rows.
 fn knob_range(property: model::KeyProperty) -> (f64, f64) {
     match property {
+        property if property.is_text() => {
+            if property == model::KeyProperty::StrokeWidth {
+                (0.0, 0.15)
+            } else {
+                (0.0, 1.0)
+            }
+        }
         model::KeyProperty::Scale => (0.05, 8.0),
         model::KeyProperty::OffsetX | model::KeyProperty::OffsetY => (-1.0, 1.0),
         model::KeyProperty::Rotation => (-180.0, 180.0),
@@ -1429,6 +1449,7 @@ fn knob_range(property: model::KeyProperty) -> (f64, f64) {
         model::KeyProperty::MaskWidth | model::KeyProperty::MaskHeight => (0.01, 4.0),
         model::KeyProperty::MaskRotation => (-180.0, 180.0),
         model::KeyProperty::MaskRoundness | model::KeyProperty::MaskFeather => (0.0, 1.0),
+        _ => unreachable!("all text properties handled above"),
     }
 }
 
@@ -1480,6 +1501,7 @@ fn write_keyable(clip: &mut Clip, property: model::KeyProperty, value: f64, at: 
         model::KeyProperty::Rotation => clip.rotation = value,
         model::KeyProperty::Opacity => clip.opacity = value,
         model::KeyProperty::Volume => clip.volume = value,
+        property if property.is_text() => clip.set_text_constant(property, value),
         // The mask's numbers are the mask's; a number turned on a clip
         // with none puts one on, the shape a new one starts as.
         mask => clip
@@ -2302,6 +2324,7 @@ impl Studio {
             lanes: crate::panes::timeline::TimelinePane::default(),
             selection: Vec::new(),
             playhead: 0.0,
+            caption_apply_all: true,
             // ~20px a second: a ten-second cut fits a pane at its default width.
             playing: false,
             transport: slint::Timer::default(),
@@ -2910,6 +2933,9 @@ impl Studio {
     /// project.
     pub fn preview_clips(
         &mut self,
+        shown_w: u32,
+        shown_h: u32,
+        time: f64,
     ) -> Option<(
         std::sync::Arc<Vec<concat_export::ExportClip>>,
         concat_project::DocumentSettings,
@@ -2925,16 +2951,16 @@ impl Studio {
         // folder included: that is what names a cutout's masks, and
         // without it the monitor would show every cutout as shot.
         let project_dir = std::path::PathBuf::from(session.path());
-        let (width, height) = self.output_size();
+        let (width, _) = self.output_size();
         // The flattening is the document's, not the frame's: kept between
         // frames of an unchanged document and handed over by pointer, so
         // playback and scrubbing neither flatten nor plan again. A gesture
         // in flight - the echo - is not the document, and flattens fresh.
+        let visible_titles = concat_host::titles::Titles::preview_ids(self.project(), time);
         let cached = self.echo.is_none()
-            && self
-                .flat
-                .as_ref()
-                .is_some_and(|(at, w, h, _)| *at == self.revision && *w == width && *h == height);
+            && self.flat.as_ref().is_some_and(|(at, w, h, _, titles)| {
+                *at == self.revision && *w == shown_w && *h == shown_h && *titles == visible_titles
+            });
         let clips = if cached {
             std::sync::Arc::clone(&self.flat.as_ref().expect("checked").3)
         } else {
@@ -2943,49 +2969,41 @@ impl Studio {
                 None,
                 Some(&project_dir),
             );
-            // Titles, painted to pictures and rejoined; see concat-host's titles.
-            if self.echo.is_some() {
-                // A change in flight: the titles are painted in memory at
-                // the monitor's size and handed to it as pixels - no file
-                // per pointer step - and the blocks they report are scaled
-                // back up to the output's terms, which the stage measures
-                // in. Nothing is written until the change is committed.
-                let (shown_w, shown_h) = crate::panes::monitor::MonitorPane::frame_size(
-                    self.quality_of(),
-                    (width, height),
+            // Only the titles under this frame are painted, in memory at the
+            // monitor's size. A caption collection may contain thousands of
+            // different strings; painting the whole timeline here blocked the
+            // event loop and allocated full-frame reveal maps for all of them.
+            let scale = f64::from(shown_w) / f64::from(width);
+            let up = |px: u32| (f64::from(px) / scale).round() as u32;
+            let up_off = |px: i32| (f64::from(px) / scale).round() as i32;
+            for title in self
+                .host
+                .titles
+                .clips_live_at(self.project(), shown_w, shown_h, time)
+            {
+                self.title_blocks.insert(
+                    title.clip_id,
+                    (
+                        (up(title.block.0), up(title.block.1)),
+                        (up_off(title.offset.0), up_off(title.offset.1)),
+                    ),
                 );
-                let scale = f64::from(shown_w) / f64::from(width);
-                let up = |px: u32| (f64::from(px) / scale).round() as u32;
-                let up_off = |px: i32| (f64::from(px) / scale).round() as i32;
-                for title in self
-                    .host
-                    .titles
-                    .clips_live(self.project(), shown_w, shown_h)
-                {
-                    self.title_blocks.insert(
-                        title.clip_id,
-                        (
-                            (up(title.block.0), up(title.block.1)),
-                            (up_off(title.offset.0), up_off(title.offset.1)),
-                        ),
-                    );
-                    if let Some(frame) = title.frame {
-                        self.host
-                            .monitor
-                            .hold_still(std::path::Path::new(&title.clip.path), frame);
-                    }
-                    clips.push(title.clip);
+                if let Some(frame) = title.frame {
+                    self.host
+                        .monitor
+                        .hold_still(std::path::Path::new(&title.clip.path), frame);
                 }
-            } else {
-                for title in self.host.titles.clips(self.project(), width, height) {
-                    self.title_blocks
-                        .insert(title.clip_id, (title.block, title.offset));
-                    clips.push(title.clip);
-                }
+                clips.push(title.clip);
             }
             let clips = std::sync::Arc::new(clips);
             if self.echo.is_none() {
-                self.flat = Some((self.revision, width, height, std::sync::Arc::clone(&clips)));
+                self.flat = Some((
+                    self.revision,
+                    shown_w,
+                    shown_h,
+                    std::sync::Arc::clone(&clips),
+                    visible_titles,
+                ));
             }
             clips
         };
@@ -4028,6 +4046,96 @@ impl Studio {
         }
     }
 
+    /// Explicitly adopt an existing text lane; ordinary titles elsewhere stay titles.
+    pub fn adopt_caption_track(&mut self) {
+        self.flush_commit();
+        let Some(selected) = self
+            .sole_selection()
+            .and_then(|id| self.clip(&id))
+            .filter(|clip| clip.kind == model::ClipKind::Text)
+            .cloned()
+        else {
+            return;
+        };
+        if self.locked(&selected.track_id) {
+            return;
+        }
+        let base = self
+            .timeline()
+            .clips
+            .iter()
+            .find(|clip| {
+                clip.text
+                    .as_ref()
+                    .and_then(|style| style.caption_group.as_deref())
+                    == Some(concat_project::captions::DEFAULT_GROUP)
+            })
+            .and_then(|clip| clip.text.clone())
+            .or_else(|| selected.text.clone())
+            .unwrap_or_default();
+        let commands = self
+            .timeline()
+            .clips
+            .iter()
+            .filter(|clip| clip.track_id == selected.track_id && clip.kind == model::ClipKind::Text)
+            .map(|clip| {
+                let mut style = base.clone();
+                style.content = clip
+                    .text
+                    .as_ref()
+                    .map(|style| style.content.clone())
+                    .unwrap_or_default();
+                style.caption_group = Some(concat_project::captions::DEFAULT_GROUP.to_owned());
+                Command::UpdateClip {
+                    clip_id: clip.id.clone(),
+                    patch: concat_project::commands::ClipPatch {
+                        text: Some(Some(style)),
+                        ..Default::default()
+                    },
+                }
+            })
+            .collect();
+        self.apply(Command::Batch { commands });
+    }
+
+    /// Edit one caption's words without changing the collection's style or timing.
+    pub fn edit_caption(&mut self, id: &str, content: &str) {
+        self.flush_commit();
+        let Some(clip) = self.clip(id).filter(|clip| {
+            concat_project::captions::is_caption(clip) && !self.locked(&clip.track_id)
+        }) else {
+            return;
+        };
+        let Some(mut style) = clip.text.clone() else {
+            return;
+        };
+        if style.content == content {
+            return;
+        }
+        style.content = content.to_owned();
+        self.apply(Command::UpdateClip {
+            clip_id: id.to_owned(),
+            patch: concat_project::commands::ClipPatch {
+                text: Some(Some(style)),
+                ..Default::default()
+            },
+        });
+    }
+
+    fn caption_style_targets(&self) -> Vec<String> {
+        concat_project::captions::scoped_targets(
+            self.timeline(),
+            &self.edit_targets(),
+            self.caption_apply_all,
+        )
+        .into_iter()
+        .filter(|id| {
+            self.clip(id)
+                .is_some_and(|clip| !self.locked(&clip.track_id))
+        })
+        .collect()
+    }
+
     fn volume_targets(&self) -> Vec<String> {
         crate::batch_volume::targets(self.project(), &self.selection, |track| self.locked(track))
     }
@@ -5027,7 +5135,37 @@ impl Studio {
     /// One field of the selected clip, on the echo. `clip_commit` turns the
     /// accumulated edits into commands.
     pub fn clip_set(&mut self, field: ClipField, value: f32) {
-        let mut ids = self.edit_targets();
+        let mut ids = if matches!(
+            field,
+            ClipField::Scale
+                | ClipField::Rotation
+                | ClipField::Opacity
+                | ClipField::Underline
+                | ClipField::TextVertical
+                | ClipField::VerticalAlign
+                | ClipField::OffsetX
+                | ClipField::OffsetY
+                | ClipField::FontSize
+                | ClipField::FontWeight
+                | ClipField::Italic
+                | ClipField::TextOpacity
+                | ClipField::StrokeOpacity
+                | ClipField::BackgroundOpacity
+                | ClipField::StrokeWidth
+                | ClipField::Shadow
+                | ClipField::Align
+                | ClipField::LineHeight
+                | ClipField::Tracking
+                | ClipField::TextWidth
+                | ClipField::TextHeight
+                | ClipField::BackgroundRadius
+                | ClipField::BackgroundPaddingX
+                | ClipField::BackgroundPaddingY
+        ) {
+            self.caption_style_targets()
+        } else {
+            self.edit_targets()
+        };
         // A batch of sounds takes the level alone; see `batch_volume`.
         let batch_volume = ids.is_empty() && field == ClipField::Volume;
         if batch_volume {
@@ -5041,7 +5179,12 @@ impl Studio {
         let value = f64::from(value);
         // A batch keeps its shape: the knob shows the first clip's value,
         // and what it is turned to is read against that; see `batch_value`.
-        let reference = (ids.len() > 1)
+        let caption_at = self
+            .sole_selection()
+            .and_then(|id| self.clip(&id))
+            .filter(|clip| self.caption_apply_all && concat_project::captions::is_caption(clip))
+            .map(|clip| place_in(clip, self.playhead));
+        let reference = (ids.len() > 1 && caption_at.is_none())
             .then(|| relative_property(field))
             .flatten()
             .and_then(|property| {
@@ -5076,6 +5219,7 @@ impl Studio {
                 .clip(&id)
                 .map(|clip| place_in(clip, self.playhead))
                 .unwrap_or(0.0);
+            let at = caption_at.unwrap_or(at);
             let value = match (reference, relative_property(field)) {
                 (Some(reference), Some(property)) => self
                     .clip(&id)
@@ -5240,6 +5384,15 @@ impl Studio {
                 ClipField::FontSize => text.font_size = value.clamp(0.01, 0.5),
                 ClipField::FontWeight => text.font_weight = value.clamp(100.0, 900.0),
                 ClipField::Italic => text.italic = value != 0.0,
+                ClipField::Underline => text.underline = value != 0.0,
+                ClipField::TextVertical => text.vertical = value != 0.0,
+                ClipField::VerticalAlign => text.vertical_align = value.clamp(0.0, 2.0) as u8,
+                ClipField::TextColor
+                | ClipField::StrokeColorKey
+                | ClipField::TextGreenKey
+                | ClipField::TextBlueKey
+                | ClipField::StrokeGreenKey
+                | ClipField::StrokeBlueKey => {}
                 ClipField::TextOpacity => text.opacity = value.clamp(0.0, 1.0),
                 ClipField::Align => {
                     text.align = match value as i32 {
@@ -5248,22 +5401,24 @@ impl Studio {
                         _ => TextAlign::Center,
                     }
                 }
-                ClipField::StrokeWidth => text.stroke_width = value.clamp(0.0, 0.15),
+                ClipField::StrokeWidth => write_keyable(
+                    clip,
+                    model::KeyProperty::StrokeWidth,
+                    value.clamp(0.0, 0.15),
+                    at,
+                ),
                 ClipField::Shadow => text.shadow = value != 0.0,
                 ClipField::LineHeight => text.line_height = value.clamp(0.7, 2.5),
                 ClipField::Tracking => text.tracking = value.clamp(-0.05, 0.3),
                 ClipField::TextWidth => text.max_width = value.clamp(0.0, 2.0),
                 ClipField::TextHeight => text.max_height = value.clamp(0.0, 2.0),
                 // The stroke's opacity is its colour's alpha; see `hex_rgba`.
-                ClipField::StrokeOpacity => {
-                    let edge = colour_of(&text.stroke_color);
-                    text.stroke_color = hex_rgba(slint::Color::from_argb_u8(
-                        (value.clamp(0.0, 1.0) * 255.0).round() as u8,
-                        edge.red(),
-                        edge.green(),
-                        edge.blue(),
-                    ));
-                }
+                ClipField::StrokeOpacity => write_keyable(
+                    clip,
+                    model::KeyProperty::StrokeOpacity,
+                    value.clamp(0.0, 1.0),
+                    at,
+                ),
                 // The background's opacity is its colour's alpha the same way.
                 // Never zero from the dial: fully transparent is how "no
                 // background" is stored, and the switch is what takes it away.
@@ -5292,7 +5447,11 @@ impl Studio {
     }
 
     pub fn clip_set_text(&mut self, field: ClipTextField, value: &str) {
-        let ids = self.edit_targets();
+        let ids = if field == ClipTextField::Content {
+            self.edit_targets()
+        } else {
+            self.caption_style_targets()
+        };
         if ids.is_empty() {
             return;
         }
@@ -5460,10 +5619,15 @@ impl Studio {
     }
 
     pub fn clip_set_colour(&mut self, field: ClipTextField, value: slint::Color) {
-        let ids = self.edit_targets();
+        let ids = self.caption_style_targets();
         if ids.is_empty() {
             return;
         }
+        let selected_at = self
+            .sole_selection()
+            .and_then(|id| self.clip(&id))
+            .map(|clip| place_in(clip, self.playhead))
+            .unwrap_or(0.0);
         self.commit_targets = ids.clone();
         self.begin_echo();
         for id in ids {
@@ -5473,12 +5637,32 @@ impl Studio {
             if clip.kind != model::ClipKind::Text {
                 continue;
             }
-            let text = clip.text.get_or_insert_with(TextStyle::default);
-            match field {
-                ClipTextField::Color => text.color = hex_of(value),
-                ClipTextField::StrokeColor => text.stroke_color = hex_rgba(value),
-                ClipTextField::Background => text.background = hex_with_alpha(value),
-                _ => {}
+            use model::KeyProperty::*;
+            let channels = match field {
+                ClipTextField::Color => Some([TextRed, TextGreen, TextBlue]),
+                ClipTextField::StrokeColor => Some([StrokeRed, StrokeGreen, StrokeBlue]),
+                _ => None,
+            };
+            if let Some(channels) = channels {
+                for (property, byte) in
+                    channels
+                        .into_iter()
+                        .zip([value.red(), value.green(), value.blue()])
+                {
+                    write_keyable(clip, property, f64::from(byte) / 255.0, selected_at);
+                }
+                if field == ClipTextField::StrokeColor
+                    && !concat_project::captions::is_caption(clip)
+                {
+                    write_keyable(
+                        clip,
+                        StrokeOpacity,
+                        f64::from(value.alpha()) / 255.0,
+                        selected_at,
+                    );
+                }
+            } else if field == ClipTextField::Background {
+                clip.text.get_or_insert_with(TextStyle::default).background = hex_with_alpha(value);
             }
         }
     }
@@ -5499,6 +5683,7 @@ impl Studio {
             return;
         };
         style.content.clear();
+        style.caption_group = None;
         self.prefs.title_style = Some(style);
         self.prefs.save(&self.host.dirs);
         self.notify(&t("textPanel.newTitlesUseThisStyle"), false);
@@ -7576,7 +7761,9 @@ impl Studio {
         if self.playing {
             self.pause();
         }
-        let Some((clips, settings)) = self.preview_clips() else {
+        let (width, height) = self.output_size();
+        let Some((clips, settings)) = self.preview_clips(width, height, f64::from(self.playhead))
+        else {
             return;
         };
         let Some(project_dir) = self
@@ -7586,7 +7773,6 @@ impl Studio {
         else {
             return;
         };
-        let (width, height) = self.output_size();
         let spec = concat_host::preview::FrameSpec {
             time: f64::from(self.playhead),
             width,
@@ -9327,6 +9513,14 @@ impl Studio {
     /// constant and stays one.
     pub fn key_property_of(field: ClipField) -> Option<model::KeyProperty> {
         Some(match field {
+            ClipField::TextGreenKey => model::KeyProperty::TextGreen,
+            ClipField::TextBlueKey => model::KeyProperty::TextBlue,
+            ClipField::StrokeGreenKey => model::KeyProperty::StrokeGreen,
+            ClipField::StrokeBlueKey => model::KeyProperty::StrokeBlue,
+            ClipField::TextColor => model::KeyProperty::TextRed,
+            ClipField::StrokeColorKey => model::KeyProperty::StrokeRed,
+            ClipField::StrokeWidth => model::KeyProperty::StrokeWidth,
+            ClipField::StrokeOpacity => model::KeyProperty::StrokeOpacity,
             ClipField::Scale => model::KeyProperty::Scale,
             ClipField::OffsetX => model::KeyProperty::OffsetX,
             ClipField::OffsetY => model::KeyProperty::OffsetY,
@@ -9452,6 +9646,9 @@ impl Studio {
         };
         let mut rows = Vec::new();
         for property in model::KeyProperty::ALL {
+            if property.is_text() && clip.kind != model::ClipKind::Text {
+                continue;
+            }
             // The mask's numbers are rows only while there is a mask, or
             // keys left from one: seven rows of nothing otherwise.
             if property.is_mask() && clip.mask.is_none() && !clip.is_keyed(property) {
@@ -9461,6 +9658,37 @@ impl Studio {
             // knob speaks decibels, floored where silence is.
             let (label, minimum, maximum, step, default_value, fmt, unit, unit_scale) =
                 match property {
+                    property if property.is_text() => (
+                        match property {
+                            model::KeyProperty::TextRed => format!("{} · R", t("common.color")),
+                            model::KeyProperty::TextGreen => format!("{} · G", t("common.color")),
+                            model::KeyProperty::TextBlue => format!("{} · B", t("common.color")),
+                            model::KeyProperty::StrokeRed => {
+                                format!("{} · R", t("textPanel.stroke"))
+                            }
+                            model::KeyProperty::StrokeGreen => {
+                                format!("{} · G", t("textPanel.stroke"))
+                            }
+                            model::KeyProperty::StrokeBlue => {
+                                format!("{} · B", t("textPanel.stroke"))
+                            }
+                            model::KeyProperty::StrokeOpacity => {
+                                format!("{} · {}", t("textPanel.stroke"), t("common.opacity"))
+                            }
+                            _ => format!("{} · {}", t("textPanel.stroke"), t("captions.thickness")),
+                        },
+                        0.0,
+                        if property == model::KeyProperty::StrokeWidth {
+                            0.15
+                        } else {
+                            1.0
+                        },
+                        0.005,
+                        0.0,
+                        ParamFormat::Fraction,
+                        "%",
+                        100.0,
+                    ),
                     model::KeyProperty::Scale => (
                         t("common.scale"),
                         0.05,
@@ -9591,6 +9819,7 @@ impl Studio {
                         "%",
                         100.0,
                     ),
+                    _ => unreachable!("all text properties handled above"),
                 };
             let to_knob = |value: f64| knob_value(property, value);
             let keys: Vec<(f64, f64, model::KeyEase)> = clip
@@ -10099,43 +10328,80 @@ impl Studio {
         let Some(property) = Self::key_property_of(field) else {
             return;
         };
-        let Some((clip, at)) = self.key_point() else {
+        let Some((selected, at)) = self.key_point() else {
             return;
         };
-        let clip_id = clip.id.clone();
-        let command = if clip.key_at(property, at).is_some() {
-            Command::ClearClipKey {
-                clip_id,
-                property,
-                at,
-            }
-        } else {
-            let value = clip.value_at(property, at);
-            // The ease of whichever key this one is joining behind, so
-            // laying a run of keys down does not alternate between shapes.
-            // The first key on a property has nothing to inherit and gets
-            // the straight line.
-            let ease = clip
-                .keys_on(property)
-                .rfind(|key| key.at < at)
-                .map_or(model::KeyEase::LINEAR, |key| key.ease);
-            Command::SetClipKey {
-                clip_id,
-                property,
-                at,
-                value,
-                ease,
-            }
+        use model::KeyProperty::*;
+        let properties: Vec<_> = match field {
+            ClipField::TextColor => vec![TextRed, TextGreen, TextBlue],
+            ClipField::StrokeColorKey => vec![StrokeRed, StrokeGreen, StrokeBlue],
+            _ => vec![property],
         };
-        self.apply(command);
+        let remove = properties.iter().all(|p| selected.key_at(*p, at).is_some());
+        let mut commands = Vec::new();
+        for id in self.caption_style_targets() {
+            let Some(clip) = self.clip(&id) else {
+                continue;
+            };
+            for property in &properties {
+                commands.push(if remove {
+                    Command::ClearClipKey {
+                        clip_id: id.clone(),
+                        property: *property,
+                        at,
+                    }
+                } else {
+                    Command::SetClipKey {
+                        clip_id: id.clone(),
+                        property: *property,
+                        at,
+                        value: clip.value_at(*property, at),
+                        ease: clip
+                            .keys_on(*property)
+                            .rfind(|key| key.at < at)
+                            .map_or(model::KeyEase::LINEAR, |key| key.ease),
+                    }
+                });
+            }
+        }
+        self.apply(Command::Batch { commands });
     }
 
-    /// Adds or removes keys on both position axes in one undoable edit.
     pub fn toggle_position_key(&mut self) {
-        let Some((clip, at)) = self.key_point() else {
+        let Some((selected, at)) = self.key_point() else {
             return;
         };
-        let commands = position_key_commands(clip, at);
+        let remove = selected.key_at(model::KeyProperty::OffsetX, at).is_some()
+            && selected.key_at(model::KeyProperty::OffsetY, at).is_some();
+        let ids = self.caption_style_targets();
+        if ids.len() == 1 {
+            let commands = position_key_commands(selected, at);
+            self.apply(Command::Batch { commands });
+            return;
+        }
+        let mut commands = Vec::new();
+        for id in ids {
+            let Some(clip) = self.clip(&id) else {
+                continue;
+            };
+            for property in [model::KeyProperty::OffsetX, model::KeyProperty::OffsetY] {
+                commands.push(if remove {
+                    Command::ClearClipKey {
+                        clip_id: id.clone(),
+                        property,
+                        at,
+                    }
+                } else {
+                    Command::SetClipKey {
+                        clip_id: id.clone(),
+                        property,
+                        at,
+                        value: clip.value_at(property, at),
+                        ease: model::KeyEase::LINEAR,
+                    }
+                });
+            }
+        }
         self.apply(Command::Batch { commands });
     }
 
@@ -10221,7 +10487,7 @@ impl Studio {
         // A keyed property shows what it is worth at the playhead, which is
         // what the knob edits.
         let at = place_in(clip, self.playhead);
-        let text = clip.text.clone().unwrap_or_default();
+        let text = clip.text_at(place_in(clip, self.playhead));
         // Where the family sits in the picker's list; none when nothing on
         // this machine has it, which the picker shows in red.
         let family_row = self
@@ -10316,6 +10582,9 @@ impl Studio {
             font_size: text.font_size as f32,
             font_weight: text.font_weight as f32,
             italic: text.italic,
+            underline: text.underline,
+            vertical_align: i32::from(text.vertical_align),
+            text_vertical: text.vertical,
             fill,
             fill_hex: hex_of(fill).into(),
             align: align_of(text.align),
@@ -10906,6 +11175,52 @@ impl Studio {
                 .collect(),
         );
         app.set_captions(self.captions.data(self));
+        let mut cues: Vec<_> = self
+            .timeline()
+            .clips
+            .iter()
+            .filter(|clip| concat_project::captions::is_caption(clip))
+            .collect();
+        cues.sort_by(|a, b| a.start.total_cmp(&b.start));
+        sync(
+            &models.caption_rows,
+            cues.iter()
+                .map(|clip| crate::ui::CaptionRowData {
+                    id: clip.id.as_str().into(),
+                    text: clip
+                        .text
+                        .as_ref()
+                        .map(|style| style.content.as_str())
+                        .unwrap_or_default()
+                        .into(),
+                    time: format!("{:.1}s — {:.1}s", clip.start, clip.start + clip.duration).into(),
+                    selected: self.selection.contains(&clip.id),
+                })
+                .collect(),
+        );
+        let caption_library = app.global::<crate::ui::CaptionsLibrary>();
+        caption_library.set_running(self.captions.running);
+        caption_library.set_apply_all(self.caption_apply_all);
+        caption_library.set_can_adopt(
+            self.sole_selection()
+                .and_then(|id| self.clip(&id))
+                .is_some_and(|clip| {
+                    clip.kind == model::ClipKind::Text
+                        && !concat_project::captions::is_caption(clip)
+                        && !self.locked(&clip.track_id)
+                }),
+        );
+        caption_library.set_style_count(
+            if self
+                .sole_selection()
+                .and_then(|id| self.clip(&id))
+                .is_some_and(concat_project::captions::is_caption)
+            {
+                self.caption_style_targets().len() as i32
+            } else {
+                0
+            },
+        );
         let voices = installed(&self.settings.voices);
         sync(
             &models.speech_models,

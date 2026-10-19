@@ -1,0 +1,117 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Clovercut contributors
+
+import { ListView } from "std-widgets.slint";
+
+import { I18n } from "../i18n.slint";
+import { Theme } from "../theme/theme.slint";
+import { Button } from "../primitives/modal.slint";
+
+export struct CaptionRowData { id: string, text: string, time: string, selected: bool }
+
+export global CaptionsLibrary {
+    in-out property <[CaptionRowData]> rows;
+    in-out property <bool> running;
+    in-out property <bool> apply-all: true;
+    callback scope-changed(all: bool);
+    in-out property <bool> can-adopt;
+    in-out property <int> style-count;
+    callback create(automatic: bool);
+    callback import-srt();
+    callback export-srt();
+    callback adopt();
+    callback select(id: string);
+    callback edit(id: string, text: string);
+}
+
+export component CaptionsPanel inherits Rectangle {
+    background: Theme.panel;
+    VerticalLayout {
+        padding: 12px;
+        spacing: 10px;
+        Text {
+            text: I18n.t("captions.captions");
+            color: Theme.fg;
+            font-size: Theme.fs-xl;
+            font-weight: Theme.weight-title;
+        }
+        Text {
+            text: I18n.t("captions.sharedStyleHint");
+            color: Theme.fg-muted;
+            font-size: Theme.fs;
+            wrap: word-wrap;
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            Button {
+                label: CaptionsLibrary.running ? I18n.t("captions.showProgress") : I18n.t("captions.autoCaptions");
+                primary: true;
+                clicked => { CaptionsLibrary.create(true); }
+            }
+            Button {
+                label: I18n.t("captions.manualCaptions");
+                enabled: !CaptionsLibrary.running;
+                clicked => { CaptionsLibrary.create(false); }
+            }
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            Button {
+                label: I18n.t("captions.importSrt");
+                enabled: !CaptionsLibrary.running;
+                clicked => { CaptionsLibrary.import-srt(); }
+            }
+            Button {
+                label: I18n.t("captions.exportSrt");
+                enabled: CaptionsLibrary.rows.length > 0;
+                clicked => { CaptionsLibrary.export-srt(); }
+            }
+        }
+        if CaptionsLibrary.can-adopt: Button {
+            label: I18n.t("captions.adoptTextTrack");
+            clicked => { CaptionsLibrary.adopt(); }
+        }
+        if CaptionsLibrary.rows.length == 0: Text {
+            text: I18n.t("captions.libraryEmpty");
+            color: Theme.fg-dim;
+            font-size: Theme.fs;
+            wrap: word-wrap;
+        }
+        ListView {
+            horizontal-stretch: 1;
+            vertical-stretch: 1;
+            for cue in CaptionsLibrary.rows: Rectangle {
+                height: 96px;
+                background: cue.selected ? Theme.field-active : Theme.well;
+                border-radius: Theme.r;
+                VerticalLayout {
+                    padding: 6px;
+                    spacing: 4px;
+                    Button {
+                        label: cue.time;
+                        ghost: true;
+                        clicked => { CaptionsLibrary.select(cue.id); }
+                    }
+                    TextInput {
+                        text: cue.text;
+                        color: Theme.fg;
+                        font-family: Theme.font;
+                        font-size: Theme.fs;
+                        single-line: false;
+                        wrap: word-wrap;
+                        horizontal-stretch: 1;
+                        vertical-alignment: center;
+                        selection-background-color: Theme.accent;
+                        selection-foreground-color: Theme.on-accent;
+                        accepted => {
+                            if self.text != cue.text { CaptionsLibrary.edit(cue.id, self.text); }
+                        }
+                        changed has-focus => {
+                            if !self.has-focus && self.text != cue.text { CaptionsLibrary.edit(cue.id, self.text); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

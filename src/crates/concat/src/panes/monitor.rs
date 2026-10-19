@@ -233,7 +233,9 @@ impl MonitorPane {
         }
         let (width, height) =
             Self::frame_size(self.quality_of(studio.project()), studio.output_size());
-        let Some((clips, settings)) = studio.preview_clips() else {
+        let Some((clips, settings)) =
+            studio.preview_clips(width, height, f64::from(studio.preview_time()))
+        else {
             return;
         };
         let quality = self.quality_of(studio.project());
