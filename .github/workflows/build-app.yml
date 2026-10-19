@@ -16,6 +16,7 @@ name: Build Clovercut AppImages
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_BUILD_JOBS: "1"
   ORT_VERSION: 1.28.0
   GGML_NATIVE: 'OFF'
 jobs:

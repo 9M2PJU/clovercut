@@ -1,6 +1,11 @@
-# Concat Engine
+# Clovercut engine
 
-The video engine behind Concat. Rust, no GC, no hidden control flow.
+The Rust engine inherited from Concat. Crate and API names retain the `concat`
+prefix for compatibility. Clovercut maintains Linux builds and AppImage releases.
+See the [project README](../README.md) for current features and setup.
+
+Platform-specific sections below document inherited code, not maintained
+Clovercut release targets.
 
 ## Layout
 

@@ -18,34 +18,45 @@
 
 Editing runs locally on a native Rust engine with GPU-accelerated composition. Optional AI models need to be downloaded before they can be used offline.
 
-## What you can do
+## Editing with Clovercut
 
-The codebase inherited from Concat includes:
+- **Video and audio editing:** arrange multiple tracks, split and trim clips, adjust speed, transform pictures and mix audio.
+- **A clearer inspector:** aligned sliders, compact value fields with units and steppers, paired X/Y position keyframes and separate Color, Curves and Wheels tabs.
+- **Titles and captions:** fonts, colours, outlines, shadows, style presets and mixed-script vertical writing. CJK characters remain upright while Latin text reads sideways.
+- **Automatic captions:** transcribe locally with Whisper after downloading a model, write captions manually, or import and export SRT files.
+- **A dedicated captions workspace:** edit the collection's sentences in Captions, adjust its appearance in Style and choose entry/exit animations in Effects. The inspector opens on **Style** by default.
+- **Reusable subtitle files:** drag an SRT from the embedded library onto the timeline. Each copy has its own style scope; changes can affect the whole collection or just the selected caption.
+- **Caption animation:** Fade, Slide and Pop entrance/exit presets with adjustable duration, composed with manual position, scale, opacity, fill and outline keyframes.
+- **Effects and export:** filters, transitions, colour controls and export formats including H.264, HEVC and AV1.
+- **Local tools and automation:** text-to-speech, background removal, a command-line interface, JSON-RPC and an MCP server inherited from Concat.
 
-- **Edit video and audio across multiple tracks:** split, trim, move, and arrange clips on the timeline.
-- **Create titles:** choose fonts, colours, outlines, shadows, and background plates.
-- **Animate and apply effects:** keyframes, filters, transitions, and image and audio adjustments.
-- **Use local AI tools:** Whisper captions, text-to-speech, and background removal, with the relevant models installed.
-- **Export video:** formats including H.264, HEVC, and AV1, with support for 4K projects.
-- **Automate editing:** command-line tools, a JSON-RPC API, and an MCP server.
-
-These capabilities come from the original project. Clovercut-specific validation is ongoing.
+Clovercut also improves text editing performance by painting only captions visible
+at the current frame, keeping long caption lists virtualised and limiting shadow
+blur work to the occupied area.
 
 ## Project status
 
-Clovercut **0.0.1** is in early development and targets **Linux only**. Releases are distributed as **AppImage**, for x86_64 and ARM64. Windows, macOS and mobile builds are not maintained or published by this fork.
+Clovercut **0.0.1** is in early development and targets **Linux only**. Release
+builds are distributed as **AppImage**, for x86_64 and ARM64. Features are still
+being tested with real editing projects.
 
-Our first improvements include:
+The editor executable is `clovercut`. Internal Rust crate names and `concat.json`
+retain their inherited names for project compatibility. Settings and caches live
+under `io.github.tulcoturo.clovercut`, separately from Concat.
 
-- Aligned inspector sliders, compact value fields and paired position keyframes.
-- Separate Color, Curves and Wheels tabs, with coloured adjustment tracks.
-- Clovercut branding and an AppImage-only Linux release pipeline.
+## Using captions
 
-- Corrected reported text box dimensions for fractional edges.
-- Faster title shadow rendering by limiting the blur to the area it needs to process.
-- An optimised text module in development builds.
+Open **Captions** in the library to generate subtitles, write them manually or
+import an SRT. Imported files stay in the subtitle library: drag one onto the
+timeline or choose **Add to timeline**. Generated captions also insert their
+first collection automatically. SRT contents are embedded in the project, so
+moving or deleting the original file does not break the library.
 
-The editor executable is `clovercut`. Internal Rust crates and the project format retain their inherited names for compatibility. Clovercut uses its own settings and cache directories under `io.github.tulcoturo.clovercut`. Existing Concat projects can still be opened.
+Select a timeline caption to open **Captions / Style / Effects** in the inspector.
+**Style** opens first. Use **Apply to all captions** for changes to the selected
+collection, or deselect it to edit only that caption. Sentence edits stay local.
+Use **Save collection to library** to reuse an existing collection as an SRT asset;
+it saves the words and timings with the first caption's style as its initial look.
 
 ## Linux AppImage
 
@@ -119,7 +130,7 @@ The initial UI build can use substantial memory, even with a single build job. A
 
 Found a bug or have an idea? Open an [issue in Clovercut](https://github.com/tulcoturo/clovercut/issues). For editing problems, include your operating system, steps to reproduce, and, where possible, details about the media used.
 
-For code contributions, see [`CONTRIBUTING.md`](CONTRIBUTING.md). Inherited technical documentation is available in [`src/README.md`](src/README.md) and [`docs/MCP.md`](docs/MCP.md); some of it still refers to the original Concat identity and services.
+For code contributions, see [`CONTRIBUTING.md`](CONTRIBUTING.md). Inherited technical documentation is available in [`src/README.md`](src/README.md) and [`docs/MCP.md`](docs/MCP.md); the engine retains its inherited crate and API names.
 
 ## Credits and license
 

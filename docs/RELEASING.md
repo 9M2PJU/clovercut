@@ -11,10 +11,20 @@ Before creating a release:
 3. Run formatting, Clippy, tests, locale and model inventory checks. Compile the editor and check `clovercut --version`, `clovercut --smoke`, editing and export.
 4. Commit and push the reviewed changes. Create and push the matching tag only when ready (for this release, `v0.0.1`).
 
+Before tagging, the manual **Build Clovercut AppImages** workflow can build a
+specific commit from the updated main branch. Push all intended changes first,
+then dispatch with that exact commit as `ref`; a successful build produces
+artifacts without publishing a release. Inspect those artifacts before tagging.
+Do not rerun an old version tag expecting it to include newer main-branch changes.
+
 The tag starts `.github/workflows/release.yml`: CI, two Linux builds, staged-binary
 checks, CPU compatibility checks on x86_64, AppImage packaging, and AppImage startup
 checks in Ubuntu 22.04 and Debian 12 containers. No Windows, macOS, mobile, DEB,
 RPM or Arch packages are built by this workflow.
+
+CI uses matching dev/test debug and codegen settings across lint and test
+steps. Cold test compilation has a 75-minute budget, separate from test execution;
+this avoids the previous 25-minute compilation timeout blocking packaging.
 
 The result is a **draft** GitHub release containing:
 
