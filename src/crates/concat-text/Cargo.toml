@@ -26,6 +26,8 @@ unicode-bidi = "0.3"
 unicode-linebreak = "0.1"
 # A character's script, for the marks that belong with the one before.
 unicode-script = "0.5"
+# Mixed vertical writing: upright CJK and sideways Latin (Unicode UAX #50).
+unicode-vo = "0.1"
 # Fill, stroke and anti-aliasing of those paths, and the PNG encoder.
 tiny-skia = { version = "0.12", features = ["png-format"] }
 

@@ -702,7 +702,8 @@ fn vertical_writing_survives_export_and_project_reopening() {
         (edges.1 - edges.0 + 1, edges.3 - edges.2 + 1)
     };
     let horizontal = studio.export("horizontal writing");
-    let (w, h) = bounds(&horizontal.frames[0]);
+    let (horizontal_w, horizontal_h) = bounds(&horizontal.frames[0]);
+    let (w, h) = (horizontal_w, horizontal_h);
     assert!(w > h * 2, "horizontal caption is wide: {w}x{h}");
     studio.apply(Command::UpdateClip {
         clip_id: id.clone(),
@@ -717,6 +718,10 @@ fn vertical_writing_survives_export_and_project_reopening() {
     let vertical = studio.export("vertical writing");
     let (w, h) = bounds(&vertical.frames[0]);
     assert!(h > w * 2, "vertical caption is tall: {w}x{h}");
+    assert!(
+        w.abs_diff(horizontal_h) <= 4 && h.abs_diff(horizontal_w) <= 4,
+        "Latin export must rotate its horizontal run: {horizontal_w}x{horizontal_h} -> {w}x{h}"
+    );
     let reopened = Session::open(studio.session.path(), studio.session.settings()).unwrap();
     assert!(
         reopened

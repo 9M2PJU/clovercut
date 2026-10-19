@@ -599,7 +599,7 @@ fn key_of(project: &Project, painting: Painting<'_>, width: u32, height: u32) ->
     // files are not mistaken for current ones. 3: left- and right-aligned
     // blocks moved to their anchors. 4: the sidecar gained each word's box,
     // for a per-word reveal effect to read back.
-    bytes.extend_from_slice(&6u32.to_le_bytes());
+    bytes.extend_from_slice(&7u32.to_le_bytes());
     crate::media::fnv1a(&bytes)
 }
 

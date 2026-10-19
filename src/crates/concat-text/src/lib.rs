@@ -75,7 +75,7 @@ pub struct TitleStyle {
     pub underline: bool,
     /// Vertical alignment within a fixed-height box: top, centre, bottom.
     pub vertical_align: u8,
-    /// Top-to-bottom writing with upright glyphs and right-to-left columns.
+    /// Top-to-bottom mixed writing: upright CJK, sideways Latin, right-to-left columns.
     pub vertical: bool,
     /// Fill colour as `#rrggbb` or `#rrggbbaa`.
     pub color: String,
@@ -816,6 +816,8 @@ fn joins(ch: char) -> bool {
 /// advance width, and each of its words' `(start_x, end_x)` in that same
 /// pen space, left to right.
 struct Line {
+    /// Glyph clusters and their inline advance spans, in paragraph byte coordinates.
+    spans: Vec<(usize, f32, f32)>,
     path: Option<Path>,
     /// The glyphs that paint their own colours - a picture rather than an
     /// outline - at that same pen origin, for laying over the words. The
@@ -833,6 +835,7 @@ enum Mark {
     /// The font's own bitmap, decoded, at its box: left edge, top edge,
     /// and size in pixels.
     Bitmap {
+        transform: Transform,
         x: f32,
         y: f32,
         width: f32,
@@ -985,6 +988,7 @@ impl Setter<'_> {
 
         if range.is_empty() {
             return Line {
+                spans: Vec::new(),
                 path: None,
                 marks: Vec::new(),
                 width: 0.0,
@@ -1078,6 +1082,7 @@ impl Setter<'_> {
             Vec::new()
         };
         Line {
+            spans,
             path: builder.finish(),
             marks,
             width,
@@ -1093,10 +1098,81 @@ impl Setter<'_> {
         let mut spans = Vec::new();
         let mut pen = 0.0_f32;
         let mut start = range.start;
+        let mut previous_rotated = false;
         while start < range.end {
-            let mut end = start + para.text[start..].chars().next().unwrap().len_utf8();
+            let first = para.text[start..].chars().next().unwrap();
+            let rotated = if joins(first) {
+                previous_rotated
+            } else {
+                unicode_vo::char_orientation(first) == unicode_vo::Orientation::Rotated
+            };
+            let mut end = start + first.len_utf8();
             while end < range.end && para.face_of[end] == para.face_of[start] {
-                end += para.text[end..].chars().next().unwrap().len_utf8();
+                let ch = para.text[end..].chars().next().unwrap();
+                let next_rotated = if joins(ch) {
+                    rotated
+                } else {
+                    unicode_vo::char_orientation(ch) == unicode_vo::Orientation::Rotated
+                };
+                if next_rotated != rotated {
+                    break;
+                }
+                end += ch.len_utf8();
+            }
+            previous_rotated = rotated;
+            if rotated {
+                // Shape a Latin run horizontally, preserving kerning, ligatures
+                // and combining marks, then turn that run clockwise into the column.
+                let horizontal = Setter {
+                    vertical: false,
+                    faces: self.faces,
+                    em: self.em,
+                    tracking: self.tracking,
+                    foreground: self.foreground,
+                };
+                let line = horizontal.set(para, start..end, outline);
+                let face = &self.faces[para.face_of[start]];
+                let scale = self.em / face.units_per_em() as f32;
+                let cross = -(face.ascender() as f32 + face.descender() as f32) * scale / 2.0;
+                let turn = Transform::from_row(0.0, 1.0, -1.0, 0.0, cross, pen);
+                if let Some(path) = line.path.and_then(|path| path.transform(turn)) {
+                    builder.push_path(&path);
+                }
+                for mark in line.marks {
+                    marks.push(match mark {
+                        Mark::Bitmap {
+                            transform,
+                            x,
+                            y,
+                            width,
+                            height,
+                            pixmap,
+                        } => Mark::Bitmap {
+                            transform: transform.post_concat(turn),
+                            x,
+                            y,
+                            width,
+                            height,
+                            pixmap,
+                        },
+                        Mark::Layers(layers) => Mark::Layers(
+                            layers
+                                .into_iter()
+                                .filter_map(|(path, colour)| {
+                                    path.transform(turn).map(|path| (path, colour))
+                                })
+                                .collect(),
+                        ),
+                    });
+                }
+                spans.extend(
+                    line.spans
+                        .into_iter()
+                        .map(|(cluster, a, b)| (cluster, pen + a, pen + b)),
+                );
+                pen += line.width + self.tracking;
+                start = end;
+                continue;
             }
             let face = &self.faces[para.face_of[start]];
             let scale = self.em / face.units_per_em() as f32;
@@ -1151,6 +1227,7 @@ impl Setter<'_> {
             Vec::new()
         };
         Line {
+            spans,
             path: builder.finish(),
             marks,
             width,
@@ -1186,6 +1263,7 @@ impl Setter<'_> {
             let k = self.em / f32::from(image.pixels_per_em.max(1));
             let height = f32::from(image.height) * k;
             return Some(Mark::Bitmap {
+                transform: Transform::identity(),
                 x: x + f32::from(image.x) * k,
                 y: y - (f32::from(image.y) * k) - height,
                 width: f32::from(image.width) * k,
@@ -1735,6 +1813,7 @@ fn paint(
         for mark in &line.marks {
             match mark {
                 Mark::Bitmap {
+                    transform,
                     x: mark_x,
                     y: mark_y,
                     width,
@@ -1753,7 +1832,9 @@ fn paint(
                             quality: FilterQuality::Bilinear,
                             ..PixmapPaint::default()
                         },
-                        Transform::from_row(scale_x, 0.0, 0.0, scale_y, x + *mark_x, y + *mark_y),
+                        Transform::from_row(scale_x, 0.0, 0.0, scale_y, *mark_x, *mark_y)
+                            .post_concat(*transform)
+                            .post_translate(x, y),
                         None,
                     );
                 }
@@ -2145,7 +2226,7 @@ mod tests {
     }
 
     #[test]
-    fn vertical_writing_keeps_glyphs_upright_and_columns_right_to_left() {
+    fn vertical_writing_mixes_orientations_and_orders_columns_right_to_left() {
         let fonts = Fonts::new();
         let mut text = style("ABC\nDE");
         text.font_size = 0.15;
@@ -2162,8 +2243,8 @@ mod tests {
             "columns share their top"
         );
         assert!(column.words[0].height > column.words[1].height);
-        assert!(column.block_height > column.block_width);
-        // A tall asymmetric glyph retains its dimensions, rather than being rotated.
+
+        // Latin glyphs turn clockwise, so their width and height exchange.
         text.content = "L".into();
         let upright = render(&fonts, &text, 640, 360).unwrap();
         text.vertical = false;
@@ -2172,11 +2253,53 @@ mod tests {
         let (vt, vb) = painted_rows(&upright.png);
         let (hl, hr) = painted_span(&horizontal.png);
         let (ht, hb) = painted_rows(&horizontal.png);
-        assert!((vr - vl).abs_diff(hr - hl) <= 2, "glyph width is preserved");
         assert!(
-            (vb - vt).abs_diff(hb - ht) <= 2,
-            "glyph height is preserved"
+            (vr - vl).abs_diff(hb - ht) <= 2,
+            "Latin width becomes height"
         );
+        assert!(
+            (vb - vt).abs_diff(hr - hl) <= 2,
+            "Latin height becomes width"
+        );
+    }
+
+    #[test]
+    fn mixed_cjk_and_latin_keep_their_own_vertical_orientation() {
+        assert_eq!(
+            unicode_vo::char_orientation('中'),
+            unicode_vo::Orientation::Upright
+        );
+        assert_eq!(
+            unicode_vo::char_orientation('A'),
+            unicode_vo::Orientation::Rotated
+        );
+        let fonts = Fonts::new();
+        let mut text = style("中文 Hello é e\u{301} 123 中文");
+        text.font_size = 0.1;
+        text.shadow = false;
+        text.vertical = true;
+        let mixed = render_frame(&fonts, &text, 640, 640).unwrap();
+        assert!(mixed.rgba.chunks_exact(4).any(|p| p[3] > 0));
+        assert!(
+            mixed.words.len() >= 4,
+            "word-reveal spans survive mixed runs"
+        );
+        assert!(
+            mixed
+                .words
+                .iter()
+                .all(|word| word.width > 0 && word.height > 0)
+        );
+        text.content = "上".into();
+        let upright = render(&fonts, &text, 640, 640).unwrap();
+        text.vertical = false;
+        let horizontal = render(&fonts, &text, 640, 640).unwrap();
+        let (vl, vr) = painted_span(&upright.png);
+        let (vt, vb) = painted_rows(&upright.png);
+        let (hl, hr) = painted_span(&horizontal.png);
+        let (ht, hb) = painted_rows(&horizontal.png);
+        assert!((vr - vl).abs_diff(hr - hl) <= 2, "CJK stays upright");
+        assert!((vb - vt).abs_diff(hb - ht) <= 2, "CJK stays upright");
     }
 
     #[test]
