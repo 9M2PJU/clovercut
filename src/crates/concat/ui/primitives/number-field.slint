@@ -32,6 +32,8 @@ export component NumberField inherits Rectangle {
     /// the way a search field wears its glass: `K`, `%`, `EV`. The number
     /// stays a bare number, so typing never has to fight a suffix.
     in property <string> unit;
+    in property <bool> unit-leading: false;
+    in property <bool> centered: false;
     /// render the keyframe diamond on the trailing edge
     in property <bool> keyframe;
     in-out property <bool> keyframed;
@@ -94,9 +96,29 @@ export component NumberField inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: 8px;
-        padding-right: root.unit != "" ? 0px : 4px;
-        spacing: 5px;
+        padding-left: root.unit-leading && root.unit != "" ? 0px : 8px;
+        padding-right: root.unit != "" && !root.unit-leading ? 0px : 4px;
+        spacing: root.unit-leading ? 0px : 5px;
+
+        if root.unit != "" && root.unit-leading: Rectangle {
+            width: leading-unit.preferred-width + 10px;
+            background: Theme.well;
+            Rectangle {
+                x: parent.width - 1px;
+                width: 1px;
+                background: Theme.line;
+            }
+            leading-unit := Text {
+                text: root.unit;
+                color: Theme.fg-dim;
+                font-family: Theme.font-technical;
+                font-size: Theme.fs-sm;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                width: parent.width;
+                height: parent.height;
+            }
+        }
 
         if root.prefix != "": Text {
             text: root.prefix;
@@ -117,6 +139,7 @@ export component NumberField inherits Rectangle {
         ti := TextInput {
             horizontal-stretch: 1;
             text: root.display;
+            horizontal-alignment: root.centered ? center : left;
             color: Theme.fg;
             // A number, so the technical face — this is the control the rest
             // of the app reaches for whenever it needs a dimension typed.
@@ -206,7 +229,7 @@ export component NumberField inherits Rectangle {
         // The unit, in its own quiet segment: a hairline, a slightly
         // darker ground, dim text. It is not a control and does not look
         // like one; the scrub still runs across it.
-        if root.unit != "": Rectangle {
+        if root.unit != "" && !root.unit-leading: Rectangle {
             width: unit-label.preferred-width + 14px;
             background: Theme.well;
             Rectangle {
