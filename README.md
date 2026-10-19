@@ -1,77 +1,77 @@
 <p align="center">
-  <img src="logo.jpg" alt="Clovercut — editor de vídeo livre e de código aberto" width="800" />
+  <img src="logo.jpg" alt="Clovercut — a free, open-source video editor" width="800" />
 </p>
 
 <h1 align="center">Clovercut</h1>
-<p align="center"><strong>O teu vídeo. A tua máquina. O teu editor.</strong></p>
-<p align="center">Um editor de vídeo livre, com processamento local e espaço para evoluir.</p>
+<p align="center"><strong>Your video. Your machine. Your editor.</strong></p>
+<p align="center">A free video editor with local processing and room to grow.</p>
 
 <p align="center">
-  <a href="https://github.com/tulcoturo/clovercut"><img src="https://img.shields.io/badge/Projeto-Clovercut-16b86a" alt="Projeto Clovercut" /></a>
-  <a href="https://github.com/tulcoturo/clovercut/issues"><img src="https://img.shields.io/badge/Feedback-Issues-00bcd4" alt="Reportar problemas e sugerir melhorias" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/Licen%C3%A7a-AGPL--3.0--or--later-16b86a" alt="Licença AGPL-3.0-or-later" /></a>
+  <a href="https://github.com/tulcoturo/clovercut"><img src="https://img.shields.io/badge/Project-Clovercut-16b86a" alt="Clovercut project" /></a>
+  <a href="https://github.com/tulcoturo/clovercut/issues"><img src="https://img.shields.io/badge/Feedback-Issues-00bcd4" alt="Report bugs and suggest improvements" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-16b86a" alt="License: AGPL-3.0-or-later" /></a>
 </p>
 
-## O que é o Clovercut?
+## What is Clovercut?
 
-O **Clovercut** é um fork independente do [Concat](https://github.com/jub0t/Concat), criado para desenvolver uma experiência de edição de vídeo mais fluida e com identidade própria. O foco inicial está no desempenho, na facilidade de utilização e nas melhorias que surgem ao editar projetos reais.
+**Clovercut** is an independent fork of [Concat](https://github.com/jub0t/Concat), built to develop a smoother video editing experience with its own identity. Our initial focus is performance, usability, and improvements informed by editing real projects.
 
-A edição corre localmente, num motor nativo escrito em Rust, com composição acelerada por GPU. Os modelos opcionais de inteligência artificial precisam de ser descarregados antes de poderem ser usados offline.
+Editing runs locally on a native Rust engine with GPU-accelerated composition. Optional AI models need to be downloaded before they can be used offline.
 
-## O que podes fazer
+## What you can do
 
-A base herdada do Concat inclui:
+The codebase inherited from Concat includes:
 
-- **Editar vídeo e áudio em várias pistas:** cortar, aparar, mover e organizar clips na timeline.
-- **Criar títulos:** escolher fontes, cores, contornos, sombras e fundos para o texto.
-- **Animar e aplicar efeitos:** keyframes, filtros, transições e ajustes de imagem e som.
-- **Usar ferramentas de IA locais:** legendagem com Whisper, síntese de voz e remoção de fundo, com os respetivos modelos instalados.
-- **Exportar vídeo:** formatos como H.264, HEVC e AV1, incluindo projetos em 4K.
-- **Automatizar a edição:** ferramentas de linha de comandos, API JSON-RPC e servidor MCP.
+- **Edit video and audio across multiple tracks:** split, trim, move, and arrange clips on the timeline.
+- **Create titles:** choose fonts, colours, outlines, shadows, and background plates.
+- **Animate and apply effects:** keyframes, filters, transitions, and image and audio adjustments.
+- **Use local AI tools:** Whisper captions, text-to-speech, and background removal, with the relevant models installed.
+- **Export video:** formats including H.264, HEVC, and AV1, with support for 4K projects.
+- **Automate editing:** command-line tools, a JSON-RPC API, and an MCP server.
 
-Estas funcionalidades vêm do projeto original. A validação específica do Clovercut está em curso.
+These capabilities come from the original project. Clovercut-specific validation is ongoing.
 
-## Estado do projeto
+## Project status
 
-O Clovercut está numa fase inicial de desenvolvimento. A compilação e os primeiros testes de utilização foram feitos em **Linux**. A base original também contém suporte para Windows, macOS e plataformas móveis, que ainda precisam de validação neste fork.
+Clovercut is in early development. The first builds and hands-on checks have been performed on **Linux**. The original codebase also includes support for Windows, macOS, and mobile platforms, which still need validation in this fork.
 
-As primeiras melhorias incluem:
+Our first improvements include:
 
-- Correção das dimensões reportadas pelas caixas de texto com bordas fracionárias.
-- Renderização mais rápida das sombras dos títulos, limitando o desfoque à área necessária.
-- Otimização do módulo de texto nas compilações de desenvolvimento.
+- Corrected reported text box dimensions for fractional edges.
+- Faster title shadow rendering by limiting the blur to the area it needs to process.
+- An optimised text module in development builds.
 
-Os nomes internos dos executáveis e de vários componentes ainda são `concat`. A adoção da identidade Clovercut na aplicação está em curso.
+Executables and several internal components are still named `concat`. Adopting the Clovercut identity throughout the application is ongoing.
 
-## Compilar e executar
+## Build and run
 
-### Dependências
+### Dependencies
 
-- Rust **1.93.1**, fixado em [`src/rust-toolchain.toml`](src/rust-toolchain.toml), com Rustfmt e Clippy.
-- Bibliotecas de desenvolvimento do **FFmpeg 7 ou superior**.
-- CMake, um compilador C++ e libclang.
-- No Linux, bibliotecas de desenvolvimento de fontconfig, FreeType, ALSA, GTK 3 e xkbcommon, além dos drivers gráficos necessários.
-- ONNX Runtime e sherpa-onnx, configurados para a compilação das ferramentas de IA.
+- Rust **1.93.1**, pinned in [`src/rust-toolchain.toml`](src/rust-toolchain.toml), with Rustfmt and Clippy.
+- **FFmpeg 7 or newer** development libraries.
+- CMake, a C++ compiler, and libclang.
+- On Linux, development libraries for fontconfig, FreeType, ALSA, GTK 3, and xkbcommon, plus the required graphics drivers.
+- ONNX Runtime and sherpa-onnx, configured for building the AI tools.
 
-O guia do motor em [`src/README.md`](src/README.md) e o workflow em [`.github/workflows/ci.yml`](.github/workflows/ci.yml) descrevem a configuração das dependências nativas. As versões e os hashes dos binários usados pelo CI estão em [`scripts/ci/deps.lock`](scripts/ci/deps.lock).
+The engine guide in [`src/README.md`](src/README.md) and the workflow in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) describe the native dependency setup. Versions and hashes for prebuilt dependencies used by CI are recorded in [`scripts/ci/deps.lock`](scripts/ci/deps.lock).
 
-### Obter o código
+### Get the source
 
 ```bash
 git clone https://github.com/tulcoturo/clovercut.git
 cd clovercut
 ```
 
-Depois de preparar as dependências e as variáveis de ambiente:
+After setting up the dependencies and environment variables:
 
 ```bash
 cd src
 cargo run --locked -p concat -j 1
 ```
 
-Se tiveres um ficheiro `.env.local` com a configuração da tua máquina, carrega-o com `source .env.local` a partir da raiz do repositório, antes de entrar em `src/`. Esse ficheiro é local e não é incluído no Git.
+If you have a `.env.local` file with your machine's configuration, load it with `source .env.local` from the repository root before entering `src/`. This file is local and excluded from Git.
 
-Para compilar o editor com menos informação de depuração e menos unidades de geração de código:
+To build the editor with less debug information and fewer code generation units:
 
 ```bash
 cargo build --locked -p concat -j 1 \
@@ -79,15 +79,15 @@ cargo build --locked -p concat -j 1 \
   --config 'profile.dev.package.concat.codegen-units=16'
 ```
 
-Para abrir o executável já compilado, a partir da raiz do repositório:
+To open an already compiled executable from the repository root:
 
 ```bash
 ./src/target/debug/concat
 ```
 
-### Verificações
+### Checks
 
-A partir de `src/`:
+From `src/`:
 
 ```bash
 cargo fmt --check
@@ -95,16 +95,16 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace --locked --no-fail-fast -j 1
 ```
 
-A compilação inicial da interface pode consumir bastante memória, mesmo com um único processo. Reserva tempo e memória para esta etapa antes de executar a suíte completa.
+The initial UI build can use substantial memory, even with a single build job. Allow time and memory for this step before running the full test suite.
 
-## Participar
+## Get involved
 
-Encontraste um problema ou tens uma ideia? Abre uma [issue no Clovercut](https://github.com/tulcoturo/clovercut/issues). Nos problemas de edição, indica o sistema operativo, os passos para reproduzir e, se possível, as características do vídeo utilizado.
+Found a bug or have an idea? Open an [issue in Clovercut](https://github.com/tulcoturo/clovercut/issues). For editing problems, include your operating system, steps to reproduce, and, where possible, details about the media used.
 
-Para alterações de código, consulta [`CONTRIBUTING.md`](CONTRIBUTING.md). A documentação técnica herdada encontra-se em [`src/README.md`](src/README.md) e [`docs/MCP.md`](docs/MCP.md); parte dela ainda usa a identidade e os serviços do Concat original.
+For code contributions, see [`CONTRIBUTING.md`](CONTRIBUTING.md). Inherited technical documentation is available in [`src/README.md`](src/README.md) and [`docs/MCP.md`](docs/MCP.md); some of it still refers to the original Concat identity and services.
 
-## Origem e licença
+## Credits and license
 
-O Clovercut parte do trabalho de **Jareer e dos contribuidores do Concat**. É um projeto independente e não uma distribuição oficial do Concat.
+Clovercut builds on the work of **Jareer and the Concat contributors**. It is an independent project, not an official Concat distribution.
 
-O código mantém a licença **AGPL-3.0-or-later**. Consulta [`LICENSE`](LICENSE) e os avisos das dependências em [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+The code remains licensed under **AGPL-3.0-or-later**. See [`LICENSE`](LICENSE) and the dependency notices in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
