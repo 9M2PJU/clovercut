@@ -18,6 +18,11 @@
 
 Editing runs locally on a native Rust engine with GPU-accelerated composition. Optional AI models need to be downloaded before they can be used offline.
 
+<p align="center">
+  <img src="assets/screenshots/clovercut-captions.png" alt="Clovercut editing a demonstration project with video and audio tracks, an SRT library and caption styling controls" width="1280" />
+</p>
+<p align="center"><em>Clovercut's captions workspace, with a demonstration project and shared styling controls.</em></p>
+
 ## Editing with Clovercut
 
 - **Video and audio editing:** arrange multiple tracks, split and trim clips, adjust speed, transform pictures and mix audio.
