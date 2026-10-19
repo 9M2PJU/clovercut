@@ -35,7 +35,7 @@ use std::ops::Range;
 use std::sync::{Arc, Mutex};
 
 use tiny_skia::{
-    Color, FillRule, FilterQuality, LineCap, LineJoin, Paint, Path, PathBuilder, Pixmap,
+    Color, FillRule, FilterQuality, IntRect, LineCap, LineJoin, Paint, Path, PathBuilder, Pixmap,
     PixmapPaint, Rect, Stroke, Transform,
 };
 use unicode_bidi::ParagraphBidiInfo;
@@ -1184,6 +1184,50 @@ fn blur(pixmap: &mut Pixmap, radius: usize) {
     if radius == 0 {
         return;
     }
+    let (width, height) = (pixmap.width(), pixmap.height());
+    let (mut left, mut top, mut right, mut bottom) = (width, height, 0, 0);
+    for (index, pixel) in pixmap.pixels().iter().enumerate() {
+        if pixel.alpha() > 0 {
+            let x = index as u32 % width;
+            let y = index as u32 / width;
+            left = left.min(x);
+            top = top.min(y);
+            right = right.max(x + 1);
+            bottom = bottom.max(y + 1);
+        }
+    }
+    if left == width {
+        return;
+    }
+    // Two passes spread paint by twice the radius. Keep that transparent
+    // margin so the cropped blur has the same edge samples as the full
+    // frame; at the frame's own edges both clamp in the same way.
+    let margin = radius.saturating_mul(2).min(u32::MAX as usize) as u32;
+    left = left.saturating_sub(margin);
+    top = top.saturating_sub(margin);
+    right = right.saturating_add(margin).min(width);
+    bottom = bottom.saturating_add(margin).min(height);
+    if (left, top, right, bottom) == (0, 0, width, height) {
+        blur_full(pixmap, radius);
+        return;
+    }
+    let rect = IntRect::from_xywh(left as i32, top as i32, right - left, bottom - top)
+        .expect("the painted region is nonempty");
+    let mut region = pixmap
+        .clone_rect(rect)
+        .expect("the region is inside the frame");
+    blur_full(&mut region, radius);
+    let stride = width as usize * 4;
+    let row_bytes = region.width() as usize * 4;
+    let data = pixmap.data_mut();
+    for (row, pixels) in region.data().chunks_exact(row_bytes).enumerate() {
+        let start = (top as usize + row) * stride + left as usize * 4;
+        data[start..start + row_bytes].copy_from_slice(pixels);
+    }
+}
+
+/// The blur over a whole pixmap, including its clamped boundary samples.
+fn blur_full(pixmap: &mut Pixmap, radius: usize) {
     let (width, height) = (pixmap.width() as usize, pixmap.height() as usize);
     let data = pixmap.data_mut();
     let mut scratch = vec![0u8; data.len()];
@@ -1415,7 +1459,16 @@ fn paint(
     let left = outer_left + pad_x;
     // The words are centred in a box taller than they are.
     let top = (frame_h - outer_h) / 2.0 + pad_y + (box_h - words_h) / 2.0;
-    let block_dx = (outer_left + outer_w / 2.0 - anchor_x).round() as i32;
+    // Fractional edges paint partial pixels on both sides. Report the
+    // enclosing pixel box rather than rounding the geometric size, which
+    // can leave the monitor's outline smaller than the painted plate.
+    let block_left = outer_left.floor();
+    let block_right = (outer_left + outer_w).ceil();
+    let block_top = ((frame_h - outer_h) / 2.0).floor();
+    let block_bottom = ((frame_h + outer_h) / 2.0).ceil();
+    let block_width = (block_right - block_left) as u32;
+    let block_height = (block_bottom - block_top) as u32;
+    let block_dx = ((block_left + block_right) / 2.0 - anchor_x).round() as i32;
 
     // One path for all the words, placed. Each line is aligned within the
     // box's width and sits on its own baseline. A word's box rides the
@@ -1584,11 +1637,7 @@ fn paint(
         }
     }
 
-    Ok((
-        canvas,
-        (outer_w.round() as u32, outer_h.round() as u32, block_dx, 0),
-        word_rects,
-    ))
+    Ok((canvas, (block_width, block_height, block_dx, 0), word_rects))
 }
 
 /// A rectangle with rounded corners, radius clamped to half the short side.
@@ -1906,6 +1955,39 @@ mod tests {
         );
     }
 
+    /// Cropping a shadow must preserve every channel, including where the
+    /// blur reaches a frame edge or the source has no paint at all.
+    #[test]
+    fn a_cropped_shadow_matches_the_full_frame_blur() {
+        for radius in [0, 1, 3, 12] {
+            for origin in [
+                None,
+                Some((23.25, 17.5)),
+                Some((-2.5, -1.0)),
+                Some((58.5, 41.25)),
+            ] {
+                let mut picture = Pixmap::new(64, 48).expect("canvas");
+                if let Some((x, y)) = origin {
+                    let rect = Rect::from_xywh(x, y, 10.5, 8.25).expect("rect");
+                    let mut paint = Paint {
+                        anti_alias: true,
+                        ..Paint::default()
+                    };
+                    paint.set_color_rgba8(40, 80, 120, 150);
+                    picture.fill_rect(rect, &paint, Transform::identity(), None);
+                }
+                let mut expected = picture.clone();
+                blur_full(&mut expected, radius);
+                blur(&mut picture, radius);
+                assert_eq!(
+                    picture.data(),
+                    expected.data(),
+                    "radius={radius}, origin={origin:?}"
+                );
+            }
+        }
+    }
+
     fn style(content: &str) -> TitleStyle {
         TitleStyle {
             content: content.to_owned(),
@@ -2179,6 +2261,27 @@ mod tests {
             "nothing paints outside the box: {left}..{right} in {}",
             rendered.block_width
         );
+    }
+
+    /// Fractional plate edges cover their boundary pixels too: the reported
+    /// box includes those pixels on both axes and for every alignment.
+    #[test]
+    fn a_fractional_box_includes_its_antialiased_edges() {
+        let fonts = Fonts::new();
+        for align in [Align::Left, Align::Center, Align::Right] {
+            let mut plated = style("hi");
+            plated.align = align;
+            plated.max_width = 0.501;
+            plated.max_height = 0.401;
+            plated.background = "#000000ff".to_owned();
+            plated.background_radius = 0.0;
+            plated.shadow = false;
+            let rendered = render(&fonts, &plated, 640, 360).expect("renders");
+            let (left, right) = painted_span(&rendered.png);
+            let (top, bottom) = painted_rows(&rendered.png);
+            assert_eq!(rendered.block_width, right - left + 1, "{align:?}");
+            assert_eq!(rendered.block_height, bottom - top + 1, "{align:?}");
+        }
     }
 
     /// A left-aligned box keeps its left edge on the anchor whatever its

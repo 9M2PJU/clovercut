@@ -134,6 +134,12 @@ strip = "symbols"
 [profile.dev.package."*"]
 opt-level = 2
 
+# Titles are painted on the UI thread while editing. The wildcard above
+# only optimises dependencies outside the workspace; the text painter's
+# full-frame shadow blur needs optimisation too, especially on 4K projects.
+[profile.dev.package.concat-text]
+opt-level = 2
+
 # No incremental caches for the everyday check-and-test builds; see
 # .cargo/config.toml for why it is said here and not there.
 [profile.dev]
