@@ -91,9 +91,9 @@ pub fn shown<'a>(
 }
 
 /// The official site, which the guides and the developer docs are pages of.
-const SITE: &str = "https://concat.standalones.org";
+const SITE: &str = REPOSITORY;
 /// The repository: the code, the issues, the releases.
-pub const REPOSITORY: &str = "https://github.com/jub0t/Concat";
+pub const REPOSITORY: &str = "https://github.com/tulcoturo/clovercut";
 
 /// Where each of the launch screen's links goes, by the name the screen
 /// sends. One table, so a moved page is one line here. Every address is a
@@ -102,12 +102,12 @@ pub const REPOSITORY: &str = "https://github.com/jub0t/Concat";
 /// "shortcuts" is not here: it opens Settings, not a page.
 pub fn link(name: &str) -> Option<String> {
     Some(match name {
-        "guides" => format!("{SITE}/guides/"),
-        "first-edit" => format!("{SITE}/guides/first-edit/"),
-        "report" => format!("{SITE}/guides/report-a-problem/"),
+        "guides" => format!("{SITE}#build-and-run"),
+        "first-edit" => format!("{SITE}#what-you-can-do"),
+        "report" => format!("{REPOSITORY}/issues/new"),
         "github" => REPOSITORY.to_owned(),
         // The invite the README carries.
-        "discord" => "https://discord.gg/DVuPfpXfqP".to_owned(),
+        "community" => format!("{REPOSITORY}/issues"),
         // The notes for the release this build is, under the tag the
         // release workflow pushes.
         "release-notes" => format!("{REPOSITORY}/releases/tag/v{}", env!("CARGO_PKG_VERSION")),
@@ -193,14 +193,14 @@ fn default_location() -> String {
 /// the folder the file manager shows for the app. An iPhone's live in the
 /// app's Documents, the one folder of its sandbox the Files app can show:
 /// `~/Desktop` there is a folder the app is not allowed to make, and every
-/// new project failed with EPERM. https://github.com/jub0t/Concat/issues/299
+/// new project failed with EPERM. https://github.com/tulcoturo/clovercut/issues/299
 fn location_on(os: &str, desktop: Option<PathBuf>, home: impl Fn(&str) -> String) -> String {
     match os {
-        "android" => home("Concat"),
-        "ios" => home("Documents/Concat"),
+        "android" => home("Clovercut"),
+        "ios" => home("Documents/Clovercut"),
         _ => desktop
-            .map(|desktop| desktop.join("Concat").to_string_lossy().into_owned())
-            .unwrap_or_else(|| home("Desktop/Concat")),
+            .map(|desktop| desktop.join("Clovercut").to_string_lossy().into_owned())
+            .unwrap_or_else(|| home("Desktop/Clovercut")),
     }
 }
 
@@ -222,7 +222,7 @@ fn is_untitled(name: &str) -> bool {
 /// The first of "Untitled project", "Untitled project 2", ... whose folder
 /// is not `taken`. A second new project in the same place used to be
 /// refused as "already exists" until it was renamed by hand.
-/// https://github.com/jub0t/Concat/issues/151
+/// https://github.com/tulcoturo/clovercut/issues/151
 fn first_free_untitled(taken: impl Fn(&str) -> bool) -> String {
     std::iter::once(UNTITLED.to_owned())
         .chain((2..).map(|n| format!("{UNTITLED} {n}")))
@@ -545,15 +545,15 @@ mod tests {
         let desktop = || Some(PathBuf::from("/desk"));
         assert_eq!(
             location_on("ios", desktop(), home),
-            "/home/Documents/Concat"
+            "/home/Documents/Clovercut"
         );
-        assert_eq!(location_on("ios", None, home), "/home/Documents/Concat");
-        assert_eq!(location_on("android", None, home), "/home/Concat");
+        assert_eq!(location_on("ios", None, home), "/home/Documents/Clovercut");
+        assert_eq!(location_on("android", None, home), "/home/Clovercut");
         assert_eq!(
             PathBuf::from(location_on("macos", desktop(), home)),
-            Path::new("/desk").join("Concat")
+            Path::new("/desk").join("Clovercut")
         );
-        assert_eq!(location_on("linux", None, home), "/home/Desktop/Concat");
+        assert_eq!(location_on("linux", None, home), "/home/Desktop/Clovercut");
     }
 
     /// The next untitled name skips every folder already there, and starts
@@ -623,7 +623,7 @@ mod tests {
             "first-edit",
             "report",
             "github",
-            "discord",
+            "community",
             "release-notes",
         ] {
             assert!(

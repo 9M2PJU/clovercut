@@ -22,7 +22,7 @@
 use std::path::{Path, PathBuf};
 
 /// The app identifier, which is also the folder name everywhere.
-pub const IDENTIFIER: &str = "app.concat.editor";
+pub const IDENTIFIER: &str = "io.github.tulcoturo.clovercut";
 
 /// The app's own directories on this machine.
 #[derive(Clone, Debug)]

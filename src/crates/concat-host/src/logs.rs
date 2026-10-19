@@ -140,7 +140,7 @@ fn begin(dirs: &AppDirs) -> Result<(PathBuf, std::fs::File), String> {
     std::fs::create_dir_all(&folder)
         .map_err(|error| format!("could not create {}: {error}", folder.display()))?;
     prune(&folder);
-    let path = folder.join(format!("concat-{}.log", stamp(now(), Stamp::File)));
+    let path = folder.join(format!("clovercut-{}.log", stamp(now(), Stamp::File)));
     let file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -164,7 +164,7 @@ fn prune(folder: &Path) {
         .filter(|path| {
             path.file_name()
                 .and_then(|name| name.to_str())
-                .is_some_and(|name| name.starts_with("concat-") && name.ends_with(".log"))
+                .is_some_and(|name| name.starts_with("clovercut-") && name.ends_with(".log"))
         })
         .collect();
     if ours.len() < KEEP {
@@ -416,12 +416,12 @@ mod tests {
 
     #[test]
     fn pruning_keeps_the_newest_and_leaves_everything_else_alone() {
-        let folder = std::env::temp_dir().join(format!("concat-logs-{}", std::process::id()));
+        let folder = std::env::temp_dir().join(format!("clovercut-logs-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&folder);
         std::fs::create_dir_all(&folder).expect("a temp dir");
         for index in 0..KEEP + 5 {
             std::fs::write(
-                folder.join(format!("concat-2026091{index:02}-000000.log")),
+                folder.join(format!("clovercut-2026091{index:02}-000000.log")),
                 "x",
             )
             .expect("a log");
@@ -439,11 +439,14 @@ mod tests {
         assert!(left.contains(&"notes.txt".to_owned()));
         let ours: Vec<&String> = left
             .iter()
-            .filter(|name| name.starts_with("concat-"))
+            .filter(|name| name.starts_with("clovercut-"))
             .collect();
         assert_eq!(ours.len(), KEEP - 1, "{ours:?}");
         // The ones kept are the last ones written.
-        assert!(ours.iter().all(|name| name.as_str() >= "concat-20260906"));
+        assert!(
+            ours.iter()
+                .all(|name| name.as_str() >= "clovercut-20260906")
+        );
         let _ = std::fs::remove_dir_all(&folder);
     }
 
@@ -451,7 +454,7 @@ mod tests {
     /// one to install: everything from the facade down to a line in a file.
     #[test]
     fn a_line_written_through_the_facade_lands_in_the_file() {
-        let root = std::env::temp_dir().join(format!("concat-open-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("clovercut-open-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).expect("a temp dir");
         let dirs = AppDirs::under(&root);

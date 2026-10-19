@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Clovercut
+Comment=Edit video and audio locally
+Exec=clovercut
+Icon=clovercut
+Categories=AudioVideo;Video;
+Terminal=false
+StartupWMClass=io.github.tulcoturo.clovercut

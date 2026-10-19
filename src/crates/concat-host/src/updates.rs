@@ -34,15 +34,15 @@ use crate::dirs::AppDirs;
 use crate::models;
 
 /// The repository the releases are read from.
-pub const REPO: &str = "jub0t/Concat";
+pub const REPO: &str = "tulcoturo/clovercut";
 
 /// The first release with a Version page: the earliest one a person can
 /// come back from, so the earliest one offered.
-pub const FIRST_SWITCHABLE: Version = Version::new(0, 2, 5);
+pub const FIRST_SWITCHABLE: Version = Version::new(0, 0, 1);
 
 /// GitHub's list of the repository's releases, newest first. A hundred
 /// covers years of releases at this pace.
-const RELEASES_URL: &str = "https://api.github.com/repos/jub0t/Concat/releases?per_page=100";
+const RELEASES_URL: &str = "https://api.github.com/repos/tulcoturo/clovercut/releases?per_page=100";
 
 /// What a download that was stopped says.
 pub const CANCELLED: &str = "the download was cancelled";
@@ -267,9 +267,9 @@ pub fn installed_as() -> Result<PackageKind, Fixed> {
             linux_kind(
                 std::env::var_os("APPIMAGE").is_some(),
                 std::env::var_os("FLATPAK_ID").is_some(),
-                Path::new("/var/lib/dpkg/info/concat.list").exists(),
-                pacman_has_concat(),
-                rpm_has_concat(),
+                Path::new("/var/lib/dpkg/info/clovercut.list").exists(),
+                pacman_has_clovercut(),
+                rpm_has_clovercut(),
             )
         } else {
             Err(Fixed::Store)
@@ -327,12 +327,12 @@ fn linux_kind(
 
 /// Whether pacman's database lists the `concat` package: a folder named
 /// `concat-<version>-<release>` under its local store.
-fn pacman_has_concat() -> bool {
+fn pacman_has_clovercut() -> bool {
     std::fs::read_dir("/var/lib/pacman/local").is_ok_and(|entries| {
         entries.flatten().any(|entry| {
             let name = entry.file_name();
             let name = name.to_string_lossy();
-            name.strip_prefix("concat-")
+            name.strip_prefix("clovercut-")
                 .is_some_and(|rest| rest.starts_with(|c: char| c.is_ascii_digit()))
         })
     })
@@ -340,10 +340,10 @@ fn pacman_has_concat() -> bool {
 
 /// Whether the RPM database lists `concat`. Asked of `rpm` itself, and only
 /// where there is a database to ask about.
-fn rpm_has_concat() -> bool {
+fn rpm_has_clovercut() -> bool {
     Path::new("/var/lib/rpm").exists()
         && Command::new("rpm")
-            .args(["-q", "concat"])
+            .args(["-q", "clovercut"])
             .output()
             .is_ok_and(|output| output.status.success())
 }
@@ -675,7 +675,7 @@ fn get_text(url: &str) -> Result<String, String> {
         .build();
     let response = agent
         .get(url)
-        .set("User-Agent", &format!("Concat/{}", Version::current()))
+        .set("User-Agent", &format!("Clovercut/{}", Version::current()))
         .set("Accept", "application/vnd.github+json")
         .call()
         .map_err(|error| match error {
@@ -699,29 +699,29 @@ mod tests {
 
     #[test]
     fn a_version_reads_a_tag_and_orders_by_its_numbers() {
-        assert_eq!(Version::parse("v0.2.5"), Some(Version::new(0, 2, 5)));
-        assert_eq!(Version::parse("0.2.5"), Some(Version::new(0, 2, 5)));
+        assert_eq!(Version::parse("v0.0.1"), Some(Version::new(0, 0, 1)));
+        assert_eq!(Version::parse("0.0.1"), Some(Version::new(0, 0, 1)));
         assert_eq!(Version::parse(" v1.0.0 "), Some(Version::new(1, 0, 0)));
-        for not_a_release in ["v0.3.0-beta.1", "nightly", "0.2", "0.2.5.1", "", "v"] {
+        for not_a_release in ["v0.3.0-beta.1", "nightly", "0.2", "0.0.1.1", "", "v"] {
             assert_eq!(Version::parse(not_a_release), None, "{not_a_release:?}");
         }
         // By number, not by text: ten comes after nine.
         assert!(Version::new(0, 2, 10) > Version::new(0, 2, 9));
         assert!(Version::new(0, 3, 0) > Version::new(0, 2, 99));
         assert!(Version::new(1, 0, 0) > Version::new(0, 9, 9));
-        assert_eq!(Version::new(0, 2, 5).to_string(), "0.2.5");
-        assert_eq!(Version::new(0, 2, 5).tag(), "v0.2.5");
-        assert!(Version::current() >= Version::new(0, 2, 4));
+        assert_eq!(Version::new(0, 0, 1).to_string(), "0.0.1");
+        assert_eq!(Version::new(0, 0, 1).tag(), "v0.0.1");
+        assert!(Version::current() >= FIRST_SWITCHABLE);
     }
 
     const RELEASES: &str = r#"[
         {"tag_name": "nightly", "draft": false, "prerelease": true, "published_at": "2026-10-03T01:00:00Z"},
-        {"tag_name": "v0.2.7", "draft": true, "prerelease": false, "published_at": null},
+        {"tag_name": "v0.0.3", "draft": true, "prerelease": false, "published_at": null},
         {"tag_name": "v0.3.0-beta.1", "draft": false, "prerelease": true, "published_at": "2026-10-02T12:00:00Z"},
-        {"tag_name": "v0.2.5", "draft": false, "prerelease": false, "published_at": "2026-09-28T09:30:00Z"},
-        {"tag_name": "v0.2.6", "draft": false, "prerelease": false, "published_at": "2026-10-01T17:34:02Z"},
-        {"tag_name": "v0.2.4", "draft": false, "prerelease": false, "published_at": "2026-09-24T17:34:02Z"},
-        {"tag_name": "v0.2.6", "draft": false, "prerelease": false, "published_at": "2026-10-01T17:34:02Z"}
+        {"tag_name": "v0.0.1", "draft": false, "prerelease": false, "published_at": "2026-09-28T09:30:00Z"},
+        {"tag_name": "v0.0.2", "draft": false, "prerelease": false, "published_at": "2026-10-01T17:34:02Z"},
+        {"tag_name": "v0.0.0", "draft": false, "prerelease": false, "published_at": "2026-09-24T17:34:02Z"},
+        {"tag_name": "v0.0.2", "draft": false, "prerelease": false, "published_at": "2026-10-01T17:34:02Z"}
     ]"#;
 
     #[test]
@@ -731,8 +731,8 @@ mod tests {
             .iter()
             .map(|release| release.version.to_string())
             .collect();
-        assert_eq!(versions, ["0.2.6", "0.2.5"]);
-        assert_eq!(releases[0].tag, "v0.2.6");
+        assert_eq!(versions, ["0.0.2", "0.0.1"]);
+        assert_eq!(releases[0].tag, "v0.0.2");
         assert_eq!(releases[0].published, "2026-10-01");
         assert_eq!(releases[1].published, "2026-09-28");
         assert!(releases_from_json("[]").expect("reads").is_empty());
@@ -750,21 +750,21 @@ mod tests {
     fn standing_says_where_this_build_sits() {
         let releases = releases_from_json(RELEASES).expect("reads");
         assert_eq!(
-            standing(Version::new(0, 2, 5), &releases),
-            Standing::Behind(Version::new(0, 2, 6))
+            standing(Version::new(0, 0, 1), &releases),
+            Standing::Behind(Version::new(0, 0, 2))
         );
-        assert_eq!(standing(Version::new(0, 2, 6), &releases), Standing::Latest);
-        assert_eq!(standing(Version::new(0, 2, 7), &releases), Standing::Ahead);
-        assert_eq!(standing(Version::new(0, 2, 6), &[]), Standing::NoReleases);
+        assert_eq!(standing(Version::new(0, 0, 2), &releases), Standing::Latest);
+        assert_eq!(standing(Version::new(0, 0, 3), &releases), Standing::Ahead);
+        assert_eq!(standing(Version::new(0, 0, 2), &[]), Standing::NoReleases);
     }
 
     const MANIFEST: &str = r#"{
-        "schema": 2, "version": "0.2.6", "tag": "v0.2.6",
+        "schema": 2, "version": "0.0.2", "tag": "v0.0.2",
         "binaries": {
-            "macos": {"arm64": {"dmg": {"file": "Concat-0.2.6-macos-arm64.dmg", "url": "https://example.test/arm64.dmg", "bytes": 59456586, "sha256": "26cc"}}},
-            "linux": {"x86_64": {"appimage": {"file": "Concat-0.2.6-linux-x86_64.AppImage", "url": "https://example.test/x.AppImage", "bytes": 1, "sha256": "5c75"},
+            "macos": {"arm64": {"dmg": {"file": "Clovercut-0.0.2-macos-arm64.dmg", "url": "https://example.test/arm64.dmg", "bytes": 59456586, "sha256": "26cc"}}},
+            "linux": {"x86_64": {"appimage": {"file": "Clovercut-0.0.2-linux-x86_64.AppImage", "url": "https://example.test/x.AppImage", "bytes": 1, "sha256": "5c75"},
                                  "deb": {"file": "../evil.deb", "url": "https://example.test/evil", "bytes": 1, "sha256": "00"}}},
-            "windows": {"aarch64": {"setup": {"file": "Concat-0.2.6-windows-aarch64-setup.exe", "url": "https://example.test/setup.exe", "sha256": "7042"}}}
+            "windows": {"aarch64": {"setup": {"file": "Clovercut-0.0.2-windows-aarch64-setup.exe", "url": "https://example.test/setup.exe", "sha256": "7042"}}}
         }
     }"#;
 
@@ -772,7 +772,7 @@ mod tests {
     fn the_package_is_found_by_platform_architecture_and_kind() {
         let mac =
             package_from_manifest(MANIFEST, "macos", "aarch64", PackageKind::Dmg).expect("a Mac's");
-        assert_eq!(mac.file, "Concat-0.2.6-macos-arm64.dmg");
+        assert_eq!(mac.file, "Clovercut-0.0.2-macos-arm64.dmg");
         assert_eq!(mac.bytes, 59456586);
         assert_eq!(mac.sha256, "26cc");
         let appimage = package_from_manifest(MANIFEST, "linux", "x86_64", PackageKind::AppImage)
@@ -849,8 +849,8 @@ mod tests {
             assert!(!kind.key().is_empty());
         }
         assert_eq!(
-            manifest_url("v0.2.6"),
-            "https://github.com/jub0t/Concat/releases/download/v0.2.6/manifest.json"
+            manifest_url("v0.0.2"),
+            "https://github.com/tulcoturo/clovercut/releases/download/v0.0.2/manifest.json"
         );
     }
 

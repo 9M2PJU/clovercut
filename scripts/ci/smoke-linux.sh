@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Launches a built Linux bundle the way a person would, and fails if it
 # does not start. Nothing else in the build ever runs what it packages:
-# a library left out of lib/, a dependency the .deb forgot to name, or an
+# a library left out of lib/, a missing system dependency, or an
 # instruction an older CPU lacks all used to reach a release unnoticed.
 #
 #   smoke-linux.sh [--sde SDE64] DIR
-#       The staged folder (DIR/concat beside DIR/lib), on this machine:
-#       every library resolves from the folder alone; `concat --version`
-#       exits 0; `concat --smoke` (start-up through the first frame of the
+#       The staged folder (DIR/clovercut beside DIR/lib), on this machine:
+#       every library resolves from the folder alone; `clovercut --version`
+#       exits 0; `clovercut --smoke` (start-up through the first frame of the
 #       window, then out) exits 0 under Xvfb, and does not so much as try
 #       to open the NVIDIA driver's CUDA or NVENC libraries, which nothing
 #       should touch before a person asks for a hardware export. With
@@ -16,11 +16,9 @@
 #       and `--whisper-cpu`, loading whisper's CPU kernels, posing as a
 #       Sandy Bridge.
 #
-#   smoke-linux.sh --container IMAGE DEB APPIMAGE
-#       The packages, in a clean IMAGE (ubuntu:22.04, debian:12) through
-#       docker: the .deb installed by apt, which pulls in exactly the
-#       dependencies it declares and nothing else, then `--version` and
-#       `--smoke` from the installed package and from the AppImage.
+#   smoke-linux.sh --container IMAGE APPIMAGE
+#       Run the AppImage in a clean ubuntu:22.04 or debian:12 container,
+#       using the system toolkit and graphics libraries, without FUSE.
 #
 # Runs in CI after staging (build-app.yml), and locally against a folder
 # or packages built the same way. Needs xvfb-run; strace if it is there.
@@ -62,7 +60,7 @@ host() {
   if [ "${1:-}" = "--sde" ]; then sde=$2; shift 2; fi
   [ $# -eq 1 ] || { echo "usage: $0 [--sde SDE64] DIR" >&2; exit 2; }
   dir=$(cd "$1" && pwd)
-  local bin="$dir/concat"
+  local bin="$dir/clovercut"
   [ -x "$bin" ] || fail "$bin is not there"
 
   # The build's own environment points at the FFmpeg it linked; the
@@ -77,10 +75,10 @@ host() {
     fail "the binary does not resolve every library from its own folder"
   fi
 
-  say "concat --version"
-  HOME=$(fresh_home) expect_ok "concat --version" 60 "$bin" --version
+  say "clovercut --version"
+  HOME=$(fresh_home) expect_ok "clovercut --version" 60 "$bin" --version
 
-  say "concat --smoke"
+  say "clovercut --smoke"
   local trace
   trace=$(mktemp)
   local tracer=()
@@ -89,73 +87,53 @@ host() {
   else
     echo "no strace: the start-up is run but its file opens are not checked"
   fi
-  HOME=$(fresh_home) expect_ok "concat --smoke" 180 \
+  HOME=$(fresh_home) expect_ok "clovercut --smoke" 180 \
     xvfb-run -a -s "-screen 0 1920x1080x24" "${tracer[@]}" "$bin" --smoke
   if [ ${#tracer[@]} -gt 0 ]; then
     local cuda
     cuda=$(grep -E 'lib(cuda|nvcuvid|nvidia-encode)\.so' "$trace" || true)
     if [ -n "$cuda" ]; then
       echo "$cuda"
-      fail "concat --smoke tried to load the NVIDIA driver's CUDA or NVENC libraries at start-up"
+      fail "clovercut --smoke tried to load the NVIDIA driver's CUDA or NVENC libraries at start-up"
     fi
     echo "no CUDA or NVENC library opened at start-up"
   fi
 
   if [ -n "$sde" ]; then
-    say "concat --version on an emulated Ivy Bridge"
+    say "clovercut --version on an emulated Ivy Bridge"
     # The emulator stops the program at the first instruction the chip
     # it poses as does not have, and says which.
-    HOME=$(fresh_home) expect_ok "concat --version under SDE -ivb" 600 "$sde" -ivb -- "$bin" --version
+    HOME=$(fresh_home) expect_ok "clovercut --version under SDE -ivb" 600 "$sde" -ivb -- "$bin" --version
 
     # whisper's CPU kernels, one module per CPU generation: ggml opens
     # every one to score it against the CPU before it keeps the best, so
     # the Haswell and Ice Lake modules are loaded here too, on a Sandy
     # Bridge - AVX without even F16C, like #318's i7-2600 - which must
     # come out with the sandybridge module and no illegal instruction.
-    say "concat --whisper-cpu on an emulated Sandy Bridge"
-    HOME=$(fresh_home) expect_ok "concat --whisper-cpu under SDE -snb" 600 "$sde" -snb -- "$bin" --whisper-cpu
+    say "clovercut --whisper-cpu on an emulated Sandy Bridge"
+    HOME=$(fresh_home) expect_ok "clovercut --whisper-cpu under SDE -snb" 600 "$sde" -snb -- "$bin" --whisper-cpu
   fi
 }
 
 container() {
-  [ $# -eq 3 ] || { echo "usage: $0 --container IMAGE DEB APPIMAGE" >&2; exit 2; }
-  local image=$1 deb appimage
-  deb=$(cd "$(dirname "$2")" && pwd)/$(basename "$2")
-  appimage=$(cd "$(dirname "$3")" && pwd)/$(basename "$3")
-  [ -f "$deb" ] || fail "$deb is not there"
-  [ -f "$appimage" ] || fail "$appimage is not there"
-  say "in a clean $image"
-  docker run --rm \
-    -v "$here/smoke-linux.sh:/ci/smoke-linux.sh:ro" \
-    -v "$deb:/pkg/concat.deb:ro" \
-    -v "$appimage:/pkg/concat.AppImage:ro" \
-    "$image" bash /ci/smoke-linux.sh --inside /pkg/concat.deb /pkg/concat.AppImage
+  [ $# -eq 2 ] || { echo "usage: $0 --container IMAGE APPIMAGE" >&2; exit 2; }
+  local image=$1 appimage
+  appimage=$(realpath "$2")
+  docker run --rm -v "$PWD/scripts/ci:/ci:ro" -v "$appimage:/pkg/Clovercut.AppImage:ro" \
+    "$image" bash /ci/smoke-linux.sh --inside /pkg/Clovercut.AppImage
 }
 
-# Inside the container. Xvfb and Mesa's software drivers stand in for
-# the desktop's display and GPU, and one font for the desktop's fonts;
-# everything else the program needs comes from the package's own
-# dependencies, so a library it forgot to name is missing here too.
 inside() {
-  local deb=$1 appimage=$2
+  [ $# -eq 1 ] || { echo "usage: $0 --inside APPIMAGE" >&2; exit 2; }
+  local appimage=$1
   export DEBIAN_FRONTEND=noninteractive
-  say "installing the .deb and what it depends on"
   apt-get update -qq
-  apt-get install -y -qq --no-install-recommends \
-    "$deb" xvfb xauth libgl1-mesa-dri mesa-vulkan-drivers fonts-dejavu-core > /dev/null
-
-  say "concat --version (the package)"
-  HOME=$(fresh_home) expect_ok "concat --version from the .deb" 60 concat --version
-  say "concat --smoke (the package)"
-  HOME=$(fresh_home) expect_ok "concat --smoke from the .deb" 180 \
-    xvfb-run -a -s "-screen 0 1920x1080x24" concat --smoke
-
-  # No FUSE in a container: the AppImage unpacks itself and runs.
+  apt-get install -y -qq --no-install-recommends xvfb xauth libgl1-mesa-dri mesa-vulkan-drivers \
+    fonts-dejavu-core libgtk-3-0 libfontconfig1 libfreetype6 libasound2 libxkbcommon0 \
+    libxkbcommon-x11-0 libgl1 > /dev/null
   export APPIMAGE_EXTRACT_AND_RUN=1
-  say "concat --version (the AppImage)"
-  HOME=$(fresh_home) expect_ok "concat --version from the AppImage" 120 "$appimage" --version
-  say "concat --smoke (the AppImage)"
-  HOME=$(fresh_home) expect_ok "concat --smoke from the AppImage" 240 \
+  HOME=$(fresh_home) expect_ok "Clovercut --version (AppImage)" 120 "$appimage" --version
+  HOME=$(fresh_home) expect_ok "Clovercut --smoke (AppImage)" 240 \
     xvfb-run -a -s "-screen 0 1920x1080x24" "$appimage" --smoke
 }
 

@@ -2,7 +2,7 @@
   # Concat on Nix, Linux only: the people asking for a flake run Linux, and
   # the macOS and Windows builds ship from release.yml.
   #
-  #   nix build            the editor window, ./result/bin/concat
+  #   nix build            the editor window, ./result/bin/clovercut
   #   nix run              build and launch it
   #   nix develop          a shell with everything `cargo run -p concat` needs
   #
@@ -29,7 +29,7 @@
   #   source, which the sandbox cannot do, so a mismatch fails loudly.
   #
   # Vulkan is loaded at run time, hence the LD_LIBRARY_PATH on the wrapper.
-  description = "Concat - free and open source video editor";
+  description = "Clovercut - free and open source video editor";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
@@ -146,10 +146,10 @@
     in
     {
       packages = eachSystem (pkgs: rec {
-        default = concat;
-        concat = pkgs.rustPlatform.buildRustPackage {
-          pname = "concat";
-          version = "0.2.8";
+        default = clovercut;
+        clovercut = pkgs.rustPlatform.buildRustPackage {
+          pname = "clovercut";
+          version = "0.0.1";
           src = self;
 
           cargoRoot = "src";
@@ -175,7 +175,7 @@
           # builder has, and rustc is killed part way through ("rustc was
           # terminated by a deadly signal"). Sixteen units keep every piece
           # a size a builder can hold; the thin LTO still joins them.
-          # https://github.com/jub0t/Concat/issues/225
+          # https://github.com/tulcoturo/clovercut/issues/225
           env.CARGO_PROFILE_RELEASE_CODEGEN_UNITS = "16";
 
           nativeBuildInputs = (nativeInputs pkgs) ++ [
@@ -192,12 +192,12 @@
 
           desktopItems = [
             (pkgs.makeDesktopItem {
-              name = "concat";
-              exec = "concat";
-              icon = "concat";
-              desktopName = "Concat";
+              name = "io.github.tulcoturo.clovercut";
+              exec = "clovercut";
+              icon = "clovercut";
+              desktopName = "Clovercut";
               comment = "Free and open source video editor";
-              startupWMClass = "concat";
+              startupWMClass = "io.github.tulcoturo.clovercut";
               categories = [
                 "AudioVideo"
                 "AudioVideoEditing"
@@ -206,16 +206,16 @@
           ];
 
           postInstall = ''
-            install -Dm644 assets/concat_logo_512.png \
-              $out/share/icons/hicolor/512x512/apps/concat.png
+            install -Dm644 assets/clovercut_512.png \
+              $out/share/icons/hicolor/512x512/apps/clovercut.png
           '';
 
           meta = {
             description = "Free and open source video editor";
-            homepage = "https://github.com/jub0t/Concat";
+            homepage = "https://github.com/tulcoturo/clovercut";
             license = pkgs.lib.licenses.agpl3Plus;
             platforms = systems;
-            mainProgram = "concat";
+            mainProgram = "clovercut";
           };
         };
       });
@@ -240,7 +240,7 @@
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (runtimeLibs pkgs);
 
           shellHook = ''
-            echo "Concat: cd src && cargo run -p concat"
+            echo "Clovercut: cd src && cargo run -p concat"
           '';
         };
       });

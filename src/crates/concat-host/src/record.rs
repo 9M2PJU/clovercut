@@ -321,7 +321,7 @@ fn run(
             cpal::SampleFormat::U16 => input::<u16>(&device, &config, events, shared),
             cpal::SampleFormat::I32 => input::<i32>(&device, &config, events, shared),
             other => Err(format!(
-                "the microphone records {other:?} samples, which Concat does not read"
+                "the microphone records {other:?} samples, which Clovercut does not read"
             )),
         }?;
         stream

@@ -1506,7 +1506,7 @@ component VersionLine inherits HorizontalLayout {
     VerticalLayout {
         alignment: center;
         Text {
-            text: "Concat " + root.version;
+            text: "Clovercut " + root.version;
             color: Theme.fg-dim;
             font-family: Theme.font-technical;
             font-size: Theme.fs-sm;
@@ -1553,8 +1553,8 @@ global Learn {
         title: "GitHub", note: I18n.t("start.githubNote"),
     };
     out property <LearnItem> chat: {
-        name: "discord", glyph: Glyph.discord, external: true,
-        title: "Discord", note: I18n.t("start.discordNote"),
+        name: "community", glyph: Glyph.github, external: true,
+        title: I18n.t("start.community"), note: I18n.t("start.communityNote"),
     };
     out property <LearnItem> report: {
         name: "report", glyph: Glyph.bug, external: true,
@@ -1654,6 +1654,13 @@ component WideHome inherits Rectangle {
                 alignment: start;
 
                 // ── the greeting ─────────────────────────────────────
+                Image {
+                    source: @image-url("../../../../assets/icons/clovercut_128.png");
+                    width: 72px;
+                    height: 72px;
+                    image-fit: contain;
+                }
+                Rectangle { height: 12px; }
                 Text {
                     text: root.recents-total == 0
                         ? I18n.t("start.welcome")

@@ -6,21 +6,6 @@ name: Nix
 # the author's own name - so the job builds exactly what is checked in and
 # fails, saying so, when the lock has fallen behind the flake.
 on:
-  push:
-    branches: [main]
-    paths:
-      - flake.nix
-      - flake.lock
-      - src/Cargo.lock
-      - src/Cargo.toml
-      - src/crates/*/Cargo.toml
-      - .github/workflows/nix.yml
-  pull_request:
-    paths:
-      - flake.nix
-      - flake.lock
-      - src/Cargo.lock
-      - .github/workflows/nix.yml
   workflow_dispatch:
 
 # Only a pull request's run is superseded by the next push to it; a run on

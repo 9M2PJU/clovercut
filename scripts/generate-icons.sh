@@ -5,15 +5,15 @@
 #   scripts/generate-icons.sh [source.png] [output-dir]
 #
 # Defaults:
-#   source     assets/concat_logo_512.png
-#              (a 512px render of assets/new_concat_logo_512_rounded_light_theme.svg)
+#   source     assets/clovercut_512.png
+#              (the icon cropped from the project logo.jpg)
 #   output-dir assets/icons
 #
 # Uses sips on macOS, ImageMagick (magick/convert) elsewhere.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SRC="${1:-$REPO_ROOT/assets/concat_logo_512.png}"
+SRC="${1:-$REPO_ROOT/assets/clovercut_512.png}"
 OUT="${2:-$REPO_ROOT/assets/icons}"
 SIZES=(512 256 128 64 32 16)
 

@@ -37,6 +37,7 @@ CRATES = ROOT / "src" / "crates"
 # The repository the mirror lives on, and the engine constant that must
 # agree with this file about which release holds it.
 REPO = "jub0t/Concat"
+RELEASE_REPO = "tulcoturo/clovercut"
 HOST_MODELS = CRATES / "concat-host" / "src" / "models.rs"
 
 # Where each family's table lives in the engine, for --check.
@@ -47,27 +48,10 @@ TABLES = {
     "whisper": CRATES / "concat-speech" / "src" / "transcribe.rs",
 }
 
-# The bundles a release publishes, as build-app.yml and mobile.yml name
-# them: platform, architecture, the kind of file, and its name with the
-# version to fill in. Installers and binaries, never an archive of a
-# folder - a person downloads the thing they run.
+# Linux AppImages published by Clovercut; the model mirror above stays upstream.
 BUNDLES = [
-    ("macos", "arm64", "dmg", "Concat-{v}-macos-arm64.dmg"),
-    ("macos", "x86_64", "dmg", "Concat-{v}-macos-x86_64.dmg"),
-    ("linux", "x86_64", "deb", "Concat-{v}-linux-x86_64.deb"),
-    ("linux", "x86_64", "rpm", "Concat-{v}-linux-x86_64.rpm"),
-    ("linux", "x86_64", "appimage", "Concat-{v}-x86_64.AppImage"),
-    ("linux", "x86_64", "pacman", "Concat-{v}-linux-x86_64.pkg.tar.zst"),
-    ("linux", "aarch64", "deb", "Concat-{v}-linux-aarch64.deb"),
-    ("linux", "aarch64", "rpm", "Concat-{v}-linux-aarch64.rpm"),
-    ("linux", "aarch64", "appimage", "Concat-{v}-aarch64.AppImage"),
-    ("linux", "aarch64", "pacman", "Concat-{v}-linux-aarch64.pkg.tar.zst"),
-    ("windows", "x86_64", "setup", "Concat-{v}-windows-x86_64-setup.exe"),
-    ("windows", "x86_64", "msi", "Concat-{v}-windows-x86_64.msi"),
-    ("windows", "aarch64", "setup", "Concat-{v}-windows-aarch64-setup.exe"),
-    ("windows", "aarch64", "msi", "Concat-{v}-windows-aarch64.msi"),
-    ("android", "arm64", "apk", "Concat-{v}-android-arm64.apk"),
-    ("ios", "arm64", "ipa", "Concat-{v}-ios-arm64.ipa"),
+    ("linux", "x86_64", "appimage", "Clovercut-{v}-x86_64.AppImage"),
+    ("linux", "aarch64", "appimage", "Clovercut-{v}-aarch64.AppImage"),
 ]
 
 
@@ -335,7 +319,7 @@ def release_manifest(version: str, tag: str, bundles: pathlib.Path | None) -> di
         file = stem.format(v=version)
         entry = {
             "file": file,
-            "url": asset_url(tag, file),
+            "url": f"https://github.com/{RELEASE_REPO}/releases/download/{tag}/{file}",
         }
         if bundles is not None:
             path = bundles / file
@@ -375,7 +359,7 @@ def release_manifest(version: str, tag: str, bundles: pathlib.Path | None) -> di
     return {
         # 2: a target holds one row per kind of file, not one file.
         "schema": 2,
-        "product": "Concat",
+        "product": "Clovercut",
         "version": version,
         "tag": tag,
         "models_release": release,

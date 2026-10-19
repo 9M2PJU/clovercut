@@ -24,7 +24,7 @@ fn main() -> Result<(), slint::PlatformError> {
     // with no standard output - is not a reason to panic.
     if launch == Ok(Launch::Version) {
         use std::io::Write;
-        let _ = writeln!(std::io::stdout(), "concat {}", env!("CARGO_PKG_VERSION"));
+        let _ = writeln!(std::io::stdout(), "Clovercut {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
     // Before the log and the window too: what this proves is that whisper's

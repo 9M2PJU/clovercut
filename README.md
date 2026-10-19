@@ -4,7 +4,7 @@
 
 <h1 align="center">Clovercut</h1>
 <p align="center"><strong>Your video. Your machine. Your editor.</strong></p>
-<p align="center">A free video editor with local processing and room to grow.</p>
+<p align="center">A free Linux video editor with local processing.</p>
 
 <p align="center">
   <a href="https://github.com/tulcoturo/clovercut"><img src="https://img.shields.io/badge/Project-Clovercut-16b86a" alt="Clovercut project" /></a>
@@ -33,15 +33,33 @@ These capabilities come from the original project. Clovercut-specific validation
 
 ## Project status
 
-Clovercut is in early development. The first builds and hands-on checks have been performed on **Linux**. The original codebase also includes support for Windows, macOS, and mobile platforms, which still need validation in this fork.
+Clovercut **0.0.1** is in early development and targets **Linux only**. Releases are distributed as **AppImage**, for x86_64 and ARM64. Windows, macOS and mobile builds are not maintained or published by this fork.
 
 Our first improvements include:
+
+- Aligned inspector sliders, compact value fields and paired position keyframes.
+- Separate Color, Curves and Wheels tabs, with coloured adjustment tracks.
+- Clovercut branding and an AppImage-only Linux release pipeline.
 
 - Corrected reported text box dimensions for fractional edges.
 - Faster title shadow rendering by limiting the blur to the area it needs to process.
 - An optimised text module in development builds.
 
-Executables and several internal components are still named `concat`. Adopting the Clovercut identity throughout the application is ongoing.
+The editor executable is `clovercut`. Internal Rust crates and the project format retain their inherited names for compatibility. Clovercut uses its own settings and cache directories under `io.github.tulcoturo.clovercut`. Existing Concat projects can still be opened.
+
+## Linux AppImage
+
+The first release is being prepared; builds will appear on the [Clovercut releases page](https://github.com/tulcoturo/clovercut/releases).
+
+```bash
+chmod +x Clovercut-0.0.1-x86_64.AppImage
+./Clovercut-0.0.1-x86_64.AppImage
+```
+
+Use the `aarch64` build on ARM64 Linux. On systems without FUSE, run with
+`APPIMAGE_EXTRACT_AND_RUN=1`. Builds target Ubuntu 22.04 / glibc 2.35 or newer;
+system graphics drivers, GTK 3, ALSA and font libraries are required.
+AI models download separately. See [release preparation](docs/RELEASING.md).
 
 ## Build and run
 
@@ -82,7 +100,7 @@ cargo build --locked -p concat -j 1 \
 To open an already compiled executable from the repository root:
 
 ```bash
-./src/target/debug/concat
+./src/target/debug/clovercut
 ```
 
 ### Checks

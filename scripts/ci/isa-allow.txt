@@ -93,4 +93,4 @@ whisper.dll                    48    0     0      0          0
 # the count shown, without the `~`, so the next library compiled for
 # Haswell fails the build.
 concat.exe                     -     -     ~1000  -          -
-concat                         -     -     ~1000  -          -
+clovercut                      -     -     ~1000  -          -

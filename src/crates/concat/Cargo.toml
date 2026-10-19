@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish = false
-description = "Concat, the editor window: the Slint front end that drives the engine."
+description = "Clovercut, the editor window: the Slint front end that drives the engine."
 
 # The product's name is the binary's name, unsuffixed: `concat` is what a
 # user launches, and the concat-* crates are what it is made of. The window
@@ -15,7 +15,7 @@ description = "Concat, the editor window: the Slint front end that drives the en
 path = "src/lib.rs"
 
 [[bin]]
-name = "concat"
+name = "clovercut"
 path = "src/main.rs"
 
 # Slint is taken under its GPL-3.0-only option to sit beside the AGPL engine.

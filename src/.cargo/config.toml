@@ -15,4 +15,4 @@
 # `cargo dev`: the window, built to try a change in. See `[profile.quick]`
 # in Cargo.toml for what it is and why it is quick.
 [alias]
-dev = "run --bin concat --profile quick"
+dev = "run --bin clovercut --profile quick"

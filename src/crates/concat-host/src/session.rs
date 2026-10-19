@@ -89,7 +89,7 @@ impl Session {
                     > concat_project::DOCUMENT_VERSION =>
                 {
                     return Err(format!(
-                        "{path} was saved by a newer Concat than this one: update to open it"
+                        "{path} was saved by a newer Clovercut than this one: update to open it"
                     ));
                 }
                 None => {
