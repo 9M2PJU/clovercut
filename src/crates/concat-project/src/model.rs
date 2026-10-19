@@ -1527,6 +1527,8 @@ pub struct TextStyle {
     /// caption applies to this collection, while its words and times stay local.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub caption_group: Option<String>,
+    /// Entry and exit presets, independent from manual transform and colour keys.
+    pub caption_motion: CaptionMotion,
     /// The words themselves, newlines included. The clip's display name is
     /// snapshotted from the first non-empty line.
     pub content: String,
@@ -1609,6 +1611,9 @@ impl TextStyle {
             if value.is_finite() { value } else { fallback }
         }
         let base = TextStyle::default();
+        self.caption_motion.entrance = self.caption_motion.entrance.min(3);
+        self.caption_motion.exit = self.caption_motion.exit.min(3);
+        self.caption_motion.duration = finite(self.caption_motion.duration, 0.25).clamp(0.05, 5.0);
         self.font_size = finite(self.font_size, base.font_size).clamp(0.01, 1.0);
         self.font_weight = finite(self.font_weight, base.font_weight).clamp(100.0, 900.0);
         self.opacity = finite(self.opacity, base.opacity).clamp(0.0, 1.0);
@@ -1630,6 +1635,7 @@ impl Default for TextStyle {
     fn default() -> Self {
         Self {
             caption_group: None,
+            caption_motion: CaptionMotion::default(),
             content: "Your text".to_owned(),
             font_family: "\"Cabinet Grotesk\"".to_owned(),
             font_size: 0.09,
@@ -2744,11 +2750,91 @@ pub struct CustomFont {
     pub path: String,
 }
 
-/// The edit: everything the document stores except the app-level settings
-/// (name, output format) that the host manages around it.
+/// A subtitle library asset. Its cues are relative to the file, not a timeline.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CaptionSource {
+    /// Stable library id.
+    pub id: String,
+    /// File name shown in the library.
+    pub name: String,
+    /// Canonical SubRip contents, embedded in the project.
+    pub srt: String,
+    /// Initial style for new instances; editing an instance leaves this unchanged.
+    pub style: TextStyle,
+    /// Initial vertical placement.
+    pub offset_y: f64,
+}
+
+/// An entrance or exit treatment, composed over the clip's own keyframes.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct CaptionMotion {
+    /// 0 none, 1 fade, 2 slide, 3 pop.
+    pub entrance: u8,
+    /// 0 none, 1 fade, 2 slide, 3 pop.
+    pub exit: u8,
+    /// Duration of each treatment in seconds, shortened on short cues.
+    pub duration: f64,
+}
+impl Default for CaptionMotion {
+    fn default() -> Self {
+        Self {
+            entrance: 0,
+            exit: 0,
+            duration: 0.25,
+        }
+    }
+}
+impl CaptionMotion {
+    /// Additional opacity, scale and vertical offset at a timeline-local instant.
+    /// Both phases fit in the cue and leave manual keyframes untouched.
+    pub fn sample(self, elapsed: f64, length: f64) -> (f64, f64, f64) {
+        let duration = self.duration.clamp(0.05, 5.0).min(length.max(0.0) / 2.0);
+        if duration <= 0.0 {
+            return (1.0, 1.0, 0.0);
+        }
+        let smooth = |v: f64| {
+            let v = v.clamp(0.0, 1.0);
+            v * v * (3.0 - 2.0 * v)
+        };
+        let mut opacity = 1.0;
+        let mut scale = 1.0;
+        let mut y = 0.0;
+        for (kind, progress, outgoing) in [
+            (self.entrance, elapsed / duration, false),
+            (self.exit, (length - elapsed) / duration, true),
+        ] {
+            let remaining = 1.0 - smooth(progress);
+            match kind {
+                1 => opacity *= 1.0 - remaining,
+                2 => {
+                    opacity *= 1.0 - remaining;
+                    y += remaining * if outgoing { -0.08 } else { 0.08 };
+                }
+                3 => {
+                    opacity *= 1.0 - remaining;
+                    scale *= 1.0 - 0.3 * remaining;
+                }
+                _ => {}
+            }
+        }
+        (opacity, scale, y)
+    }
+}
+
+/// The project document: shared libraries and its editable timelines.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Project {
+    /// Portable subtitle files, embedded so moving the project keeps its library.
+    #[serde(
+        default,
+        deserialize_with = "wire::list",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub caption_sources: Vec<CaptionSource>,
     /// The bin: every imported file, shared by all timelines.
     #[serde(default, deserialize_with = "wire::list")]
     pub media: Vec<MediaItem>,
@@ -2791,6 +2877,7 @@ impl Project {
     /// created from the launch screen's size and rate pickers starts as.
     pub fn with_video(video: VideoSettings) -> Self {
         Self {
+            caption_sources: Vec::new(),
             media: Vec::new(),
             fonts: Vec::new(),
             extra: Map::new(),

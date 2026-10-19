@@ -230,7 +230,7 @@ impl CaptionsPane {
                         if count == 0 {
                             studio.notify(&t("captions.nothingSaidClip"), true);
                         } else {
-                            studio.apply(Command::Batch { commands });
+                            store_generated(studio, commands);
                             studio.notify(&tf("captions.addedCaptions", &[&count]), false);
                         }
                     }
@@ -280,17 +280,26 @@ impl CaptionsPane {
                 return;
             }
         };
-        let look = self.collection_look(studio);
-        let base = collection_style(studio);
-        let commands = srt_commands(cues, look, base.as_ref());
-        if commands.is_empty() {
+        if cues.is_empty() {
             self.message = t("captions.noSubtitlesInFile");
             return;
         }
-        let count = commands.len();
+        let look = self.collection_look(studio);
+        let mut style = collection_style(studio).unwrap_or_default();
+        style.font_size = look.1;
         self.open = false;
-        studio.apply(Command::Batch { commands });
-        studio.notify(&tf("captions.addedCaptions", &[&count]), false);
+        studio.apply(Command::AddCaptionSource {
+            name: path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned(),
+            srt: srt::write(&cues),
+            style,
+            offset_y: look.0,
+            place_at: None,
+        });
+        studio.notify(&t("captions.dragSrtHint"), false);
     }
 
     /// Asks where to write the captions, offering the project's folder
@@ -348,11 +357,24 @@ impl CaptionsPane {
             self.message = t("captions.noCaptionsToExport");
             return;
         };
+        let selected_group = studio
+            .sole_selection()
+            .and_then(|id| studio.clip(&id))
+            .and_then(|clip| clip.text.as_ref())
+            .and_then(|style| style.caption_group.as_deref());
         let marked: Vec<_> = studio
             .timeline()
             .clips
             .iter()
-            .filter(|clip| concat_project::captions::is_caption(clip))
+            .filter(|clip| {
+                concat_project::captions::is_caption(clip)
+                    && selected_group.is_none_or(|group| {
+                        clip.text
+                            .as_ref()
+                            .and_then(|style| style.caption_group.as_deref())
+                            == Some(group)
+                    })
+            })
             .collect();
         let cues = if marked.is_empty() {
             srt::title_cues(studio.timeline(), Some(&lane.track_id))
@@ -477,7 +499,7 @@ impl CaptionsPane {
                 clip.text
                     .as_ref()
                     .and_then(|style| style.caption_group.as_deref())
-                    == Some(concat_project::captions::DEFAULT_GROUP)
+                    .is_some()
             })
             .map(|clip| (clip.offset_y, clip.text.as_ref().unwrap().font_size))
             .unwrap_or_else(|| self.look())
@@ -511,7 +533,7 @@ impl CaptionsPane {
             .collect();
         let count = commands.len();
         self.open = false;
-        studio.apply(Command::Batch { commands });
+        store_generated(studio, commands);
         studio.notify(&tf("captions.addedCaptions", &[&count]), false);
     }
 
@@ -630,9 +652,50 @@ impl CaptionsPane {
     }
 }
 
-/// Imported cues keep the file's timing, including captions shorter than
-/// generated speech segments. The title command applies the engine's minimum
-/// clip duration where needed.
+/// Keep generated captions as a portable asset and insert their first collection.
+fn store_generated(studio: &mut Studio, commands: Vec<Command>) {
+    let mut cues = Vec::new();
+    let mut initial = None;
+    for command in commands {
+        if let Command::AddTextClip {
+            start,
+            duration,
+            style: Some(style),
+            offset_y,
+            ..
+        } = command
+        {
+            initial.get_or_insert((style.clone(), offset_y.unwrap_or(0.35)));
+            cues.push(srt::Cue {
+                start,
+                end: start + duration.unwrap_or(1.0),
+                text: style.content,
+            });
+        }
+    }
+    let Some((style, offset_y)) = initial else {
+        return;
+    };
+    let start = cues
+        .iter()
+        .map(|cue| cue.start)
+        .fold(f64::INFINITY, f64::min);
+    for cue in &mut cues {
+        cue.start -= start;
+        cue.end -= start;
+    }
+    let number = studio.project().caption_sources.len() + 1;
+    studio.apply(Command::AddCaptionSource {
+        name: format!("Captions {number}.srt"),
+        srt: srt::write(&cues),
+        style,
+        offset_y,
+        place_at: Some(start),
+    });
+}
+
+/// Legacy caption conversion fixture, also checking short SubRip cue timing.
+#[cfg(test)]
 fn srt_commands(cues: Vec<srt::Cue>, look: (f64, f64), base: Option<&TextStyle>) -> Vec<Command> {
     cues.into_iter()
         .filter(|cue| !cue.text.trim().is_empty())
@@ -793,7 +856,7 @@ fn collection_style(studio: &Studio) -> Option<TextStyle> {
             clip.text
                 .as_ref()
                 .and_then(|style| style.caption_group.as_deref())
-                == Some(concat_project::captions::DEFAULT_GROUP)
+                .is_some()
         })
         .and_then(|clip| clip.text.clone())
         .or_else(|| studio.prefs.title_style.clone())

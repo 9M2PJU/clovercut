@@ -665,6 +665,7 @@ pub struct Models {
     /// The sheets' option lists: what is installed, and who can speak.
     pub caption_models: Rc<VecModel<SharedString>>,
     pub caption_rows: Rc<VecModel<crate::ui::CaptionRowData>>,
+    pub caption_sources: Rc<VecModel<crate::ui::CaptionSourceData>>,
     pub speech_models: Rc<VecModel<SharedString>>,
     pub speech_model_details: Rc<VecModel<SharedString>>,
     pub speakers: Rc<VecModel<SharedString>>,
@@ -743,6 +744,7 @@ impl Models {
             bar: Rc::new(VecModel::default()),
             caption_models: Rc::new(VecModel::default()),
             caption_rows: Rc::new(VecModel::default()),
+            caption_sources: Rc::new(VecModel::default()),
             speech_models: Rc::new(VecModel::default()),
             speech_model_details: Rc::new(VecModel::default()),
             speakers: Rc::new(VecModel::default()),
@@ -3784,6 +3786,26 @@ impl Studio {
             }
             // A title: the preset's id rides where a file's media id would,
             // "default" for the plain one.
+            "caption" => {
+                let source = self
+                    .project()
+                    .caption_sources
+                    .iter()
+                    .find(|source| source.id == id)?;
+                let cues = concat_project::srt::parse(&source.srt).ok()?;
+                Some(DropPlan {
+                    kind: ClipKind::Text,
+                    label: source.name.clone(),
+                    media: format!("caption:{id}"),
+                    start: 0.0,
+                    duration: cues
+                        .iter()
+                        .map(|cue| cue.end as f32)
+                        .fold(0.0_f32, f32::max)
+                        .max(MIN_DURATION),
+                    row: 0,
+                })
+            }
             "text" => Some(DropPlan {
                 kind: ClipKind::Text,
                 label: label.to_owned(),
@@ -3876,7 +3898,13 @@ impl Studio {
             self.place_card(card, Some(track_id), f64::from(plan.start));
             return;
         }
-        let created = if plan.kind == ClipKind::Text {
+        let created = if let Some(source_id) = plan.media.strip_prefix("caption:") {
+            self.apply(Command::PlaceCaptionSource {
+                source_id: source_id.to_owned(),
+                start: f64::from(plan.start),
+                track_id: Some(track_id),
+            })
+        } else if plan.kind == ClipKind::Text {
             self.add_title(
                 Some(track_id),
                 f64::from(plan.start),
@@ -3933,7 +3961,13 @@ impl Studio {
             self.place_card(card, None, start);
             return;
         }
-        let created = if plan.kind == ClipKind::Text {
+        let created = if let Some(source_id) = plan.media.strip_prefix("caption:") {
+            self.apply(Command::PlaceCaptionSource {
+                source_id: source_id.to_owned(),
+                start,
+                track_id: None,
+            })
+        } else if plan.kind == ClipKind::Text {
             self.add_title(None, start, f64::from(plan.duration), &plan.media)
         } else if plan.kind == ClipKind::Shape {
             self.add_shape(
@@ -4120,6 +4154,78 @@ impl Studio {
                 ..Default::default()
             },
         });
+    }
+
+    /// Save a timeline collection as an independent SRT library asset.
+    pub fn keep_caption_collection(&mut self) {
+        self.flush_commit();
+        let selected_group = self
+            .sole_selection()
+            .and_then(|id| self.clip(&id))
+            .and_then(|clip| clip.text.as_ref())
+            .and_then(|style| style.caption_group.as_deref());
+        let mut clips: Vec<_> = self
+            .timeline()
+            .clips
+            .iter()
+            .filter(|clip| {
+                concat_project::captions::is_caption(clip)
+                    && selected_group.is_none_or(|group| {
+                        clip.text
+                            .as_ref()
+                            .and_then(|style| style.caption_group.as_deref())
+                            == Some(group)
+                    })
+            })
+            .collect();
+        clips.sort_by(|a, b| a.start.total_cmp(&b.start));
+        let Some(first) = clips.first() else {
+            return;
+        };
+        let style = first.text.clone().unwrap();
+        let offset_y = first.offset_y;
+        let start = first.start;
+        let cues: Vec<_> = clips
+            .into_iter()
+            .map(|clip| concat_project::srt::Cue {
+                start: clip.start - start,
+                end: clip.start + clip.duration - start,
+                text: clip.text.as_ref().unwrap().content.clone(),
+            })
+            .collect();
+        let number = self.project().caption_sources.len() + 1;
+        self.apply(Command::AddCaptionSource {
+            name: format!("Captions {number}.srt"),
+            srt: concat_project::srt::write(&cues),
+            style,
+            offset_y,
+            place_at: None,
+        });
+    }
+
+    /// Set preset motion without replacing any transform or paint keyframes.
+    pub fn caption_motion(&mut self, entrance: i32, exit: i32, duration: f32) {
+        self.flush_commit();
+        let commands = self
+            .caption_style_targets()
+            .into_iter()
+            .filter_map(|id| {
+                let mut style = self.clip(&id)?.text.clone()?;
+                style.caption_motion = model::CaptionMotion {
+                    entrance: entrance.clamp(0, 3) as u8,
+                    exit: exit.clamp(0, 3) as u8,
+                    duration: f64::from(duration).clamp(0.05, 5.0),
+                };
+                Some(Command::UpdateClip {
+                    clip_id: id,
+                    patch: concat_project::commands::ClipPatch {
+                        text: Some(Some(style)),
+                        ..Default::default()
+                    },
+                })
+            })
+            .collect();
+        self.apply(Command::Batch { commands });
     }
 
     fn caption_style_targets(&self) -> Vec<String> {
@@ -11175,11 +11281,24 @@ impl Studio {
                 .collect(),
         );
         app.set_captions(self.captions.data(self));
+        let selected_group = self
+            .sole_selection()
+            .and_then(|id| self.clip(&id))
+            .and_then(|clip| clip.text.as_ref())
+            .and_then(|style| style.caption_group.as_deref());
         let mut cues: Vec<_> = self
             .timeline()
             .clips
             .iter()
-            .filter(|clip| concat_project::captions::is_caption(clip))
+            .filter(|clip| {
+                concat_project::captions::is_caption(clip)
+                    && selected_group.is_none_or(|group| {
+                        clip.text
+                            .as_ref()
+                            .and_then(|style| style.caption_group.as_deref())
+                            == Some(group)
+                    })
+            })
             .collect();
         cues.sort_by(|a, b| a.start.total_cmp(&b.start));
         sync(
@@ -11199,6 +11318,31 @@ impl Studio {
                 .collect(),
         );
         let caption_library = app.global::<crate::ui::CaptionsLibrary>();
+        sync(
+            &models.caption_sources,
+            self.project()
+                .caption_sources
+                .iter()
+                .map(|source| {
+                    let count =
+                        concat_project::srt::parse(&source.srt).map_or(0, |cues| cues.len());
+                    crate::ui::CaptionSourceData {
+                        id: source.id.as_str().into(),
+                        name: source.name.as_str().into(),
+                        detail: format!("SRT · {count}").into(),
+                    }
+                })
+                .collect(),
+        );
+        let motion = self
+            .sole_selection()
+            .and_then(|id| self.clip(&id))
+            .and_then(|clip| clip.text.as_ref())
+            .map(|style| style.caption_motion)
+            .unwrap_or_default();
+        caption_library.set_entrance(i32::from(motion.entrance));
+        caption_library.set_exit(i32::from(motion.exit));
+        caption_library.set_duration(motion.duration as f32);
         caption_library.set_running(self.captions.running);
         caption_library.set_apply_all(self.caption_apply_all);
         caption_library.set_can_adopt(

@@ -160,6 +160,7 @@ const WRITER_OWNED: &[&str] = &[
     "clips",
     "media",
     "fonts",
+    "captionSources",
     "timelines",
     "activeTimelineId",
 ];
@@ -345,6 +346,10 @@ pub fn to_document(settings: &DocumentSettings, project: &Project) -> Value {
     document.insert(
         "clips".into(),
         serde_json::to_value(&active.clips).expect("serialises"),
+    );
+    document.insert(
+        "captionSources".into(),
+        serde_json::to_value(&project.caption_sources).expect("serialises"),
     );
     document.insert(
         "fonts".into(),

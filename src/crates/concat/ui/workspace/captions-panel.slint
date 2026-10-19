@@ -4,13 +4,22 @@
 import { ListView } from "std-widgets.slint";
 
 import { I18n } from "../i18n.slint";
+import { Payload } from "../util.slint";
 import { Theme } from "../theme/theme.slint";
 import { Button } from "../primitives/modal.slint";
 
 export struct CaptionRowData { id: string, text: string, time: string, selected: bool }
+export struct CaptionSourceData { id: string, name: string, detail: string }
 
 export global CaptionsLibrary {
     in-out property <[CaptionRowData]> rows;
+    in-out property <[CaptionSourceData]> sources;
+    in-out property <int> entrance;
+    in-out property <int> exit;
+    in-out property <float> duration: 0.25;
+    callback motion(entrance: int, exit: int, duration: float);
+    callback place-source(id: string);
+    callback remove-source(id: string);
     in-out property <bool> running;
     in-out property <bool> apply-all: true;
     callback scope-changed(all: bool);
@@ -20,6 +29,7 @@ export global CaptionsLibrary {
     callback import-srt();
     callback export-srt();
     callback adopt();
+    callback keep-collection();
     callback select(id: string);
     callback edit(id: string, text: string);
 }
@@ -67,16 +77,56 @@ export component CaptionsPanel inherits Rectangle {
                 clicked => { CaptionsLibrary.export-srt(); }
             }
         }
+        if CaptionsLibrary.rows.length > 0: Button {
+            label: I18n.t("captions.keepCollection");
+            clicked => { CaptionsLibrary.keep-collection(); }
+        }
         if CaptionsLibrary.can-adopt: Button {
             label: I18n.t("captions.adoptTextTrack");
             clicked => { CaptionsLibrary.adopt(); }
         }
-        if CaptionsLibrary.rows.length == 0: Text {
+        if CaptionsLibrary.sources.length == 0: Text {
             text: I18n.t("captions.libraryEmpty");
             color: Theme.fg-dim;
             font-size: Theme.fs;
             wrap: word-wrap;
         }
+        Text { text: I18n.t("captions.subtitleLibrary"); color: Theme.fg; font-size: Theme.fs; font-weight: 600; }
+        Text { text: I18n.t("captions.dragSrtHint"); color: Theme.fg-muted; font-size: Theme.fs; wrap: word-wrap; }
+        ListView {
+            vertical-stretch: 1;
+            for source in CaptionsLibrary.sources: Rectangle {
+                height: 92px;
+                border-radius: Theme.r;
+                background: Theme.well;
+                DragArea {
+                    data: Payload.of("caption:\{source.id}");
+                    drag-image: Payload.preview("caption:\{source.id}");
+                    allow-copy: true;
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        double-clicked => { CaptionsLibrary.place-source(source.id); }
+                        VerticalLayout {
+                            padding: 8px; spacing: 4px;
+                            Text { text: source.name; color: Theme.fg; font-size: Theme.fs; overflow: elide; }
+                            Text { text: source.detail; color: Theme.fg-muted; font-size: Theme.fs; }
+                            HorizontalLayout {
+                                Button { label: I18n.t("captions.addToTimeline"); clicked => { CaptionsLibrary.place-source(source.id); } }
+                                Button { label: I18n.t("common.remove"); ghost: true; clicked => { CaptionsLibrary.remove-source(source.id); } }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component CaptionEditor inherits Rectangle {
+    background: Theme.panel;
+    VerticalLayout {
+        padding: 12px; spacing: 8px;
+        Text { text: I18n.t("captions.editSegmentsHint"); color: Theme.fg-muted; font-size: Theme.fs; wrap: word-wrap; }
         ListView {
             horizontal-stretch: 1;
             vertical-stretch: 1;

@@ -737,6 +737,99 @@ fn vertical_writing_survives_export_and_project_reopening() {
 }
 
 #[test]
+fn caption_motion_composes_with_keys_in_preview_and_export() {
+    use concat_project::model::CaptionMotion;
+    let scratch = Scratch::new("caption-motion");
+    let mut studio = Studio::new(
+        scratch.path(),
+        "Caption motion",
+        video(WIDTH, HEIGHT, 10, 1),
+    );
+    let id = studio
+        .apply(Command::AddTextClip {
+            above: false,
+            track_id: None,
+            start: 0.0,
+            duration: Some(1.0),
+            offset_y: Some(0.0),
+            style: Some(TextStyle {
+                content: "Motion".into(),
+                font_size: 0.3,
+                shadow: false,
+                caption_group: Some("test".into()),
+                caption_motion: CaptionMotion {
+                    entrance: 3,
+                    exit: 2,
+                    duration: 0.2,
+                },
+                ..Default::default()
+            }),
+        })
+        .unwrap();
+    let commands = [
+        (KeyProperty::Scale, 1.25),
+        (KeyProperty::Opacity, 0.7),
+        (KeyProperty::OffsetY, 0.05),
+    ]
+    .into_iter()
+    .flat_map(|(property, value)| {
+        [0.0, 1.0].into_iter().map({
+            let id = id.clone();
+            move |at| Command::SetClipKey {
+                clip_id: id.clone(),
+                property,
+                at,
+                value,
+                ease: KeyEase::LINEAR,
+            }
+        })
+    })
+    .collect();
+    studio.apply(Command::Batch { commands });
+    let keys = studio.clip(&id).keys.clone();
+    let titles = studio.titles.clips(studio.project(), WIDTH, HEIGHT);
+    let pool = concat_media::ReaderPool::with_defaults();
+    for (time, opacity, scale, y) in [
+        (0.0, 0.0, 0.875, 0.05),
+        (0.5, 0.7, 1.25, 0.05),
+        (0.9, 0.35, 1.25, 0.01),
+    ] {
+        let sources = concat_export::preview_sources(
+            &pool,
+            &concat_export::PreviewFrameRequest {
+                time,
+                width: WIDTH,
+                height: HEIGHT,
+                rate_num: 10,
+                rate_den: 1,
+                color_space: Default::default(),
+                clips: titles.iter().map(|title| title.clip.clone()).collect(),
+            },
+        )
+        .unwrap();
+        let layer = &sources.plan().layers[0];
+        assert!((f64::from(layer.opacity) - opacity).abs() < 1e-5);
+        assert!((layer.transform.scale - scale).abs() < 1e-5);
+        assert!((layer.transform.offset_y - y).abs() < 1e-5);
+    }
+    assert_eq!(studio.clip(&id).keys, keys);
+    let exported = studio.export("caption entry and exit");
+    exported.expect_length(1.0);
+    let energy = |frame: &Frame| {
+        frame
+            .pixels()
+            .chunks_exact(4)
+            .map(|pixel| u64::from(pixel[0]) + u64::from(pixel[1]) + u64::from(pixel[2]))
+            .sum::<u64>()
+    };
+    let first = energy(&exported.frames[0]);
+    let middle = energy(&exported.frames[5]);
+    let last = energy(&exported.frames[9]);
+    assert!(middle > first + 1000, "entrance starts invisible");
+    assert!(last < middle, "exit fades the keyed caption");
+}
+
+#[test]
 fn caption_paint_keyframes_reach_the_exported_video() {
     let scratch = Scratch::new("caption-paint-keys");
     let mut studio = Studio::new(scratch.path(), "Caption paint", video(WIDTH, HEIGHT, 10, 1));

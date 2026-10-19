@@ -16,6 +16,8 @@ import {
     CurveData, CurveGroupData, WheelData, WheelGroupData,
 } from "../inspector/grading.slint";
 import { CaptionsLibrary } from "captions-panel.slint";
+import { CaptionMotionPanel } from "../inspector/caption-motion-panel.slint";
+import { CaptionEditor } from "captions-panel.slint";
 import { CaptionPanel } from "../inspector/caption-panel.slint";
 import { TextPanel } from "../inspector/text-panel.slint";
 import {
@@ -236,8 +238,11 @@ export component ConfigPane inherits Rectangle {
     /// only say "nothing here". What it does have - its strength, the colour
     /// panel it grades everything beneath it with, and its chain - are the
     /// tab's sections, so an adjustment layer is graded the way a clip is.
+    // Enter captions on Style; keep a tab explicitly chosen within the collection.
+    property <bool> is-caption: root.is-text && CaptionsLibrary.style-count > 0;
+    changed is-caption => { if root.is-caption { root.tab = 1; } }
     property <bool> is-layer: root.selected.kind == ClipKind.filter;
-    property <[string]> tabs: root.selected.batch-volume ? ["Audio"] : root.is-text ? ["Text"]
+    property <[string]> tabs: root.selected.batch-volume ? ["Audio"] : root.is-text ? (CaptionsLibrary.style-count > 0 ? ["Captions", "Text", "CaptionEffects"] : ["Text"])
         : root.is-layer ? ["Filter"]
         : root.is-shape ? ["Video"]
         : root.is-image ? ["Video", "Effects"]
@@ -245,7 +250,7 @@ export component ConfigPane inherits Rectangle {
         : ["Video", "Audio", "Effects"];
     /// The same tabs in the interface's language. `tabs` stays English,
     /// because the panels are picked by comparing against it.
-    property <[string]> tabs-shown: root.selected.batch-volume ? [I18n.t("common.audio")] : root.is-text ? [CaptionsLibrary.style-count > 0 ? I18n.t("captions.captions") : I18n.t("common.text")]
+    property <[string]> tabs-shown: root.selected.batch-volume ? [I18n.t("common.audio")] : root.is-text ? (CaptionsLibrary.style-count > 0 ? [I18n.t("captions.captions"), I18n.t("captions.styleTab"), I18n.t("common.effects")] : [I18n.t("common.text")])
         : root.is-layer ? [I18n.t("configPane.filter")]
         : root.is-shape ? [I18n.t("configPane.vectorImage")]
         : root.is-image ? [I18n.t("common.video"), I18n.t("common.effects")]
@@ -287,6 +292,8 @@ export component ConfigPane inherits Rectangle {
         : root.heading == "Audio"
             ? (root.selected.batch-volume ? ["Sound"] : ["Sound", "AudioEffects"])
         : root.heading == "Effects" ? ["Effects"]
+        : root.heading == "Captions" ? ["Captions"]
+        : root.heading == "CaptionEffects" ? ["CaptionEffects"]
         : root.heading == "Text" ? ["Text"]
         : ["Layer", "Adjust", "Effects"];
     /// The sections as the dropdown shows them; see `tabs-shown`.
@@ -349,7 +356,7 @@ export component ConfigPane inherits Rectangle {
             ? 1 : 0);
     }
     changed jump-token => { root.jump(); }
-    init => { root.jump(); }
+    init => { root.jump(); if root.is-caption { root.tab = 1; } }
 
     Pane {
         // ── details ──────────────────────────────────────────────────────
@@ -628,7 +635,11 @@ export component ConfigPane inherits Rectangle {
             }
         }
 
-        if root.has-selection: PaneBody {
+        if root.has-selection && root.showing == "Captions": PaneBody {
+            padding: 0px;
+            CaptionEditor { }
+        }
+        if root.has-selection && root.showing != "Captions": PaneBody {
             // No padding: the inspector rows carry their own 14px inset, and
             // sections run edge to edge so their hairlines reach both sides.
             padding: 0px;
@@ -696,6 +707,7 @@ export component ConfigPane inherits Rectangle {
                     commit => { root.clip-commit(); }
                 }
 
+                if root.showing == "CaptionEffects": CaptionMotionPanel { }
                 if root.showing == "Text" && CaptionsLibrary.style-count > 0: CaptionPanel {
                     selected: root.selected;
                     set(field, value) => { root.clip-set(field, value); }

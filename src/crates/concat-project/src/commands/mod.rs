@@ -261,6 +261,33 @@ pub struct NewMedia {
 // the patch would cost every caller for a saving nobody would measure.
 #[allow(clippy::large_enum_variant)]
 pub enum Command {
+    /// Embed a subtitle file, optionally placing its first instance on the timeline.
+    AddCaptionSource {
+        /// Display name, normally ending in .srt.
+        name: String,
+        /// Subtitle file contents, copied into the document.
+        srt: String,
+        /// Initial style for new timeline collections.
+        style: TextStyle,
+        /// Vertical position for new collections.
+        offset_y: f64,
+        /// Optional insertion time for the first collection.
+        place_at: Option<f64>,
+    },
+    /// Place a fresh, independently styled collection from a subtitle asset.
+    PlaceCaptionSource {
+        /// The embedded file to instantiate.
+        source_id: String,
+        /// Timeline time added to the file timestamps.
+        start: f64,
+        /// Destination lane, or automatic placement.
+        track_id: Option<String>,
+    },
+    /// Remove a library asset; existing timeline captions remain editable.
+    RemoveCaptionSource {
+        /// The embedded file to remove from the library.
+        source_id: String,
+    },
     /// Imports a file into the bin, minting an "m" id. A path already
     /// present is a tolerated no-op that mints nothing.
     AddMedia {
@@ -917,6 +944,9 @@ impl IdMint {
     /// Adopts every id a restored project uses - media, timelines, tracks,
     /// clips - so nothing minted afterwards can collide with the file.
     pub fn adopt_project(&mut self, project: &Project) {
+        for source in &project.caption_sources {
+            self.adopt(&source.id);
+        }
         for item in &project.media {
             self.adopt(&item.id);
         }
@@ -996,6 +1026,13 @@ impl Command {
             })
         }
         match self {
+            Command::AddCaptionSource {
+                offset_y,
+                place_at,
+                style,
+                ..
+            } => bad([*offset_y, style.caption_motion.duration]) || bad(*place_at),
+            Command::PlaceCaptionSource { start, .. } => bad([*start]),
             Command::Batch { commands } => commands.iter().any(Command::has_non_finite),
             Command::AddMedia { item }
             | Command::FillSlot { item, .. }
@@ -1181,7 +1218,10 @@ pub fn apply(
             })
         }
 
-        command @ (Command::AddMedia { .. }
+        command @ (Command::AddCaptionSource { .. }
+        | Command::PlaceCaptionSource { .. }
+        | Command::RemoveCaptionSource { .. }
+        | Command::AddMedia { .. }
         | Command::SetMediaPlaceholder { .. }
         | Command::FillSlot { .. }
         | Command::RemoveMedia { .. }

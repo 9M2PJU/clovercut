@@ -350,6 +350,8 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         editor.set_timeline_tabs(ModelRc::from(models.tabs.clone()));
         app.global::<crate::ui::CaptionsLibrary>()
             .set_rows(ModelRc::from(models.caption_rows.clone()));
+        app.global::<crate::ui::CaptionsLibrary>()
+            .set_sources(ModelRc::from(models.caption_sources.clone()));
         editor.set_tracks(ModelRc::from(models.tracks.clone()));
         editor.set_clips(ModelRc::from(models.clips.clone()));
         editor.set_stage_items(ModelRc::from(models.stage.clone()));
@@ -1957,6 +1959,19 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     }));
 
     let caption_library = app.global::<crate::ui::CaptionsLibrary>();
+    caption_library.on_motion(on_lanes!(
+        |state, entrance: i32, exit: i32, duration: f32| {
+            state.caption_motion(entrance, exit, duration);
+        }
+    ));
+    caption_library.on_place_source(on_lanes!(|state, id: SharedString| {
+        state.place_at_playhead(&format!("caption:{id}"));
+    }));
+    caption_library.on_remove_source(on_window!(|state, id: SharedString| {
+        state.apply(concat_project::Command::RemoveCaptionSource {
+            source_id: id.to_string(),
+        });
+    }));
     caption_library.on_scope_changed(on_window!(|state, all: bool| {
         state.flush_commit();
         state.caption_apply_all = all;
@@ -1974,6 +1989,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     caption_library.on_export_srt(on_window!(|state| {
         state.handle(Msg::Captions(CaptionsMsg::ExportSrt));
     }));
+    caption_library.on_keep_collection(on_window!(|state| {
+        state.keep_caption_collection();
+    }));
     caption_library.on_adopt(on_window!(|state| {
         state.adopt_caption_track();
     }));
@@ -1985,9 +2003,21 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
             state.seek(start as f32);
         }
     }));
-    caption_library.on_edit(on_lanes!(|state, id: SharedString, text: SharedString| {
-        state.edit_caption(id.as_str(), text.as_str());
-    }));
+    caption_library.on_edit(move |id: SharedString, text: SharedString| {
+        // Losing focus can be emitted while publishing a different collection
+        // destroys its virtual rows. Commit on the next event-loop turn so a
+        // row cannot re-enter the studio while its model is being published.
+        slint::Timer::single_shot(std::time::Duration::ZERO, move || {
+            Shell::with(|shell, app| {
+                shell
+                    .studio
+                    .borrow_mut()
+                    .edit_caption(id.as_str(), text.as_str());
+                shell.studio.borrow_mut().refresh_art();
+                shell.studio.borrow().publish_lanes(&app, &shell.models);
+            });
+        });
+    });
 
     // ── the tray's sound and word tools ──
     // The tray's panel buttons are toggles: a press opens the panel, or

@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Clovercut contributors
+import { I18n } from "../i18n.slint";
+import { Theme } from "../theme/theme.slint";
+import { Row, Section, SectionHeader, SectionBody } from "../primitives/panel.slint";
+import { SegmentedControl } from "../primitives/segmented-control.slint";
+import { Check, ValueControl } from "controls.slint";
+import { CaptionsLibrary } from "../workspace/captions-panel.slint";
+
+export component CaptionMotionPanel inherits VerticalLayout {
+    property <float> duration;
+    property <float> shown-duration: CaptionsLibrary.duration;
+    init => { root.duration = root.shown-duration; }
+    changed shown-duration => { root.duration = root.shown-duration; }
+    Section {
+        SectionBody {
+            padding-left: Theme.pad; padding-right: Theme.pad;
+            HorizontalLayout {
+                spacing: 8px;
+                Check { checked: CaptionsLibrary.apply-all; toggled(on) => { CaptionsLibrary.scope-changed(on); } }
+                Text { text: I18n.t("captions.applyAll"); color: Theme.fg; font-size: Theme.fs; }
+            }
+        }
+    }
+    Section {
+        SectionHeader { title: I18n.t("captions.entrance"); }
+        SectionBody {
+            padding-left: Theme.pad; padding-right: Theme.pad;
+            SegmentedControl {
+                options: [I18n.t("common.none"), I18n.t("captions.fade"), I18n.t("captions.slide"), I18n.t("captions.pop")];
+                property <int> shown: CaptionsLibrary.entrance;
+                current: self.shown;
+                changed shown => { self.current = self.shown; }
+                changed(i) => { CaptionsLibrary.motion(i, CaptionsLibrary.exit, CaptionsLibrary.duration); }
+            }
+        }
+    }
+    Section {
+        SectionHeader { title: I18n.t("captions.exit"); }
+        SectionBody {
+            padding-left: Theme.pad; padding-right: Theme.pad;
+            SegmentedControl {
+                options: [I18n.t("common.none"), I18n.t("captions.fade"), I18n.t("captions.slide"), I18n.t("captions.pop")];
+                property <int> shown: CaptionsLibrary.exit;
+                current: self.shown;
+                changed shown => { self.current = self.shown; }
+                changed(i) => { CaptionsLibrary.motion(CaptionsLibrary.entrance, i, CaptionsLibrary.duration); }
+            }
+        }
+        Row {
+            label: I18n.t("captions.effectDuration");
+            ValueControl {
+                value <=> root.duration; minimum: 0.05; maximum: 5; step: 0.05; unit: "s";
+                changed(v) => { CaptionsLibrary.motion(CaptionsLibrary.entrance, CaptionsLibrary.exit, v); }
+            }
+        }
+    }
+}

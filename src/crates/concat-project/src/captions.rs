@@ -57,6 +57,84 @@ mod tests {
     };
 
     #[test]
+    fn subtitle_library_survives_reopen_and_copies_have_independent_style_scopes() {
+        let settings = DocumentSettings {
+            name: "Library".into(),
+            width: 640,
+            height: 360,
+            rate_num: 30,
+            rate_den: 1,
+        };
+        let mut editor = Editor::from_document(&to_document(&settings, &Project::new())).unwrap();
+        let source = editor.apply(Command::AddCaptionSource {
+            name: "translation.srt".into(),
+            srt: "1\n00:00:01,000 --> 00:00:01,300\n中文 Hello\n\n2\n00:00:02,000 --> 00:00:03,000\nSecond\n".into(),
+            style: TextStyle::default(), offset_y: 0.35, place_at: None,
+        }).unwrap().created_id.unwrap();
+        assert!(
+            editor.project().active().clips.is_empty(),
+            "import only adds a library file"
+        );
+        let mut editor = Editor::from_document(&to_document(&settings, editor.project())).unwrap();
+        assert_eq!(editor.project().caption_sources[0].name, "translation.srt");
+        editor
+            .apply(Command::PlaceCaptionSource {
+                source_id: source.clone(),
+                start: 5.0,
+                track_id: Some("T1".into()),
+            })
+            .unwrap();
+        let first = editor.project().active().clips[0].id.clone();
+        assert_eq!(editor.project().active().clip(&first).unwrap().start, 6.0);
+        assert!((editor.project().active().clip(&first).unwrap().duration - 0.3).abs() < 1e-6);
+        editor
+            .apply(Command::PlaceCaptionSource {
+                source_id: source.clone(),
+                start: 10.0,
+                track_id: Some("T2".into()),
+            })
+            .unwrap();
+        let scope = style_targets(editor.project().active(), &[first]);
+        assert_eq!(
+            scope.len(),
+            2,
+            "a copied collection has an independent scope"
+        );
+        assert_eq!(editor.project().active().clips.len(), 4);
+        assert!(editor.undo());
+        assert_eq!(editor.project().active().clips.len(), 2);
+        assert!(editor.redo());
+        editor
+            .apply(Command::RemoveCaptionSource { source_id: source })
+            .unwrap();
+        assert_eq!(
+            editor.project().active().clips.len(),
+            4,
+            "removing an asset keeps timeline captions"
+        );
+        assert!(editor.project().caption_sources.is_empty());
+        assert!(editor.undo());
+        assert_eq!(editor.project().caption_sources.len(), 1);
+    }
+
+    #[test]
+    fn short_caption_motion_has_a_neutral_middle_and_independent_phases() {
+        use crate::model::CaptionMotion;
+        for kind in 1..=3 {
+            let motion = CaptionMotion {
+                entrance: kind,
+                exit: kind,
+                duration: 2.0,
+            };
+            assert_eq!(motion.sample(0.0, 0.2).0, 0.0);
+            assert_eq!(motion.sample(0.1, 0.2), (1.0, 1.0, 0.0));
+            assert_eq!(motion.sample(0.2, 0.2).0, 0.0);
+            assert!(motion.sample(0.05, 0.2).0 > 0.0);
+        }
+        assert_eq!(CaptionMotion::default().sample(0.0, 1.0), (1.0, 1.0, 0.0));
+    }
+
+    #[test]
     fn caption_scope_and_animated_paint_survive_save_and_undo() {
         use crate::model::{KeyEase, KeyProperty};
         let mut project = Project::new();

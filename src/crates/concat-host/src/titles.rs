@@ -327,6 +327,11 @@ impl Titles {
             out.push(TitleClip {
                 clip_id: clip.id.clone(),
                 clip: ExportClip {
+                    caption_motion: clip
+                        .text
+                        .as_ref()
+                        .map(|style| style.caption_motion)
+                        .unwrap_or_default(),
                     generated: (clip.kind == ModelClipKind::Text
                         && clip.keys.iter().any(|key| key.property.is_text()))
                     .then(|| {

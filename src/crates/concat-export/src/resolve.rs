@@ -144,6 +144,7 @@ impl StabilizeJob {
 /// An engine timeline plus the per-clip facts the decoders need that the
 /// engine's model has no field for.
 pub(crate) struct BuiltTimeline {
+    pub(crate) caption_motions: HashMap<ClipId, (concat_project::model::CaptionMotion, f64)>,
     pub(crate) generated: HashMap<ClipId, crate::GeneratedImage>,
     pub(crate) timeline: Timeline,
     /// Clips that are stills: one-frame streams, decoded looping.
@@ -275,6 +276,7 @@ pub(crate) fn build_timeline(
     let mut ranges: HashMap<ClipId, concat_media::ColorRange> = HashMap::new();
     let mut chains: HashMap<ClipId, Vec<AppliedFilter>> = HashMap::new();
     let mut generated = HashMap::new();
+    let mut caption_motions = HashMap::new();
     let mut reveal_maps: HashMap<ClipId, Arc<RevealMap>> = HashMap::new();
     let mut cutouts: HashMap<ClipId, CutoutJob> = HashMap::new();
     let mut backdrops: HashMap<ClipId, crate::ExportBackdrop> = HashMap::new();
@@ -342,6 +344,9 @@ pub(crate) fn build_timeline(
 
         if let Some(id) = timeline.add_clip(tracks[clip.track], engine_clip) {
             tracks_of.insert(id, clip.track);
+            if clip.caption_motion.entrance != 0 || clip.caption_motion.exit != 0 {
+                caption_motions.insert(id, (clip.caption_motion, clip.duration));
+            }
             if let Some(source) = &clip.generated {
                 generated.insert(id, source.clone());
             }
@@ -402,6 +407,7 @@ pub(crate) fn build_timeline(
     }
 
     BuiltTimeline {
+        caption_motions,
         generated,
         timeline,
         stills,

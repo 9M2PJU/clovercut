@@ -117,6 +117,7 @@ impl PresetStyle {
         let base = TextStyle::default();
         TextStyle {
             caption_group: None,
+            caption_motion: Default::default(),
             content: self.content.unwrap_or_else(|| name.to_owned()),
             font_family: self
                 .font_family

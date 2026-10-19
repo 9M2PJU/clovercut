@@ -15,6 +15,91 @@ pub(super) fn apply(
     command: Command,
 ) -> Result<Outcome, CommandError> {
     match command {
+        Command::AddCaptionSource {
+            name,
+            srt,
+            style,
+            offset_y,
+            place_at,
+        } => {
+            let Ok(cues) = crate::srt::parse(&srt) else {
+                return Ok(Outcome::default());
+            };
+            if cues.is_empty() {
+                return Ok(Outcome::default());
+            }
+            let id = mint.next("s");
+            project.caption_sources.push(crate::model::CaptionSource {
+                id: id.clone(),
+                name,
+                srt: crate::srt::write(&cues),
+                style: style.tidy(),
+                offset_y,
+            });
+            if let Some(start) = place_at {
+                super::apply(
+                    project,
+                    mint,
+                    Command::PlaceCaptionSource {
+                        source_id: id,
+                        start,
+                        track_id: None,
+                    },
+                )
+            } else {
+                Ok(Outcome {
+                    created_id: Some(id),
+                    applied: true,
+                })
+            }
+        }
+        Command::PlaceCaptionSource {
+            source_id,
+            start,
+            track_id,
+        } => {
+            let Some(source) = project
+                .caption_sources
+                .iter()
+                .find(|source| source.id == source_id)
+                .cloned()
+            else {
+                return Ok(Outcome::default());
+            };
+            let Ok(cues) = crate::srt::parse(&source.srt) else {
+                return Ok(Outcome::default());
+            };
+            let group = mint.next("cg");
+            let commands = cues
+                .into_iter()
+                .filter(|cue| !cue.text.trim().is_empty())
+                .map(|cue| {
+                    let mut style = source.style.clone();
+                    style.content = cue.text;
+                    style.caption_group = Some(group.clone());
+                    Command::AddTextClip {
+                        track_id: track_id.clone(),
+                        above: true,
+                        start: start.max(0.0) + cue.start,
+                        duration: Some((cue.end - cue.start).max(0.01)),
+                        offset_y: Some(source.offset_y),
+                        style: Some(style),
+                    }
+                })
+                .collect();
+            super::apply(project, mint, Command::Batch { commands })
+        }
+        Command::RemoveCaptionSource { source_id } => {
+            let before = project.caption_sources.len();
+            project
+                .caption_sources
+                .retain(|source| source.id != source_id);
+            Ok(Outcome {
+                created_id: None,
+                applied: before != project.caption_sources.len(),
+            })
+        }
+
         Command::AddMedia { item } => {
             if project
                 .media

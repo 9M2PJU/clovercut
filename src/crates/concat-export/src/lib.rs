@@ -103,6 +103,9 @@ pub struct ExportClip {
     #[serde(skip)]
     /// An in-process source; absent when the clip reads a media file.
     pub generated: Option<GeneratedImage>,
+    /// Caption treatments applied over manual transform and opacity animation.
+    #[serde(default)]
+    pub caption_motion: concat_project::model::CaptionMotion,
     /// The media file this clip shows or plays.
     pub path: String,
     /// Which of the file's audio streams the clip plays, by stream index;
@@ -320,6 +323,7 @@ impl ExportClip {
     /// field added to this type is added in one place.
     pub fn blank(kind: ClipKind, start: f64, duration: f64, track: usize) -> ExportClip {
         ExportClip {
+            caption_motion: Default::default(),
             path: String::new(),
             audio_stream: None,
             color_range: None,
@@ -1370,6 +1374,8 @@ fn filled(
     geometry: Option<&resolve::PlannedGeometry>,
     transitions: Vec<Transition>,
     stabilized: Option<&resolve::StabilizeJob>,
+    motion: Option<&(concat_project::model::CaptionMotion, f64)>,
+    time: Rational,
 ) -> PlannedLayer {
     let mut filled = PlannedLayer {
         source: Some(frame),
@@ -1378,6 +1384,12 @@ fn filled(
         transitions,
         ..layer.clone()
     };
+    if let Some((motion, length)) = motion {
+        let (opacity, scale, offset_y) = motion.sample((time - layer.clip_start).as_f64(), *length);
+        filled.opacity *= opacity as f32;
+        filled.transform.scale *= scale;
+        filled.transform.offset_y += offset_y;
+    }
     if let Some(job) = stabilized {
         filled.warp = job.warp_at(layer.source_time);
     }
@@ -1651,6 +1663,7 @@ fn render_picture(
         chains,
         reveal_maps,
         generated,
+        caption_motions,
         cutouts,
         stabilized,
         highlight: _,
@@ -1756,6 +1769,8 @@ fn render_picture(
                     geometry.get(&layer.clip),
                     shapes_at(&shapes, layer, time, rate),
                     stabilized.get(&layer.clip),
+                    caption_motions.get(&layer.clip),
+                    time,
                 ));
                 continue;
             }
@@ -1824,6 +1839,8 @@ fn render_picture(
                     geometry.get(&layer.clip),
                     shapes_at(&shapes, layer, time, rate),
                     stabilized.get(&layer.clip),
+                    caption_motions.get(&layer.clip),
+                    time,
                 ));
             }
         }
@@ -2274,6 +2291,7 @@ pub fn preview_sources_of(
         chains,
         reveal_maps,
         generated,
+        caption_motions,
         cutouts,
         stabilized,
         highlight,
@@ -2328,6 +2346,8 @@ pub fn preview_sources_of(
                     geometry.get(&layer.clip),
                     shapes_at(shapes, layer, time, rate),
                     stabilized.get(&layer.clip),
+                    caption_motions.get(&layer.clip),
+                    time,
                 ))
             }
             Err(error) => failures.push(format!("{}: {error}", layer.media.display())),
