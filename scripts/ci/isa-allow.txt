@@ -94,3 +94,6 @@ whisper.dll                    48    0     0      0          0
 # Haswell fails the build.
 concat.exe                     -     -     ~1000  -          -
 clovercut                      -     -     ~1000  -          -
+
+# Clovercut uses the same baseline as its inherited executable.
+clovercut.exe                     -     -     ~1000  -          -

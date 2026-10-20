@@ -1,4 +1,4 @@
-# A version tag builds tested Linux AppImages and creates a draft release for review.
+# A version tag builds tested Linux AppImages and Windows packages and creates a draft release for review.
 name: Clovercut release
 'on':
   push:
@@ -7,7 +7,7 @@ name: Clovercut release
   workflow_dispatch:
     inputs:
       tag:
-        description: An existing tag to build and publish, e.g. v0.0.1
+        description: An existing tag to build and publish, e.g. v0.0.2
         required: true
 concurrency:
   group: release-${{ github.ref }}
@@ -97,11 +97,20 @@ jobs:
           --out bundles/manifest.json
         cat bundles/manifest.json
     - name: Checksums
+      env:
+        VERSION: ${{ needs.check.outputs.version }}
       run: |
         set -euo pipefail
         cd bundles
         ls -l
-        sha256sum -- Clovercut-*.AppImage manifest.json > SHA256SUMS
+        expected=(
+          "Clovercut-${VERSION}-x86_64.AppImage"
+          "Clovercut-${VERSION}-aarch64.AppImage"
+          "Clovercut-${VERSION}-windows-x86_64-setup.exe"
+          "Clovercut-${VERSION}-windows-x86_64-portable.zip"
+        )
+        for file in "${expected[@]}"; do test -s "$file"; done
+        sha256sum -- "${expected[@]}" manifest.json > SHA256SUMS
     - name: Write the notes
       env:
         VERSION: ${{ needs.check.outputs.version }}

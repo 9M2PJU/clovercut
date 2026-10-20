@@ -48,10 +48,12 @@ TABLES = {
     "whisper": CRATES / "concat-speech" / "src" / "transcribe.rs",
 }
 
-# Linux AppImages published by Clovercut; the model mirror above stays upstream.
+# Clovercut release packages; the model mirror above stays upstream.
 BUNDLES = [
     ("linux", "x86_64", "appimage", "Clovercut-{v}-x86_64.AppImage"),
     ("linux", "aarch64", "appimage", "Clovercut-{v}-aarch64.AppImage"),
+    ("windows", "x86_64", "setup", "Clovercut-{v}-windows-x86_64-setup.exe"),
+    ("windows", "x86_64", "portable", "Clovercut-{v}-windows-x86_64-portable.zip"),
 ]
 
 

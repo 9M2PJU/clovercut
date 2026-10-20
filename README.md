@@ -80,9 +80,9 @@ not claim approval from GIPHY.
 
 ## Project status
 
-Clovercut **0.0.1** is in early development and targets **Linux only**. Release
-builds are distributed as **AppImage**, for x86_64 and ARM64. Features are still
-being tested with real editing projects.
+Clovercut **0.0.2** is being prepared for **Linux and Windows**. Linux packages
+are AppImages for x86_64 and ARM64; Windows x64 packages include an installer
+and a portable ZIP. Features are still being tested with real editing projects.
 
 The editor executable is `clovercut`. Internal Rust crate names and `concat.json`
 retain their inherited names for project compatibility. Settings and caches live
@@ -102,7 +102,14 @@ collection, or deselect it to edit only that caption. Sentence edits stay local.
 Use **Save collection to library** to reuse an existing collection as an SRT asset;
 it saves the words and timings with the first caption's style as its initial look.
 
-## Linux AppImage
+## Downloads
+
+Version **0.0.2** is being prepared; its packages are not published yet.
+Windows x64 will have `Clovercut-0.0.2-windows-x86_64-setup.exe` and
+`Clovercut-0.0.2-windows-x86_64-portable.zip`. Extract the portable ZIP completely
+before opening `clovercut.exe`.
+
+### Published Linux AppImage
 
 Download **0.0.1** from the [Clovercut releases page](https://github.com/tulcoturo/clovercut/releases/tag/v0.0.1).
 
