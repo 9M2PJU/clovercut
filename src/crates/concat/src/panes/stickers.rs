@@ -39,7 +39,7 @@ pub enum StickersMsg {
         String,
         Option<String>,
         f64,
-        Result<concat_host::media::MediaSummary, String>,
+        Box<Result<concat_host::media::MediaSummary, String>>,
     ),
 }
 impl std::fmt::Debug for StickersMsg {
@@ -307,7 +307,11 @@ impl StickersPane {
                                 move || giphy::adopt(&sticker, &path, &project),
                                 move |studio, _, _, result| {
                                     studio.handle(Msg::Stickers(StickersMsg::Adopted(
-                                        epoch, name, track, start, result,
+                                        epoch,
+                                        name,
+                                        track,
+                                        start,
+                                        Box::new(result),
                                     )))
                                 },
                             );
@@ -320,7 +324,7 @@ impl StickersPane {
                 if epoch != crate::host::project_epoch() {
                     return;
                 }
-                match result {
+                match *result {
                     Err(error) => self.error = error,
                     Ok(summary) => {
                         studio.close_source();
