@@ -2,7 +2,7 @@
   <img src="logo.jpg" alt="Clovercut — a free, open-source video editor" width="800" />
 </p>
 
-<h1 align="center">Clovercut</h1>
+<h1 align="center">clovercut</h1>
 <p align="center"><strong>Your video. Your machine. Your editor.</strong></p>
 <p align="center">A free Linux video editor with local processing.</p>
 
