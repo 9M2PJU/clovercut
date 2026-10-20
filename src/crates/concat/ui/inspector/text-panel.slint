@@ -490,7 +490,7 @@ export component TextPanel inherits VerticalLayout {
             title: I18n.t("textPanel.stroke");
             collapsible: true;
             open: false;
-            summary: InspectorFmt.format(ParamFormat.outline, root.stroke-width);
+            summary: "\{Math.round(root.stroke-width * root.frame-h * 10) / 10}px";
         }
 
         if stroke.open: SectionBody {
@@ -498,12 +498,12 @@ export component TextPanel inherits VerticalLayout {
             label: I18n.t("common.width");
             value <=> root.stroke-width;
             minimum: 0;
-            maximum: 0.15;
-            step: 0.005;
+            maximum: 20 / root.frame-h;
+            step: 0.5 / root.frame-h;
             default-value: 0;
             fmt: ParamFormat.outline;
-            unit: "%";
-            unit-scale: 100;
+            unit: "px";
+            unit-scale: root.frame-h;
             changed(v) => { root.set(ClipField.stroke-width, v); root.commit(); }
         }
 

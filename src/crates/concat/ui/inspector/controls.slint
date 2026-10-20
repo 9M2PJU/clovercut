@@ -6,6 +6,7 @@ import { Theme } from "../theme/theme.slint";
 import { Fmt } from "../util.slint";
 import { Glyph, Icon } from "../icons.slint";
 import { NumberField } from "../primitives/number-field.slint";
+import { Tip } from "../primitives/tooltip.slint";
 import { Stepper } from "../primitives/stepper.slint";
 import { ColorPicker } from "../primitives/color-picker.slint";
 import { ClipField, ClipKeyData, Keyframes } from "../timeline/model.slint";
@@ -352,7 +353,9 @@ export component ValueControl inherits HorizontalLayout {
     callback changed(value: float);
 
     min-width: 72px;
-    preferred-width: 101px;
+    preferred-width: 88px;
+    max-width: 96px;
+    horizontal-stretch: 0;
     spacing: 1px;
     NumberField {
         horizontal-stretch: 1;
@@ -388,6 +391,37 @@ export component ValueControl inherits HorizontalLayout {
     }
 }
 
+// Typography toggles show the actual letter style, with no button border.
+export component TextFormatToggle inherits Rectangle {
+    in property <string> letter;
+    in property <string> label;
+    in property <bool> active;
+    in property <bool> bold;
+    in property <bool> italic;
+    in property <bool> underlined;
+    callback toggled();
+    width: 30px; height: Theme.h; horizontal-stretch: 0;
+    border-radius: 4px;
+    background: touch.has-hover ? Theme.field-hover : transparent;
+    accessible-role: button;
+    accessible-label: root.label;
+    Text {
+        text: root.letter; color: root.active ? Theme.accent : Theme.fg-muted;
+        font-size: 18px; font-weight: root.bold ? 750 : 500; font-italic: root.italic;
+        horizontal-alignment: center; vertical-alignment: center;
+        width: parent.width; height: parent.height;
+    }
+    if root.underlined: Rectangle {
+        x: (parent.width - self.width) / 2; y: parent.height - 5px;
+        width: 11px; height: 1px; background: root.active ? Theme.accent : Theme.fg-muted;
+    }
+    focus := FocusScope {
+        key-pressed(event) => { if event.text == " " || event.text == Key.Return { root.toggled(); return accept; } return reject; }
+    }
+    touch := TouchArea { mouse-cursor: pointer; clicked => { focus.focus(); root.toggled(); } }
+    Tip { text: root.label; active: touch.has-hover; }
+}
+
 // X and Y share one keyframe action and one edit/undo transaction.
 export component PositionRow inherits VerticalLayout {
     in-out property <float> x-value;
@@ -409,9 +443,10 @@ export component PositionRow inherits VerticalLayout {
         }
     }
     HorizontalLayout {
+        alignment: start;
         spacing: 6px;
         ValueControl {
-            horizontal-stretch: 1;
+            width: 88px; horizontal-stretch: 0;
             axis: "X";
             unit: "%";
             unit-scale: 100;
@@ -422,7 +457,7 @@ export component PositionRow inherits VerticalLayout {
             changed(v) => { root.changed(v, root.y-value); }
         }
         ValueControl {
-            horizontal-stretch: 1;
+            width: 88px; horizontal-stretch: 0;
             axis: "Y";
             unit: "%";
             unit-scale: 100;
@@ -530,7 +565,7 @@ export component Param inherits VerticalLayout {
         }
         if !root.rail: Rectangle { horizontal-stretch: 1; }
         ValueControl {
-            width: 101px;
+            width: 88px;
             horizontal-stretch: 0;
             value <=> root.value;
             minimum: root.minimum;
@@ -795,6 +830,7 @@ export component SearchField inherits Rectangle {
     in property <string> placeholder;
 
     callback edited(text: string);
+    callback submitted(text: string);
 
     // A caller's `focus()` lands in the field, so a list that opens on a
     // search can be typed into at once.
@@ -832,6 +868,7 @@ export component SearchField inherits Rectangle {
                 single-line: true;
                 text <=> root.text;
                 edited => { root.edited(self.text); }
+                accepted => { root.submitted(self.text); }
             }
 
             if root.text == "" && !input.has-focus: Text {

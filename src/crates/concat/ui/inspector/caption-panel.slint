@@ -7,7 +7,7 @@ import { Glyph } from "../icons.slint";
 import { Row, Section, SectionBody, SectionHeader } from "../primitives/panel.slint";
 import { Button } from "../primitives/modal.slint";
 import { SegmentedControl } from "../primitives/segmented-control.slint";
-import { Check, ColourField, KeyCluster, Param, ParamFormat, PositionRow, ValueControl } from "controls.slint";
+import { Check, ColourField, KeyCluster, Param, ParamFormat, PositionRow, TextFormatToggle, ValueControl } from "controls.slint";
 import { FontPicker } from "font-picker.slint";
 import { CaptionsLibrary } from "../workspace/captions-panel.slint";
 import { ClipField, ClipTextField, SelectedClipData, TextAlignment } from "../timeline/model.slint";
@@ -48,6 +48,15 @@ component CaptionLook inherits Rectangle {
     accessible-role: button;
     accessible-label: root.label;
     area := TouchArea { mouse-cursor: pointer; clicked => { root.chosen(); } }
+}
+
+// Controls with a label above their field need room between consecutive rows.
+component CaptionSection inherits Section {
+    spacing: 8px;
+}
+
+component CaptionParam inherits Param {
+    min-height: Theme.h + 24px;
 }
 
 export component CaptionPanel inherits VerticalLayout {
@@ -109,7 +118,7 @@ export component CaptionPanel inherits VerticalLayout {
             }
         }
     }
-    Section {
+    CaptionSection {
         first: true;
         SectionHeader { title: I18n.t("common.text"); }
         SectionBody {
@@ -165,7 +174,7 @@ export component CaptionPanel inherits VerticalLayout {
                 picked(family) => { root.set-text(ClipTextField.font-family, family); root.commit(); }
             }
         }
-        Param {
+        CaptionParam {
             label: I18n.t("common.size");
             value <=> root.size;
             minimum: 0.01; maximum: 0.5; step: 1 / root.frame-h;
@@ -175,18 +184,20 @@ export component CaptionPanel inherits VerticalLayout {
         }
         Row {
             label: I18n.t("captions.fontStyle");
-            Button {
-                label: "B";
-                primary: root.selected.font-weight >= 700;
-                clicked => { root.set(ClipField.font-weight, root.selected.font-weight >= 700 ? 400 : 700); root.commit(); }
+            TextFormatToggle {
+                letter: "B"; label: I18n.t("textPanel.bold"); bold: true;
+                active: root.selected.font-weight >= 700;
+                toggled => { root.set(ClipField.font-weight, root.selected.font-weight >= 700 ? 400 : 700); root.commit(); }
             }
-            Button {
-                label: "I"; primary: root.selected.italic;
-                clicked => { root.set(ClipField.italic, root.selected.italic ? 0 : 1); root.commit(); }
+            TextFormatToggle {
+                letter: "I"; label: I18n.t("textPanel.italic"); italic: true;
+                active: root.selected.italic;
+                toggled => { root.set(ClipField.italic, root.selected.italic ? 0 : 1); root.commit(); }
             }
-            Button {
-                label: "U"; primary: root.selected.underline;
-                clicked => { root.set(ClipField.underline, root.selected.underline ? 0 : 1); root.commit(); }
+            TextFormatToggle {
+                letter: "U"; label: I18n.t("textPanel.underline"); underlined: true;
+                active: root.selected.underline;
+                toggled => { root.set(ClipField.underline, root.selected.underline ? 0 : 1); root.commit(); }
             }
         }
         HorizontalLayout {
@@ -239,7 +250,7 @@ export component CaptionPanel inherits VerticalLayout {
             }
         }
     }
-    Section {
+    CaptionSection {
         SectionHeader { title: I18n.t("captions.styles"); }
         SectionBody {
             padding-left: Theme.pad; padding-right: Theme.pad;
@@ -252,9 +263,9 @@ export component CaptionPanel inherits VerticalLayout {
             }
         }
     }
-    Section {
+    CaptionSection {
         SectionHeader { title: I18n.t("textPanel.position"); }
-        Param {
+        CaptionParam {
             label: I18n.t("captions.totalSize"); value <=> root.scale;
             minimum: 0.05; maximum: 8; step: 0.01; default-value: 1;
             unit: "%"; unit-scale: 100;
@@ -265,23 +276,23 @@ export component CaptionPanel inherits VerticalLayout {
             x-value <=> root.x-pos; y-value <=> root.y-pos;
             changed(x, y) => { root.set(ClipField.offset-x, x); root.set(ClipField.offset-y, y); root.commit(); }
         }
-        Param {
+        CaptionParam {
             label: I18n.t("common.rotation"); value <=> root.rotation;
             minimum: -180; maximum: 180; step: 1; default-value: 0; unit: "°"; rail: false;
             keyable: true; field: ClipField.rotation;
             changed(v) => { root.set(ClipField.rotation, v); root.commit(); }
         }
     }
-    Section {
+    CaptionSection {
         SectionHeader { title: I18n.t("common.opacity"); }
-        Param {
+        CaptionParam {
             label: I18n.t("common.opacity"); value <=> root.alpha;
             minimum: 0; maximum: 1; step: 0.01; default-value: 1;
             unit: "%"; unit-scale: 100; keyable: true; field: ClipField.opacity;
             changed(v) => { root.set(ClipField.opacity, v); root.commit(); }
         }
     }
-    Section {
+    CaptionSection {
         border := SectionHeader { title: I18n.t("textPanel.stroke"); collapsible: true; open: false; }
         if border.open: VerticalLayout {
             HorizontalLayout {
@@ -292,15 +303,15 @@ export component CaptionPanel inherits VerticalLayout {
                 VerticalLayout { alignment: center; KeyCluster { compact: true; field: ClipField.stroke-color-key; } }
                 Rectangle { width: Theme.pad; }
             }
-            Param {
+            CaptionParam {
                 label: I18n.t("common.opacity"); value <=> root.stroke-alpha;
                 minimum: 0; maximum: 1; step: 0.01; default-value: 1;
                 unit: "%"; unit-scale: 100; keyable: true; field: ClipField.stroke-opacity;
                 changed(v) => { root.set(ClipField.stroke-opacity, v); root.commit(); }
             }
-            Param {
+            CaptionParam {
                 label: I18n.t("captions.thickness"); value <=> root.stroke-width;
-                minimum: 0; maximum: 0.15; step: 0.5 / root.frame-h; default-value: 0;
+                minimum: 0; maximum: 20 / root.frame-h; step: 0.5 / root.frame-h; default-value: 0;
                 unit: "px"; unit-scale: root.frame-h; keyable: true; field: ClipField.stroke-width;
                 changed(v) => { root.set(ClipField.stroke-width, v); root.commit(); }
             }
