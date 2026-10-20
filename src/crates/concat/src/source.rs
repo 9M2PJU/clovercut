@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use concat_project::Command;
 use concat_project::commands::{self, IdMint};
-use concat_project::model::{MediaKind, Project};
+use concat_project::model::{MediaKind, Project, Timeline};
 
 use crate::studio::Studio;
 use crate::ui::SourcePreview;
@@ -47,7 +47,11 @@ fn scratch(project: &Project, media_id: &str) -> Option<Project> {
     let mut scratch = project.clone();
     let timeline = scratch.active_mut();
     timeline.clips.clear();
-    let track_id = timeline.tracks.first()?.id.clone();
+    // The library borrows a lane, never its mute/visibility switches.
+    let track = timeline.tracks.first_mut()?;
+    track.visible = true;
+    track.muted = false;
+    let track_id = track.id.clone();
     commands::apply(
         &mut scratch,
         &mut IdMint::default(),
@@ -60,6 +64,38 @@ fn scratch(project: &Project, media_id: &str) -> Option<Project> {
     )
     .ok()?;
     Some(scratch)
+}
+
+/// The picture actually requested by the monitor. A library source owns
+/// it independently of the timeline, and the preview axis can show a
+/// different instant from the playhead.
+pub(crate) fn picture_name<'a>(
+    timeline: &'a Timeline,
+    time: f64,
+    source: Option<(&'a str, MediaKind)>,
+) -> Option<&'a str> {
+    if let Some((name, kind)) = source {
+        return (kind != MediaKind::Audio).then_some(name);
+    }
+    timeline
+        .tracks
+        .iter()
+        .rev()
+        .filter(|track| track.visible)
+        .find_map(|track| {
+            timeline.clips.iter().find(|clip| {
+                clip.track_id == track.id
+                    && (clip.kind.is_visual()
+                        || matches!(
+                            clip.kind,
+                            concat_project::model::ClipKind::Text
+                                | concat_project::model::ClipKind::Shape
+                        ))
+                    && clip.start <= time
+                    && time < clip.start + clip.duration
+            })
+        })
+        .map(|clip| clip.name.as_str())
 }
 
 impl Studio {
@@ -302,5 +338,252 @@ impl Studio {
                 preview.set_playing(false);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use concat_project::model::{Clip, ClipKind, Track};
+
+    #[test]
+    fn library_preview_ignores_hidden_and_muted_timeline_tracks() {
+        let mut project = Project::default();
+        project.active_mut().tracks = vec![Track {
+            id: "t".into(),
+            visible: false,
+            muted: true,
+            ..Default::default()
+        }];
+        project.media.push(concat_project::model::MediaItem {
+            id: "m".into(),
+            path: "/source.mp4".into(),
+            name: "source".into(),
+            duration: Some(3.0),
+            kind: MediaKind::Video,
+            has_audio: true,
+            ..Default::default()
+        });
+        let preview = scratch(&project, "m").expect("source project");
+        let clips = concat_export::flatten::flatten_timeline(&preview, None);
+        assert_eq!(clips.len(), 1);
+        assert!(
+            !clips[0].hidden,
+            "a hidden timeline lane must not hide the library"
+        );
+        assert!(
+            !clips[0].muted,
+            "a muted timeline lane must not silence the library"
+        );
+        assert!(
+            project.active().clips.is_empty(),
+            "preview must not place a clip"
+        );
+        assert!(!project.active().tracks[0].visible);
+        assert!(project.active().tracks[0].muted);
+    }
+
+    /// Run explicitly with isolated XDG directories and a graphical session.
+    #[test]
+    #[ignore = "requires a graphical session, FFmpeg and audio output"]
+    fn new_project_library_and_timeline_playback() {
+        // Slint's backend and the audio/GPU workers own process-lifetime
+        // state. Keep their shutdown out of libtest's worker-thread TLS
+        // destructors, just as the real app does through `leave`.
+        const CHILD: &str = "CLOVERCUT_PLAYBACK_TEST_CHILD";
+        if std::env::var_os(CHILD).is_none() {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "source::tests::new_project_library_and_timeline_playback",
+                    "--ignored",
+                    "--exact",
+                    "--nocapture",
+                    "--test-threads=1",
+                ])
+                .env(CHILD, "1")
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert!(String::from_utf8_lossy(&output.stdout).contains("playback regression: ok"));
+            return;
+        }
+        use crate::host::Host;
+        use crate::panes::monitor::{MonitorMsg, Picture};
+        use crate::studio::Models;
+        use crate::ui::{App, Editor};
+        use concat_host::{media, projects};
+
+        let dir = std::env::temp_dir().join(format!("clovercut-playback-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let video = dir.join("source.mkv");
+        let encoded = std::process::Command::new("ffmpeg")
+            .args([
+                "-v",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc2=size=64x36:rate=10:duration=3",
+                "-c:v",
+                "ffv1",
+            ])
+            .arg(&video)
+            .status()
+            .unwrap();
+        assert!(encoded.success());
+        let gpu = crate::platform::select_backend(|_| {}, || {}).unwrap();
+        let host = Host::start(gpu).unwrap();
+        let mut studio = Studio::new(host);
+        let app = App::new().unwrap();
+        let models = Models::new();
+        let info = projects::create(dir.to_str().unwrap(), "New project", 64, 36, 10, 1).unwrap();
+        studio.open_project(info).unwrap();
+        let item = media::probe(video.to_str().unwrap())
+            .unwrap()
+            .to_new_media();
+        let id = studio.apply(Command::AddMedia { item }).unwrap();
+        studio.preview_media(&id, 0);
+        assert!(studio.timeline().clips.is_empty());
+        studio.publish(&app, &models);
+        assert!(
+            app.global::<Editor>().get_has_picture(),
+            "an imported source must be visible on an empty timeline"
+        );
+
+        // Decode and draw actual frames at separate playback instants.
+        let render = |studio: &mut Studio, time: f64| {
+            let (clips, settings) = studio.preview_clips(64, 36, time).unwrap();
+            let spec = concat_host::preview::FrameSpec {
+                time,
+                width: 64,
+                height: 36,
+                moving: true,
+                proxy: false,
+                color_space: Default::default(),
+            };
+            let bytes = studio.host.monitor.frame(clips, &settings, spec).unwrap();
+            assert!(
+                bytes.chunks_exact(4).any(|p| p[0].abs_diff(p[1]) > 40),
+                "the video must contain colour rather than black"
+            );
+            studio.handle(crate::panes::Msg::Monitor(MonitorMsg::Frame(
+                Ok(Picture::Pixels(bytes.clone(), 64, 36)),
+                spec,
+            )));
+            bytes
+        };
+        let first = render(&mut studio, 0.0);
+        studio.play_toggle();
+        assert!(studio.source.as_ref().unwrap().playing);
+        assert!(!studio.playing, "source transport owns playback");
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        assert!(studio.host.playback.position_now() > 0.0);
+        let later = render(&mut studio, 1.0);
+        assert_ne!(first, later, "playback must show changing video frames");
+        studio.publish(&app, &models);
+        assert!(app.global::<Editor>().get_preview_frame().size().width > 0);
+
+        studio.close_source();
+        let track_id = studio.timeline().tracks[0].id.clone();
+        studio.apply(Command::AddClip {
+            media_id: id.clone(),
+            track_id,
+            start: 0.0,
+            ripple: false,
+        });
+        studio.play_toggle();
+        assert!(studio.playing);
+        render(&mut studio, 0.5);
+        studio.publish(&app, &models);
+        assert!(app.global::<Editor>().get_has_picture());
+        studio.pause();
+        studio.seek(4.0);
+        studio.publish(&app, &models);
+        assert!(
+            !app.global::<Editor>().get_has_picture(),
+            "timeline gaps remain empty"
+        );
+        studio.preview_media(&id, 0);
+        studio.publish(&app, &models);
+        assert!(
+            app.global::<Editor>().get_has_picture(),
+            "a library source stays visible when the timeline playhead is in a gap"
+        );
+        studio.close_source();
+        drop(studio);
+        std::fs::remove_dir_all(dir).unwrap();
+        println!("playback regression: ok");
+        crate::leave(0);
+    }
+
+    #[test]
+    fn library_pictures_do_not_depend_on_timeline_content() {
+        let mut timeline = Timeline::default();
+        for time in [0.0, 3.0, 100.0] {
+            for kind in [MediaKind::Video, MediaKind::Image] {
+                assert_eq!(
+                    picture_name(&timeline, time, Some(("source", kind))),
+                    Some("source")
+                );
+            }
+        }
+        timeline.tracks.push(Track {
+            id: "t".into(),
+            ..Default::default()
+        });
+        timeline.clips.push(Arc::new(Clip::blank(
+            "c",
+            "t",
+            ClipKind::Video,
+            "timeline",
+            0.0,
+            10.0,
+        )));
+        assert_eq!(
+            picture_name(&timeline, 1.0, Some(("sound", MediaKind::Audio))),
+            None
+        );
+        assert_eq!(picture_name(&timeline, 1.0, None), Some("timeline"));
+        assert_eq!(picture_name(&timeline, 10.0, None), None);
+        timeline.tracks[0].visible = false;
+        assert_eq!(picture_name(&timeline, 1.0, None), None);
+    }
+
+    #[test]
+    fn preview_axis_uses_its_own_instant_and_topmost_visible_picture() {
+        let timeline = Timeline {
+            tracks: vec![
+                Track {
+                    id: "bottom".into(),
+                    ..Default::default()
+                },
+                Track {
+                    id: "top".into(),
+                    ..Default::default()
+                },
+            ],
+            clips: vec![
+                Arc::new(Clip::blank(
+                    "a",
+                    "bottom",
+                    ClipKind::Video,
+                    "bottom",
+                    2.0,
+                    5.0,
+                )),
+                Arc::new(Clip::blank("b", "top", ClipKind::Text, "title", 3.0, 1.0)),
+            ],
+            ..Default::default()
+        };
+        assert_eq!(picture_name(&timeline, 0.0, None), None);
+        assert_eq!(picture_name(&timeline, 2.0, None), Some("bottom"));
+        assert_eq!(picture_name(&timeline, 3.0, None), Some("title"));
+        assert_eq!(picture_name(&timeline, 4.0, None), Some("bottom"));
     }
 }

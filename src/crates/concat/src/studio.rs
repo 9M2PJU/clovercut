@@ -9599,26 +9599,18 @@ impl Studio {
                 .collect(),
         );
 
-        // What is under the playhead. The topmost picture wins, the way the
-        // compositor stacks them.
-        let playhead = f64::from(self.playhead);
-        let showing = timeline
-            .clips
-            .iter()
-            .filter(|clip| {
-                (clip.kind.is_visual()
-                    || matches!(clip.kind, model::ClipKind::Text | model::ClipKind::Shape))
-                    && clip.start <= playhead
-                    && playhead < clip.start + clip.duration
-            })
-            .max_by_key(|clip| -self.row_of(&clip.track_id));
-        editor.set_has_picture(showing.is_some());
-        editor.set_preview_clip_name(
-            showing
-                .map(|clip| clip.name.as_str())
-                .unwrap_or_default()
-                .into(),
+        // Visibility follows the same source and instant as the decoded
+        // frame; the timeline playhead can be in a gap while a library
+        // source or the preview axis has a perfectly good picture.
+        let showing = crate::source::picture_name(
+            timeline,
+            f64::from(self.preview_time()),
+            self.source
+                .as_ref()
+                .map(|source| (source.name.as_str(), source.kind)),
         );
+        editor.set_has_picture(showing.is_some());
+        editor.set_preview_clip_name(showing.unwrap_or_default().into());
         editor.set_preview_duration(self.duration());
         editor.set_playhead_free(!self.prefs.playhead_stops_at_end);
         editor.set_playing(self.playing);

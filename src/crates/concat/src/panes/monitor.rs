@@ -253,7 +253,7 @@ impl MonitorPane {
                 && quality > 0,
             color_space: studio.project().active().video.color_space,
         };
-        if !studio.playing {
+        if !spec.moving {
             self.cadence.report(studio.project().active().video.rate());
         }
         let monitor = studio.host.monitor.clone();
