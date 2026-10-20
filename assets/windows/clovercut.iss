@@ -109,6 +109,7 @@ Source: "..\icons\clovercut.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\Clovercut"; Filename: "{app}\clovercut.exe"; IconFilename: "{app}\clovercut.ico"
+Name: "{autoprograms}\Clovercut (safe graphics)"; Filename: "{app}\clovercut.exe"; Parameters: "--software"; IconFilename: "{app}\clovercut.ico"
 Name: "{autodesktop}\Clovercut"; Filename: "{app}\clovercut.exe"; IconFilename: "{app}\clovercut.ico"; Tasks: desktopicon
 
 [Run]
