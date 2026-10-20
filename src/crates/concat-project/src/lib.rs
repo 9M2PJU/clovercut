@@ -2931,9 +2931,9 @@ mod tests {
                 patch: ClipPatch {
                     volume: Some(0.5),
                     transition_in: Some(Some(crate::model::Transition {
-                        id: "cross-fade".to_owned(),
+                        id: "concat.push".to_owned(),
                         duration: 1.5,
-                        params: Default::default(),
+                        params: std::collections::BTreeMap::from([("direction".to_owned(), 2.0)]),
                     })),
                     ..ClipPatch::default()
                 },

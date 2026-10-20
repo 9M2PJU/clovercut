@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # SPDX-FileCopyrightText: 2026 Jareer and Concat contributors
 #
-# Copies the effect cards a run of Concat drew on a real GPU into
+# Copies the effect cards a run of Clovercut drew on a real GPU into
 # src/crates/concat/cards/, one <package id>.jpg each, which the binary
 # carries: what a shelf shows until a machine has drawn its own (#416).
 #
@@ -14,9 +14,9 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 out="$root/src/crates/concat/cards"
 case "$(uname -s)" in
-  Darwin) default="$HOME/Library/Application Support/app.concat.editor/cards" ;;
-  Linux) default="${XDG_DATA_HOME:-$HOME/.local/share}/app.concat.editor/cards" ;;
-  *) default="${LOCALAPPDATA:-}/app.concat.editor/cards" ;;
+  Darwin) default="$HOME/Library/Application Support/io.github.tulcoturo.clovercut/cards" ;;
+  Linux) default="${XDG_DATA_HOME:-$HOME/.local/share}/io.github.tulcoturo.clovercut/cards" ;;
+  *) default="${LOCALAPPDATA:-}/io.github.tulcoturo.clovercut/cards" ;;
 esac
 from="${1:-$default}"
 [ -d "$from" ] || { echo "no card folder at $from" >&2; exit 1; }
