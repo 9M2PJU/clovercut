@@ -1751,6 +1751,45 @@ fn a_colour_range_named_on_the_media_reaches_the_export() {
     full.expect_second(5.9, 5);
 }
 
+/// Smooth ramps must reach the rendered video, audio and saved project,
+/// including their different source clock from a straight ramp.
+#[test]
+fn a_smooth_speed_curve_reaches_the_exported_picture_and_sound() {
+    let scratch = Scratch::new("smooth-speed");
+    let sources = Sources::make(scratch.path());
+    let mut studio = Studio::new(scratch.path(), "Smooth speed", video(WIDTH, HEIGHT, 30, 1));
+    let media_id = studio.import(&sources.peek);
+    let clip_id = studio
+        .apply(Command::AddClipAtFirstFree {
+            media_id,
+            start: 0.0,
+        })
+        .unwrap();
+    studio.apply(Command::SetClipSpeedCurve {
+        clip_id,
+        ripple: false,
+        curve: Some(vec![
+            SpeedPoint {
+                at: 0.0,
+                speed: 0.5,
+                slope: Some(0.0),
+            },
+            SpeedPoint {
+                at: 1.0,
+                speed: 2.0,
+                slope: Some(0.0),
+            },
+        ]),
+    });
+    let exported = studio.export("smooth ramp");
+    exported.expect_length(4.8);
+    exported.expect_sound(4.8);
+    exported.expect_second(1.2, 0);
+    exported.expect_second(2.4, 1);
+    exported.expect_second(3.6, 3);
+    exported.expect_tone(2.3);
+}
+
 /// Issue #108: two clips on one track, one of them a 60 fps screen
 /// recording with sound, export - and so does everything a person does to
 /// them afterwards.
