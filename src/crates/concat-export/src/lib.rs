@@ -1004,7 +1004,7 @@ fn last_frame_held(clip: &ExportClip, start: f64, length: f64, frame: f64) -> Ex
     hold.start = start;
     hold.duration = length;
     if clip.kind != ClipKind::Image {
-        let (played, rate) = match SpeedCurve::new(&clip.speed_curve) {
+        let (played, rate) = match clip.retime() {
             Some(curve) => (clip.duration * curve.consumed(1.0), curve.speed_at(1.0)),
             None => (clip.duration * clip.speed, clip.speed),
         };
@@ -3617,6 +3617,21 @@ mod tests {
         assert_eq!(b.track, 1, "above the outgoing clip running on");
         assert_eq!(b.video_fade_in, 1.0);
         assert_eq!(clips[0].duration, 5.0);
+    }
+
+    #[test]
+    fn a_smooth_speed_curve_holds_its_own_last_source_frame() {
+        let mut clip = ExportClip::blank(ClipKind::Video, 0.0, 6.0, 0);
+        clip.source_start = 2.0;
+        clip.speed_curve = vec![(0.0, 1.0), (1.0, 3.0)];
+        clip.speed_slopes = vec![0.0, 2.0];
+        let held = last_frame_held(&clip, 6.0, 0.5, 0.1);
+        // This Hermite segment consumes 11/6 source seconds per timeline
+        // second, then holds one frame before its end at a final rate of 3.
+        assert!((held.source_start - 12.7).abs() < 1e-9);
+        assert!(held.speed_curve.is_empty());
+        assert!(held.speed_slopes.is_empty());
+        assert!(held.muted);
     }
 
     /// An outgoing clip with no footage past its out-point - the file ends
