@@ -1860,6 +1860,9 @@ pub struct Clip {
     pub fade_in: f64,
     /// Seconds of audio ramp-out to silence at the tail. Zero for none.
     pub fade_out: f64,
+    /// Independent visual entrance/exit, composed with transform and opacity keys.
+    #[serde(default, skip_serializing_if = "CaptionMotion::is_default")]
+    pub visual_motion: CaptionMotion,
     /// Multiplier over the fitted size. 1 fills the frame, preserving aspect.
     pub scale: f64,
     /// Offset from centred, as a fraction of frame width / height.
@@ -2041,6 +2044,7 @@ impl Clip {
             volume: 1.0,
             fade_in: 0.0,
             fade_out: 0.0,
+            visual_motion: CaptionMotion::default(),
             scale: 1.0,
             offset_x: 0.0,
             offset_y: 0.0,
@@ -2090,6 +2094,7 @@ impl Clip {
         self.volume = finite(self.volume, 1.0).max(0.0);
         self.fade_in = finite(self.fade_in, 0.0).clamp(0.0, MAX_TIME);
         self.fade_out = finite(self.fade_out, 0.0).clamp(0.0, MAX_TIME);
+        self.visual_motion = self.visual_motion.tidy();
         self.scale = finite(self.scale, 1.0).clamp(MIN_SCALE, MAX_SCALE);
         self.offset_x = finite(self.offset_x, 0.0).clamp(-MAX_OFFSET, MAX_OFFSET);
         self.offset_y = finite(self.offset_y, 0.0).clamp(-MAX_OFFSET, MAX_OFFSET);
@@ -2788,6 +2793,21 @@ impl Default for CaptionMotion {
     }
 }
 impl CaptionMotion {
+    /// Whether no custom motion settings need to be written into the project.
+    pub fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+    /// Clamp preset IDs and duration, replacing non-finite durations with the default.
+    pub fn tidy(mut self) -> Self {
+        self.entrance = self.entrance.min(3);
+        self.exit = self.exit.min(3);
+        self.duration = if self.duration.is_finite() {
+            self.duration.clamp(0.05, 5.0)
+        } else {
+            0.25
+        };
+        self
+    }
     /// Additional opacity, scale and vertical offset at a timeline-local instant.
     /// Both phases fit in the cue and leave manual keyframes untouched.
     pub fn sample(self, elapsed: f64, length: f64) -> (f64, f64, f64) {

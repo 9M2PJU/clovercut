@@ -737,6 +737,117 @@ fn vertical_writing_survives_export_and_project_reopening() {
 }
 
 #[test]
+fn video_and_image_motion_compose_with_keys_in_preview_and_export() {
+    use concat_project::model::CaptionMotion;
+    let scratch = Scratch::new("visual-motion");
+    let video_path = scratch.path().join("motion.mp4");
+    quadrants(&video_path);
+    let image_path = scratch.path().join("motion.png");
+    let mut encoder = png::Encoder::new(std::fs::File::create(&image_path).unwrap(), WIDTH, HEIGHT);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder
+        .write_header()
+        .unwrap()
+        .write_image_data(&[220, 30, 30, 255].repeat((WIDTH * HEIGHT) as usize))
+        .unwrap();
+    for (name, path) in [("Video", video_path), ("Image", image_path)] {
+        let mut studio = Studio::new(scratch.path(), name, video(WIDTH, HEIGHT, 10, 1));
+        let media_id = studio.import(&path);
+        let id = studio
+            .apply(Command::AddClipAtFirstFree {
+                media_id,
+                start: 0.0,
+            })
+            .unwrap();
+        let duration = studio.clip(&id).duration;
+        studio.apply(Command::TrimClip {
+            clip_id: id.clone(),
+            edge: TrimEdge::End,
+            delta: 1.0 - duration,
+            ripple: false,
+        });
+        studio.apply(Command::UpdateClip {
+            clip_id: id.clone(),
+            patch: ClipPatch {
+                visual_motion: Some(CaptionMotion {
+                    entrance: 3,
+                    exit: 2,
+                    duration: 0.2,
+                }),
+                ..Default::default()
+            },
+        });
+        for (property, value) in [
+            (KeyProperty::Scale, 1.25),
+            (KeyProperty::Opacity, 0.7),
+            (KeyProperty::OffsetY, 0.05),
+        ] {
+            for at in [0.0, 1.0] {
+                studio.apply(Command::SetClipKey {
+                    clip_id: id.clone(),
+                    property,
+                    at,
+                    value,
+                    ease: KeyEase::LINEAR,
+                });
+            }
+        }
+        let keys = studio.clip(&id).keys.clone();
+        let pool = concat_media::ReaderPool::with_defaults();
+        for (time, opacity, scale, y) in [
+            (0.0, 0.0, 0.875, 0.05),
+            (0.5, 0.7, 1.25, 0.05),
+            (0.9, 0.35, 1.25, 0.01),
+        ] {
+            let sources = concat_export::preview_sources(
+                &pool,
+                &concat_export::PreviewFrameRequest {
+                    time,
+                    width: WIDTH,
+                    height: HEIGHT,
+                    rate_num: 10,
+                    rate_den: 1,
+                    color_space: Default::default(),
+                    clips: studio.session.flattened_clips(),
+                },
+            )
+            .unwrap();
+            let layer = &sources.plan().layers[0];
+            assert!(
+                (f64::from(layer.opacity) - opacity).abs() < 1e-5,
+                "{name} opacity"
+            );
+            assert!((layer.transform.scale - scale).abs() < 1e-5, "{name} scale");
+            assert!(
+                (layer.transform.offset_y - y).abs() < 1e-5,
+                "{name} position"
+            );
+        }
+        assert_eq!(studio.clip(&id).keys, keys);
+        assert_eq!(studio.clip(&id).fade_in, 0.0);
+        assert_eq!(studio.clip(&id).fade_out, 0.0);
+        let exported = studio.export("visual entry and exit");
+        exported.expect_length(1.0);
+        let energy = |frame: &Frame| {
+            frame
+                .pixels()
+                .chunks_exact(4)
+                .map(|p| u64::from(p[0]) + u64::from(p[1]) + u64::from(p[2]))
+                .sum::<u64>()
+        };
+        assert!(
+            energy(&exported.frames[5]) > energy(&exported.frames[0]) + 1000,
+            "{name} entrance"
+        );
+        assert!(
+            energy(&exported.frames[9]) < energy(&exported.frames[5]),
+            "{name} exit"
+        );
+    }
+}
+
+#[test]
 fn caption_motion_composes_with_keys_in_preview_and_export() {
     use concat_project::model::CaptionMotion;
     let scratch = Scratch::new("caption-motion");

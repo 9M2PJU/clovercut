@@ -103,7 +103,7 @@ pub struct ExportClip {
     #[serde(skip)]
     /// An in-process source; absent when the clip reads a media file.
     pub generated: Option<GeneratedImage>,
-    /// Caption treatments applied over manual transform and opacity animation.
+    /// Visual entrance/exit treatments composed over manual transform and opacity keys.
     #[serde(default)]
     pub caption_motion: concat_project::model::CaptionMotion,
     /// The media file this clip shows or plays.

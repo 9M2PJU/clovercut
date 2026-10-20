@@ -87,6 +87,7 @@ pub fn flatten_timeline_in(
                 ModelClipKind::Text | ModelClipKind::Layer | ModelClipKind::Shape => return None,
             };
             Some(ExportClip {
+                caption_motion: clip.visual_motion,
                 path: media.path.clone(),
                 audio_stream: clip.audio_stream,
                 color_range: media.color_range,
@@ -294,6 +295,69 @@ mod tests {
             .created_id
             .expect("mints an id");
         (editor, media_id, clip_id)
+    }
+
+    #[test]
+    fn visual_motion_survives_edit_reopen_undo_and_split_without_audio_fades() {
+        use concat_project::model::CaptionMotion;
+        let settings = concat_project::DocumentSettings {
+            name: "Motion".into(),
+            width: 640,
+            height: 360,
+            rate_num: 30,
+            rate_den: 1,
+        };
+        for kind in [ModelClipKind::Video, ModelClipKind::Image] {
+            let (original, _, id) = project_with_clip();
+            let mut project = original.project().clone();
+            project.active_mut().clip_mut(&id).unwrap().kind = kind;
+            if kind == ModelClipKind::Image {
+                project.media[0].kind = MediaKind::Image;
+            }
+            let document = concat_project::to_document(&settings, &project);
+            let mut editor = Editor::from_document(&document).unwrap();
+            let motion = CaptionMotion {
+                entrance: 3,
+                exit: 2,
+                duration: 0.4,
+            };
+            editor
+                .apply(Command::UpdateClip {
+                    clip_id: id.clone(),
+                    patch: ClipPatch {
+                        visual_motion: Some(motion),
+                        ..Default::default()
+                    },
+                })
+                .unwrap();
+            let flat = flatten_timeline(editor.project(), None);
+            assert_eq!(flat[0].caption_motion, motion);
+            assert_eq!(flat[0].fade_in, 0.0);
+            assert_eq!(flat[0].fade_out, 0.0);
+            let reopened = Editor::from_document(&editor.to_document(&settings)).unwrap();
+            assert_eq!(
+                flatten_timeline(reopened.project(), None)[0].caption_motion,
+                motion
+            );
+            assert!(editor.undo());
+            assert_eq!(
+                flatten_timeline(editor.project(), None)[0].caption_motion,
+                CaptionMotion::default()
+            );
+            assert!(editor.redo());
+            editor
+                .apply(Command::SplitClips {
+                    clip_ids: vec![id.clone()],
+                    time: 5.0,
+                })
+                .unwrap();
+            let flat = flatten_timeline(editor.project(), None);
+            assert_eq!(flat.len(), 2);
+            assert_eq!(flat[0].caption_motion.entrance, 3);
+            assert_eq!(flat[0].caption_motion.exit, 0);
+            assert_eq!(flat[1].caption_motion.entrance, 0);
+            assert_eq!(flat[1].caption_motion.exit, 2);
+        }
     }
 
     #[test]

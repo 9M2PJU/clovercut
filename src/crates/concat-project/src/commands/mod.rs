@@ -98,6 +98,9 @@ pub struct ClipPatch {
     pub fade_in: Option<f64>,
     /// New fade-out length in seconds, floored at 0.
     pub fade_out: Option<f64>,
+    /// Visual entrance/exit settings, independent of the audio ramps.
+    #[serde(default)]
+    pub visual_motion: Option<crate::model::CaptionMotion>,
     /// New opacity, clamped into 0..=1.
     pub opacity: Option<f64>,
     /// New pitch-preservation setting, taken as sent.
@@ -1107,6 +1110,9 @@ impl Command {
                 bad(patch.volume)
                     || bad(patch.fade_in)
                     || bad(patch.fade_out)
+                    || patch
+                        .visual_motion
+                        .is_some_and(|motion| bad([motion.duration]))
                     || bad(patch.opacity)
                     || patch
                         .crop

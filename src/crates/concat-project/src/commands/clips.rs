@@ -385,12 +385,14 @@ pub(super) fn apply(
                 // an entrance or an exit the whole did not have at the cut.
                 tail.transition_in = None;
                 tail.fade_in = 0.0;
+                tail.visual_motion.entrance = 0;
                 tail.rewindow_keys(whole, offset, whole);
                 created = Some(tail.id.clone());
                 let head = timeline.clip_at_mut(index);
                 head.duration = offset;
                 head.source_start = head_source;
                 head.fade_out = 0.0;
+                head.visual_motion.exit = 0;
                 head.rewindow_keys(whole, 0.0, offset);
                 timeline.clips.insert(index + 1, Arc::new(tail));
             }
@@ -584,11 +586,13 @@ pub(super) fn apply(
             tail.source_start = tail_source;
             tail.transition_in = None;
             tail.fade_in = 0.0;
+            tail.visual_motion.entrance = 0;
             tail.rewindow_keys(clip_duration, offset, clip_duration);
             let head = timeline.clip_at_mut(index);
             head.duration = offset;
             head.source_start = head_source;
             head.fade_out = 0.0;
+            head.visual_motion.exit = 0;
             head.rewindow_keys(clip_duration, 0.0, offset);
             timeline.clips.insert(index + 1, Arc::new(tail));
 
@@ -617,6 +621,7 @@ pub(super) fn apply(
             frozen.volume = 1.0;
             frozen.fade_in = 0.0;
             frozen.fade_out = 0.0;
+            frozen.visual_motion = Default::default();
             frozen.filters = Vec::new();
             frozen.muted = None;
             frozen.detached_from = None;
@@ -660,6 +665,7 @@ pub(super) fn apply(
                 survivor.absorb_keys(piece, piece.start - first.start);
             }
             survivor.fade_out = last.fade_out;
+            survivor.visual_motion.exit = last.visual_motion.exit;
             // A validated merge always absorbs at least one piece.
             Ok(Outcome {
                 created_id: Some(first.id),

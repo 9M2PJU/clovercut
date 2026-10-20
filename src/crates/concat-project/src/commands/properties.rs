@@ -33,6 +33,9 @@ pub(super) fn apply(
             if let Some(fade_out) = patch.fade_out {
                 applied |= assign(&mut clip.fade_out, fade_out.max(0.0));
             }
+            if let Some(motion) = patch.visual_motion {
+                applied |= assign(&mut clip.visual_motion, motion.tidy());
+            }
             if let Some(opacity) = patch.opacity {
                 applied |= assign(&mut clip.opacity, opacity.clamp(0.0, 1.0));
             }
