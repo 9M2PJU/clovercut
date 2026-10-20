@@ -24,6 +24,10 @@ pub const UI_SCALES: [u32; 6] = [100, 110, 125, 150, 175, 200];
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Preferences {
+    /// Optional public audio catalogue, enabled explicitly in Settings.
+    pub opengameart_library: bool,
+    /// Optional GIPHY sticker integration, enabled explicitly in Settings.
+    pub giphy_library: bool,
     /// The dark theme. `None` is the app's default, which is dark.
     pub dark: Option<bool>,
     /// The parent folder of the last project created successfully.

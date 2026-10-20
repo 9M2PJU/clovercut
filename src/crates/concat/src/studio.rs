@@ -678,6 +678,8 @@ pub struct Models {
     pub speech_sample_details: Rc<VecModel<SharedString>>,
     /// The Audio page's shelves.
     pub sounds_mine: Rc<VecModel<crate::ui::SoundCardData>>,
+    /// Sticker cards reuse their decoded thumbnails.
+    pub stickers: Rc<VecModel<crate::ui::StickerCardData>>,
     pub voices_saved: Rc<VecModel<crate::ui::VoiceCardData>>,
     pub sounds_concat: Rc<VecModel<crate::ui::SoundCardData>>,
     pub voices_builtin: Rc<VecModel<crate::ui::VoiceCardData>>,
@@ -755,6 +757,7 @@ impl Models {
             speech_sample_waves: Rc::new(VecModel::default()),
             speech_sample_details: Rc::new(VecModel::default()),
             sounds_mine: Rc::new(VecModel::default()),
+            stickers: Rc::new(VecModel::default()),
             voices_saved: Rc::new(VecModel::default()),
             sounds_concat: Rc::new(VecModel::default()),
             voices_builtin: Rc::new(VecModel::default()),
@@ -1003,6 +1006,8 @@ pub struct Studio {
     pub speech: crate::panes::speech::SpeechPane,
     /// The library's Audio page: the user's own sounds.
     pub sounds: crate::panes::sounds::SoundsPane,
+    /// The animated sticker browser.
+    pub stickers: crate::panes::stickers::StickersPane,
     /// A file from the library lent the monitor and the speakers; see
     /// `crate::source`.
     pub source: Option<crate::source::Source>,
@@ -2386,6 +2391,7 @@ impl Studio {
             captions: crate::panes::captions::CaptionsPane::default(),
             speech: crate::panes::speech::SpeechPane::with_saved(&host.dirs),
             sounds: crate::panes::sounds::SoundsPane::open(&host.dirs),
+            stickers: crate::panes::stickers::StickersPane::open(&host.dirs),
             source: None,
             meters: crate::meters::MeterFeed::default(),
             voiceover: crate::panes::voiceover::VoiceoverPane::default(),
@@ -3827,6 +3833,17 @@ impl Studio {
             }),
             // A sound from the Audio page: not in the bin yet, so its card
             // rides in `media` behind `sound:`, and the drop imports it.
+            "sticker" => {
+                let sticker = self.stickers.get(id)?;
+                Some(DropPlan {
+                    kind: ClipKind::Video,
+                    label: sticker.title.clone(),
+                    media: format!("sticker:{id}"),
+                    start: 0.0,
+                    duration: 3.0,
+                    row: 0,
+                })
+            }
             "sound" => {
                 let (name, duration) = self.sound_summary(id)?;
                 Some(DropPlan {
@@ -3840,6 +3857,26 @@ impl Studio {
             }
             // A look dragged from the Filters page: a layer over a span.
             // The package id rides in `media`, there being no file.
+            "effect" => Some(DropPlan {
+                kind: ClipKind::Filter,
+                label: label.to_owned(),
+                media: format!("effect:{id}"),
+                start: 0.0,
+                duration: LAYER_DURATION,
+                row: 0,
+            }),
+            "transition" | "audio-effect" => Some(DropPlan {
+                kind: if sort == "audio-effect" {
+                    ClipKind::Audio
+                } else {
+                    ClipKind::Video
+                },
+                label: label.to_owned(),
+                media: format!("{sort}:{id}"),
+                start: 0.0,
+                duration: 0.5,
+                row: 0,
+            }),
             "filter" => Some(DropPlan {
                 kind: ClipKind::Filter,
                 label: label.to_owned(),
@@ -3865,6 +3902,25 @@ impl Studio {
             .is_none_or(|track| self.locked(&track.id))
         {
             return None;
+        }
+        let track_id = &self.row_track(plan.row)?.id;
+        if plan.media.starts_with("transition:") {
+            let clip = self.timeline().transition_drop_target(
+                track_id,
+                f64::from(seconds),
+                (16.0 * f64::from(self.lanes.seconds_per_pixel)).max(0.25),
+            )?;
+            plan.start = clip.start as f32;
+            plan.duration = self.transition_duration(clip, 0.5)? as f32;
+            return Some(plan);
+        }
+        if plan.media.starts_with("audio-effect:") {
+            let clip = self
+                .timeline()
+                .audio_effect_drop_target(track_id, f64::from(seconds))?;
+            plan.start = clip.start as f32;
+            plan.duration = clip.duration as f32;
+            return Some(plan);
         }
         plan.start = self
             .snapped(seconds.max(0.0), 8.0 * self.lanes.seconds_per_pixel, "")
@@ -3894,6 +3950,60 @@ impl Studio {
         let Some(track_id) = self.row_track(plan.row).map(|track| track.id.clone()) else {
             return;
         };
+        if self.locked(&track_id) {
+            return;
+        }
+        if let Some(id) = plan.media.strip_prefix("effect:") {
+            if let Some(clip_id) = self.apply(Command::AddLayerClip {
+                track_id: None,
+                start: f64::from(plan.start),
+                duration: Some(f64::from(plan.duration)),
+                effect_id: id.to_owned(),
+                name: plan.label.clone(),
+            }) {
+                self.selection = vec![clip_id];
+            }
+            return;
+        }
+        if let Some(id) = plan.media.strip_prefix("transition:") {
+            if let Some(target) = self
+                .timeline()
+                .transition_drop_target(
+                    &track_id,
+                    f64::from(plan.start),
+                    self.frame_seconds() / 2.0,
+                )
+                .map(|clip| clip.id.clone())
+            {
+                self.apply_transition_to(&target, id);
+                self.selection = vec![target];
+            }
+            return;
+        }
+        if let Some(id) = plan.media.strip_prefix("audio-effect:") {
+            if let Some(target) = self
+                .timeline()
+                .audio_effect_drop_target(
+                    &track_id,
+                    f64::from(plan.start) + self.frame_seconds() / 4.0,
+                )
+                .map(|clip| clip.id.clone())
+            {
+                self.selection = vec![target];
+                self.apply_catalogue(id, false);
+            }
+            return;
+        }
+        if let Some(id) = plan.media.strip_prefix("sticker:") {
+            self.handle(crate::panes::Msg::Stickers(
+                crate::panes::stickers::StickersMsg::Place(
+                    id.to_owned(),
+                    Some(track_id),
+                    f64::from(plan.start),
+                ),
+            ));
+            return;
+        }
         if let Some(card) = plan.media.strip_prefix("sound:") {
             self.place_card(card, Some(track_id), f64::from(plan.start));
             return;
@@ -3957,6 +4067,12 @@ impl Studio {
             return;
         };
         let start = f64::from(self.playhead.max(0.0));
+        if let Some(id) = plan.media.strip_prefix("sticker:") {
+            self.handle(crate::panes::Msg::Stickers(
+                crate::panes::stickers::StickersMsg::Place(id.to_owned(), None, start),
+            ));
+            return;
+        }
         if let Some(card) = plan.media.strip_prefix("sound:") {
             self.place_card(card, None, start);
             return;
@@ -4426,7 +4542,11 @@ impl Studio {
                 return;
             }
         };
-        let Some(clip) = self.clip(&clip_id) else {
+        self.apply_transition_to(&clip_id, id);
+    }
+
+    fn apply_transition_to(&mut self, clip_id: &str, id: &str) {
+        let Some(clip) = self.clip(clip_id) else {
             return;
         };
         // One clip with nothing meeting it has no cut to put a transition
@@ -4444,7 +4564,7 @@ impl Studio {
             return;
         };
         self.apply(Command::UpdateClip {
-            clip_id,
+            clip_id: clip_id.to_owned(),
             patch: ClipPatch {
                 transition_in: Some(Some(Transition {
                     id: id.to_owned(),
@@ -8765,6 +8885,11 @@ impl Studio {
                 pane.update(msg, self);
                 self.voiceover = pane;
             }
+            crate::panes::Msg::Stickers(msg) => {
+                let mut pane = std::mem::take(&mut self.stickers);
+                pane.update(msg, self);
+                self.stickers = pane;
+            }
             crate::panes::Msg::Sounds(msg) => {
                 let mut pane = std::mem::take(&mut self.sounds);
                 pane.update(msg, self);
@@ -11390,6 +11515,22 @@ impl Studio {
             self.speech.sample_detail_rows(self),
         );
         app.set_speech(self.speech.data(self));
+        {
+            let page = app.global::<crate::ui::Stickers>();
+            page.set_configured(self.stickers.configured());
+            page.set_loading(self.stickers.loading);
+            page.set_query(self.stickers.query.as_str().into());
+            page.set_error(self.stickers.error.as_str().into());
+            page.set_pending(self.stickers.pending.as_str().into());
+            page.set_page_index(self.stickers.page as i32);
+            page.set_more(self.stickers.more);
+            sync(&models.stickers, self.stickers.rows());
+            page.set_items(models.stickers.clone().into());
+        }
+        app.global::<crate::ui::ContentLibraries>()
+            .set_audio_enabled(self.prefs.opengameart_library);
+        app.global::<crate::ui::ContentLibraries>()
+            .set_stickers_enabled(self.prefs.giphy_library);
         // The Audio page.
         sync(&models.sounds_mine, self.sounds.mine());
         sync(&models.sounds_concat, self.sounds.concat_rows());
@@ -11404,6 +11545,9 @@ impl Studio {
                 ConcatState::Offline => 4,
             });
             page.set_concat_category(self.sounds.category as i32);
+            page.set_query(self.sounds.query.as_str().into());
+            page.set_result_page(self.sounds.catalogue.page as i32);
+            page.set_more(self.sounds.catalogue.more);
         }
         app.global::<crate::ui::Sounds>()
             .set_importing(self.sounds.importing);

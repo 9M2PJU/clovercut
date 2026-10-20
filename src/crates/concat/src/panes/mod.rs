@@ -26,6 +26,7 @@ pub mod settings;
 pub mod sounds;
 pub mod speech;
 pub mod start;
+pub mod stickers;
 pub mod timeline;
 pub mod voiceover;
 
@@ -56,6 +57,8 @@ pub enum Msg {
     Voiceover(voiceover::VoiceoverMsg),
     /// To the library's Audio page.
     Sounds(sounds::SoundsMsg),
+    /// To the animated sticker library.
+    Stickers(stickers::StickersMsg),
 }
 
 /// What a message says in the log: the activity trail of what the person

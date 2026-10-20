@@ -256,3 +256,11 @@ License. The still lives at `src/crates/concat-host/assets/card-still.jpg`
 and is embedded in the app; each card is the effect's own shader run over
 it on the GPU when the app first needs the card (`concat-host`'s
 `cards.rs`).
+
+## GIPHY attribution mark
+
+`assets/providers/powered-by-giphy.png` is an unmodified official attribution
+mark from [GIPHY’s attribution package](https://media.giphy.com/giphy-attribution-marks.zip),
+linked by its developer documentation. It is used to identify the GIPHY
+integration. GIPHY’s names and marks remain their owners’ trademarks; they
+are not licensed as Clovercut artwork under the project’s AGPL licence.

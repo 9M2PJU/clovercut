@@ -15,6 +15,9 @@ import { ContextMenu, MenuItemData } from "../primitives/context-menu.slint";
 import { SourcePreview } from "source-preview.slint";
 import { Sounds, SoundList, VoiceList } from "audio-page.slint";
 
+import { ContentLibraries } from "content-libraries.slint";
+import { StickersPage, Stickers } from "stickers-page.slint";
+
 import { CaptionsPanel, CaptionsLibrary } from "captions-panel.slint";
 
 export { SourcePreview }
@@ -1815,6 +1818,7 @@ export component MediaPane inherits Rectangle {
     /// 0 = Titles, 1 = Styles, 2 = Languages
     property <int> text-category;
     property <bool> stickers-open: true;
+    property <int> sticker-category;
     property <bool> transitions-open: true;
     property <bool> effects-open: true;
     property <bool> filters-open: true;
@@ -2171,24 +2175,25 @@ export component MediaPane inherits Rectangle {
                         }
                         // Concat's own sounds, by category. The list is
                         // fetched only when the shelf asks for it.
-                        CategoryHeading {
+                        if ContentLibraries.audio-enabled: CategoryHeading {
                             height: 26px;
                             title: I18n.t("sounds.concat");
                             open: root.concat-open;
                             toggled => { root.concat-open = !root.concat-open; }
                         }
-                        if root.concat-open: VerticalLayout {
+                        if root.concat-open && ContentLibraries.audio-enabled: VerticalLayout {
                             spacing: 1px;
-                            for label[index] in [I18n.t("sounds.all"), I18n.t("sounds.catWhoosh"),
-                                I18n.t("sounds.catImpact"), I18n.t("sounds.catRiser"),
-                                I18n.t("sounds.catAmbience"), I18n.t("sounds.catMusic")]: CategoryRow {
-                                height: 24px;
-                                label: label;
-                                current: root.audio-category == 1 && Sounds.concat-category == index;
-                                clicked => {
-                                    root.audio-category = 1;
-                                    Sounds.concat-category-changed(index);
-                                }
+                            CategoryRow {
+                                height: 28px;
+                                label: I18n.t("sounds.catMusic");
+                                current: root.audio-category == 1 && Sounds.concat-category == 5;
+                                clicked => { root.audio-category = 1; Sounds.concat-category-changed(5); }
+                            }
+                            CategoryRow {
+                                height: 28px;
+                                label: I18n.t("sounds.catEffects");
+                                current: root.audio-category == 1 && Sounds.concat-category == 6;
+                                clicked => { root.audio-category = 1; Sounds.concat-category-changed(6); }
                             }
                         }
                         CategoryHeading {
@@ -2266,9 +2271,16 @@ export component MediaPane inherits Rectangle {
                             toggled => { root.stickers-open = !root.stickers-open; }
                         }
                         if root.stickers-open: CategoryRow {
-                            height: 24px;
+                            height: 28px;
+                            label: "GIPHY";
+                            current: root.sticker-category == 0;
+                            clicked => { root.sticker-category = 0; }
+                        }
+                        if root.stickers-open: CategoryRow {
+                            height: 28px;
                             label: I18n.t("mediaPane.shapes");
-                            current: true;
+                            current: root.sticker-category == 1;
+                            clicked => { root.sticker-category = 1; }
                         }
                     }
 
@@ -2546,6 +2558,11 @@ export component MediaPane inherits Rectangle {
                     padding: 8px;
                     spacing: 8px;
 
+                    if !ContentLibraries.audio-enabled: VerticalLayout {
+                        spacing: 8px;
+                        Text { text: I18n.t("libraries.audioAvailable"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs-sm; }
+                        ImportButton { label: I18n.t("libraries.manage"); clicked => { ContentLibraries.open-settings(); } }
+                    }
                     ImportButton {
                         label: I18n.t("sounds.importSounds");
                         busy: Sounds.importing;
@@ -2565,17 +2582,33 @@ export component MediaPane inherits Rectangle {
                 // Concat's own sounds: offered, not fetched, until asked
                 // for - nothing goes online at startup - then listed, each
                 // downloaded the first time it is played or laid down.
-                if root.tab == 8 && root.audio-category == 1: VerticalLayout {
+                if root.tab == 8 && root.audio-category == 1 && ContentLibraries.audio-enabled: VerticalLayout {
                     padding: 8px;
                     spacing: 8px;
 
+                    HorizontalLayout {
+                        spacing: 6px;
+                        online-search := SearchField {
+                            text: Sounds.query;
+                            placeholder: I18n.t("sounds.searchPlaceholder");
+                            property <string> held: Sounds.query;
+                            changed held => { self.text = self.held; }
+                            submitted(query) => { Sounds.search(query); }
+                        }
+                        ImportButton {
+                            label: I18n.t("sounds.search");
+                            busy-label: I18n.t("sounds.loading");
+                            busy: Sounds.concat-state == 1;
+                            clicked => { Sounds.search(online-search.text); }
+                        }
+                    }
                     if Sounds.concat-state == 0 || Sounds.concat-state == 1: Text {
                         text: I18n.t("sounds.loadConcatHint");
                         color: Theme.fg-muted;
                         font-size: Theme.fs-sm;
                         wrap: word-wrap;
                     }
-                    if Sounds.concat-state == 0 || Sounds.concat-state == 1: ImportButton {
+                    if Sounds.concat-state == 0: ImportButton {
                         label: I18n.t("sounds.loadConcat");
                         busy-label: I18n.t("sounds.loading");
                         busy: Sounds.concat-state == 1;
@@ -2613,11 +2646,27 @@ export component MediaPane inherits Rectangle {
                     if Sounds.concat-state == 2: SoundList {
                         items: Sounds.concat;
                     }
+                    if Sounds.concat-state == 2 && Sounds.concat.length == 0: Text {
+                        text: I18n.t("sounds.noResults"); color: Theme.fg-muted; wrap: word-wrap;
+                    }
+                    if Sounds.concat-state == 2 && (Sounds.result-page > 0 || Sounds.more): HorizontalLayout {
+                        spacing: 8px;
+                        if Sounds.result-page > 0: ImportButton { label: I18n.t("sounds.previousPage"); clicked => { Sounds.page(false); } }
+                        Text { text: I18n.t1("sounds.resultPage", "\{Sounds.result-page + 1}"); color: Theme.fg-muted; vertical-alignment: center; }
+                        if Sounds.more: ImportButton { label: I18n.t("sounds.nextPage"); clicked => { Sounds.page(true); } }
+                    }
+
                 }
 
                 if root.tab == 8 && root.audio-category == 1 && Sounds.concat-state == 3: Empty {
                     glyph: Glyph.music;
-                    text: I18n.t("sounds.comingSoon");
+                    text: I18n.t("sounds.noResults");
+                }
+
+                if root.tab == 8 && root.audio-category == 1 && !ContentLibraries.audio-enabled: VerticalLayout {
+                    padding: 8px; spacing: 8px;
+                    Text { text: I18n.t("libraries.audioAvailable"); color: Theme.fg-muted; wrap: word-wrap; }
+                    ImportButton { label: I18n.t("libraries.manage"); clicked => { ContentLibraries.open-settings(); } }
                 }
 
                 // Voices: the user's saved clones and the models' own
@@ -2667,7 +2716,9 @@ export component MediaPane inherits Rectangle {
 
                 // The figures. Each card is one shape, placed at the
                 // playhead on a click or dragged onto a lane.
-                if root.tab == 2: HorizontalLayout {
+                if root.tab == 2 && root.sticker-category == 0: StickersPage { }
+
+                if root.tab == 2 && root.sticker-category == 1: HorizontalLayout {
                     padding: 8px;
 
                     ShapeGrid {
@@ -2685,6 +2736,7 @@ export component MediaPane inherits Rectangle {
                     }
                     ShelfGrid {
                         entries: root.catalogue-transitions;
+                        payload-kind: "transition";
                         glyph: Glyph.transition;
                         // Transitions apply directly on single-click — no audition overlay.
                         auditions: false;
@@ -2710,6 +2762,7 @@ export component MediaPane inherits Rectangle {
                     }
                     ShelfGrid {
                         entries: root.audio-shelf ? root.catalogue-audio : root.catalogue-effects;
+                        payload-kind: root.audio-shelf ? "audio-effect" : "effect";
                         glyph: root.audio-shelf ? Glyph.waveform : Glyph.sparkle;
                         // A sound has no picture: its cards are the compact kind.
                         compact: root.audio-shelf;

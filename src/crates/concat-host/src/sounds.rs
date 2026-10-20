@@ -10,9 +10,8 @@
 //! envelope of it - sixty-four bars, read once at import - so the shelf
 //! draws every card without decoding anything when it opens.
 //!
-//! Beside them, Concat's own sounds: a manifest read from the assets
-//! repository when the shelf is first asked for, and each sound fetched
-//! on first use into `<data>/sounds/`, checked against its digest; see
+//! Beside them, OpenGameArt's public CC0 audio search. Original attachments
+//! are licence-checked and downloaded on first use into `<data>/sounds/`; see
 //! `docs/AUDIO_LIBRARY.md`.
 //!
 //! Nothing here touches a project. A sound put on the timeline is copied
@@ -283,21 +282,32 @@ fn now() -> u64 {
         .map_or(0, |since| since.as_secs())
 }
 
-// ── Concat's own sounds ─────────────────────────────────────────────────
+// ── OpenGameArt sounds ─────────────────────────────────────────────────
 
-/// The Concat shelf's manifest, as `concatapp/assets/audio/manifest.json`
-/// has it; the schema is `docs/AUDIO_LIBRARY.md`.
+/// Cached public search results; see `docs/AUDIO_LIBRARY.md`.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct Catalogue {
-    /// The format: 1.
+    /// The cache format: 2 for OpenGameArt results.
     #[serde(default)]
     pub version: u32,
+    /// Search text that produced these cached results.
+    #[serde(default)]
+    pub query: String,
+    /// The selected audio category, zero meaning all audio.
+    #[serde(default)]
+    pub category: usize,
+    /// Zero-based result page.
+    #[serde(default)]
+    pub page: usize,
+    /// The source offers another page of results.
+    #[serde(default)]
+    pub more: bool,
     /// The sounds, in the order the shelf shows them.
     #[serde(default)]
     pub sounds: Vec<Listed>,
 }
 
-/// One sound of Concat's.
+/// One public audio result.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct Listed {
     /// Stable for ever: `[a-z0-9-]`.
@@ -307,7 +317,7 @@ pub struct Listed {
     /// Whoosh, Impact, Riser, Ambience or Music.
     #[serde(default)]
     pub category: String,
-    /// The file's name in the repository's `audio/` folder.
+    /// The local cache file name, pending until the original is resolved.
     pub file: String,
     /// Seconds.
     #[serde(default)]
@@ -324,9 +334,12 @@ pub struct Listed {
     /// Who made it, when known.
     #[serde(default)]
     pub author: String,
-    /// Lowercase hex: what the download must match.
+    /// Locally observed SHA-256, used to detect cache corruption.
     #[serde(default)]
     pub sha256: String,
+    /// Original file URL, resolved and licence-checked from OpenGameArt.
+    #[serde(default)]
+    pub download_url: String,
 }
 
 impl Listed {
@@ -340,8 +353,11 @@ impl Listed {
                 .chars()
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
             && is_plain_name(&self.file)
-            && self.sha256.len() == 64
-            && self.sha256.chars().all(|c| c.is_ascii_hexdigit())
+            && ((self.sha256.len() == 64 && self.sha256.chars().all(|c| c.is_ascii_hexdigit()))
+                || (self.id.starts_with("oga-")
+                    && crate::opengameart::is_source(&self.source)
+                    && (self.download_url.is_empty()
+                        || crate::opengameart::is_audio(&self.download_url))))
             && (license == "CC0" || license == "CC0-1.0")
     }
 }
@@ -373,75 +389,173 @@ pub fn cache_dir(dirs: &AppDirs) -> PathBuf {
 /// The manifest as last fetched, when it has been.
 pub fn cached_catalogue(dirs: &AppDirs) -> Option<Catalogue> {
     let bytes = std::fs::read(cache_dir(dirs).join("manifest.json")).ok()?;
-    Catalogue::parse(&bytes).ok()
+    let mut catalogue = Catalogue::parse(&bytes).ok()?;
+    if catalogue.version != 2 {
+        return None;
+    }
+    for sound in &mut catalogue.sounds {
+        if let Some(known) = resolved_sound(dirs, sound) {
+            *sound = known;
+        }
+    }
+    Some(catalogue)
 }
 
-/// Fetches the manifest, and keeps it for the sessions after. `Ok(None)`
-/// when there is none yet - the repository answers 404 until the pack is
-/// published - which the shelf says as "coming soon" rather than as an
-/// error.
-pub fn fetch_catalogue(dirs: &AppDirs) -> Result<Option<Catalogue>, String> {
-    use std::io::Read;
-    let agent = ureq::AgentBuilder::new()
-        .timeout_connect(std::time::Duration::from_secs(15))
-        .timeout_read(std::time::Duration::from_secs(30))
-        .build();
-    let response = match agent.get(crate::models::SOUNDS_MANIFEST).call() {
-        Ok(response) => response,
-        Err(ureq::Error::Status(404, _)) => return Ok(None),
-        Err(error) => return Err(format!("the sound list did not answer: {error}")),
-    };
-    let mut bytes = Vec::new();
-    response
-        .into_reader()
-        .take(4 * 1024 * 1024)
-        .read_to_end(&mut bytes)
-        .map_err(|error| format!("the sound list did not arrive: {error}"))?;
-    let catalogue = Catalogue::parse(&bytes)?;
+/// Search OpenGameArt directly, and cache only the metadata locally.
+pub fn search_catalogue(
+    dirs: &AppDirs,
+    query: &str,
+    category: usize,
+    page: usize,
+) -> Result<Option<Catalogue>, String> {
+    let mut catalogue = crate::opengameart::search(query, category, page)?;
+    for sound in &mut catalogue.sounds {
+        if let Some(mut known) = resolved_sound(dirs, sound) {
+            known.category = sound.category.clone();
+            *sound = known;
+        }
+    }
     let dir = cache_dir(dirs);
     if std::fs::create_dir_all(&dir).is_ok() {
-        let _ = std::fs::write(dir.join("manifest.json"), &bytes);
+        let path = dir.join("manifest.json");
+        let partial = dir.join("manifest.json.partial");
+        if let Ok(bytes) = serde_json::to_vec(&catalogue)
+            && std::fs::write(&partial, bytes).is_ok()
+        {
+            let _ = std::fs::rename(&partial, &path);
+        }
     }
     Ok(Some(catalogue))
 }
 
-/// Where `sound` is kept once downloaded: its digest's head in the name,
-/// so new bytes under the same name are a new file.
-pub fn cached_file(dirs: &AppDirs, sound: &Listed) -> PathBuf {
-    cache_dir(dirs).join(format!("{}-{}", &sound.sha256[..12], sound.file))
+/// The default public CC0 audio search.
+pub fn fetch_catalogue(dirs: &AppDirs) -> Result<Option<Catalogue>, String> {
+    search_catalogue(dirs, "", 0, 0)
 }
 
-/// Downloads `sound` into the cache from the mirror, then the repository,
-/// and checks it against its digest; a file that does not match is
-/// deleted. Returns where it is. Blocks: a worker's.
+/// A previously resolved first-party attachment, including its observed digest.
+pub fn resolved_sound(dirs: &AppDirs, sound: &Listed) -> Option<Listed> {
+    if !sound.id.starts_with("oga-") || !sound.is_offered() {
+        return None;
+    }
+    let known: Listed = serde_json::from_slice(
+        &std::fs::read(cache_dir(dirs).join(format!("{}.json", sound.id))).ok()?,
+    )
+    .ok()?;
+    (known.id == sound.id
+        && known.source == sound.source
+        && known.is_offered()
+        && crate::opengameart::is_audio(&known.download_url))
+    .then_some(known)
+}
+
+/// The source-derived cache path of a downloaded original attachment.
+pub fn cached_file(dirs: &AppDirs, sound: &Listed) -> PathBuf {
+    if sound.download_url.is_empty()
+        && sound.id.starts_with("oga-")
+        && let Some(known) = resolved_sound(dirs, sound)
+    {
+        return cached_file(dirs, &known);
+    }
+    use sha2::{Digest, Sha256};
+    let key = if sound.id.starts_with("oga-") {
+        format!("{:x}", Sha256::digest(sound.source.as_bytes()))
+    } else {
+        sound.sha256.clone()
+    };
+    cache_dir(dirs).join(format!("{}-{}", &key[..key.len().min(12)], sound.file))
+}
+
+/// Download original audio directly from OpenGameArt, after checking its own
+/// licence page. A local digest detects later cache corruption; it is not a
+/// publisher-supplied checksum.
 pub fn fetch_sound(
     dirs: &AppDirs,
     sound: &Listed,
     cancel: &std::sync::atomic::AtomicBool,
     progress: &mut dyn FnMut(u64, u64),
 ) -> Result<PathBuf, String> {
-    let target = cached_file(dirs, sound);
-    if target.is_file() {
+    use sha2::{Digest, Sha256};
+    use std::io::Read;
+    if !sound.is_offered() {
+        return Err("invalid audio library entry".into());
+    }
+    if !sound.id.starts_with("oga-") {
+        return Err("unsupported legacy audio source".into());
+    }
+    let mut sound = match resolved_sound(dirs, sound) {
+        Some(known) => known,
+        None => crate::opengameart::resolve(sound)?,
+    };
+    let target = cached_file(dirs, &sound);
+    if target.is_file()
+        && !sound.sha256.is_empty()
+        && crate::models::verify(&target, &sound.sha256).is_ok()
+    {
         return Ok(target);
     }
     let dir = cache_dir(dirs);
-    std::fs::create_dir_all(&dir)
-        .map_err(|error| format!("could not create {}: {error}", dir.display()))?;
+    std::fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
     let partial = target.with_extension("partial");
+    let urls = if sound.id.starts_with("oga-") {
+        if !crate::opengameart::is_audio(&sound.download_url) {
+            return Err("invalid original audio URL".into());
+        }
+        vec![sound.download_url.clone()]
+    } else {
+        return Err("unsupported audio source".into());
+    };
     let mut last = String::new();
-    for url in crate::models::sound_sources(&sound.file) {
+    for url in urls {
         match crate::models::download(&url, &partial, sound.bytes, cancel, "cancelled", progress) {
-            Ok(_) => match crate::models::verify(&partial, &sound.sha256) {
-                Ok(()) => {
-                    std::fs::rename(&partial, &target)
-                        .map_err(|error| format!("could not keep {}: {error}", target.display()))?;
-                    return Ok(target);
-                }
-                Err(error) => {
+            Ok(_) => {
+                if !sound.sha256.is_empty()
+                    && let Err(error) = crate::models::verify(&partial, &sound.sha256)
+                {
                     let _ = std::fs::remove_file(&partial);
                     last = error;
+                    continue;
                 }
-            },
+                let summary =
+                    match crate::media::probe(partial.to_str().ok_or("invalid audio path")?) {
+                        Ok(summary)
+                            if summary.audio.is_some()
+                                && summary.duration.is_some_and(|d| d > 0.0) =>
+                        {
+                            summary
+                        }
+                        _ => {
+                            let _ = std::fs::remove_file(&partial);
+                            last = "The source did not provide playable audio".into();
+                            continue;
+                        }
+                    };
+                sound.duration = summary.duration.unwrap_or(0.0);
+                sound.bytes = std::fs::metadata(&partial)
+                    .map_err(|error| error.to_string())?
+                    .len();
+                let mut hash = Sha256::new();
+                let mut file = std::fs::File::open(&partial).map_err(|error| error.to_string())?;
+                let mut buffer = [0u8; 65536];
+                loop {
+                    let n = file.read(&mut buffer).map_err(|error| error.to_string())?;
+                    if n == 0 {
+                        break;
+                    }
+                    hash.update(&buffer[..n]);
+                }
+                sound.sha256 = format!("{:x}", hash.finalize());
+                std::fs::rename(&partial, &target).map_err(|error| error.to_string())?;
+                if sound.id.starts_with("oga-") {
+                    let path = dir.join(format!("{}.json", sound.id));
+                    let metadata = serde_json::to_vec(&sound).map_err(|error| error.to_string())?;
+                    let temporary = path.with_extension("json.partial");
+                    std::fs::write(&temporary, metadata)
+                        .and_then(|()| std::fs::rename(&temporary, &path))
+                        .map_err(|error| error.to_string())?;
+                }
+                return Ok(target);
+            }
             Err(error) if error == "cancelled" => return Err(error),
             Err(error) => last = error,
         }

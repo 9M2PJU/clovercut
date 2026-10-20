@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Clovercut contributors
+
+import { ContentLibraries } from "content-libraries.slint";
+import { I18n } from "../i18n.slint";
+import { Theme, Glyph, Icon, Payload } from "../primitives/primitives.slint";
+import { Button } from "../primitives/modal.slint";
+import { SearchField } from "../inspector/controls.slint";
+
+export struct StickerCardData { id: string, title: string, author: string, thumbnail: image }
+export global Stickers {
+    in property <[StickerCardData]> items;
+    in property <bool> configured;
+    in property <bool> loading;
+    in property <string> query;
+    in property <string> error;
+    in property <string> pending;
+    in property <int> page-index;
+    in property <bool> more;
+    callback save-key(key: string);
+    callback create-key();
+    callback search(query: string);
+    callback page(next: bool);
+    callback source(id: string);
+    callback preview(id: string);
+    callback add(id: string);
+}
+
+component StickerCard inherits Rectangle {
+    in property <StickerCardData> item;
+    background: Theme.field;
+    border-radius: Theme.r;
+    border-width: 1px;
+    border-color: Theme.line;
+    clip: true;
+    property <string> payload: "sticker:\{root.item.id}:\{root.item.title}";
+    DragArea {
+        height: parent.height - 32px;
+        width: parent.width;
+        data: Payload.of(root.payload);
+        allow-copy: true;
+        VerticalLayout {
+            padding: 6px;
+            spacing: 4px;
+            Image { source: root.item.thumbnail; image-fit: contain; min-height: 48px; vertical-stretch: 1; }
+            Text { text: root.item.title; color: Theme.fg; font-size: Theme.fs-sm; overflow: elide; }
+            Text { text: root.item.author; color: Theme.fg-muted; font-size: Theme.fs-xs; overflow: elide; }
+        }
+        TouchArea { mouse-cursor: pointer; clicked => { Stickers.preview(root.item.id); } }
+    }
+    HorizontalLayout {
+        x: 4px;
+        y: parent.height - 30px;
+        width: parent.width - 8px;
+        height: 26px;
+        spacing: 4px;
+        Button { glyph: Glyph.play; label: ""; enabled: Stickers.pending == ""; clicked => { Stickers.preview(root.item.id); } }
+        Button { glyph: Glyph.plus; label: ""; enabled: Stickers.pending == ""; clicked => { Stickers.add(root.item.id); } }
+        Button { glyph: Glyph.arrow-up-right; label: ""; clicked => { Stickers.source(root.item.id); } }
+    }
+    if Stickers.pending == root.item.id: Rectangle {
+        height: 3px; width: parent.width; background: Theme.accent;
+    }
+}
+
+component StickerGrid inherits Rectangle {
+    property <length> gap: 8px;
+    property <int> cols: Math.max(1, Math.floor((root.width + root.gap) / 128px));
+    property <length> card-w: (root.width - (root.cols - 1) * root.gap) / root.cols;
+    property <length> card-h: root.card-w + 66px;
+    height: Math.ceil(Stickers.items.length / root.cols) * (root.card-h + root.gap);
+    for item[index] in Stickers.items: StickerCard {
+        x: Math.mod(index, root.cols) * (root.card-w + root.gap);
+        y: Math.floor(index / root.cols) * (root.card-h + root.gap);
+        width: root.card-w; height: root.card-h; item: item;
+    }
+}
+
+export component StickersPage inherits VerticalLayout {
+    spacing: 10px;
+    padding: 8px;
+    Image { source: @image-url("../../../../../assets/providers/powered-by-giphy.png"); width: 200px; height: 28px; horizontal-stretch: 0; image-fit: contain; accessible-label: "Powered By GIPHY"; }
+    Text { text: I18n.t("stickers.hint"); color: Theme.fg-muted; font-size: Theme.fs-sm; wrap: word-wrap; }
+    if !ContentLibraries.stickers-enabled || !Stickers.configured: VerticalLayout {
+        spacing: 8px;
+        Text { text: I18n.t("libraries.stickersAvailable"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs; }
+        Button { label: I18n.t("libraries.manage"); clicked => { ContentLibraries.open-settings(); } }
+    }
+    if ContentLibraries.stickers-enabled && Stickers.configured: HorizontalLayout {
+        spacing: 6px;
+        query := SearchField {
+            text: Stickers.query;
+            placeholder: I18n.t("stickers.searchPlaceholder");
+            property <string> submitted-query: Stickers.query;
+            changed submitted-query => { self.text = self.submitted-query; }
+            submitted(value) => { Stickers.search(value); }
+        }
+        Button { label: Stickers.loading ? I18n.t("sounds.loading") : I18n.t("sounds.search"); enabled: !Stickers.loading; clicked => { Stickers.search(query.text); } }
+    }
+    if Stickers.error != "": Text { text: Stickers.error; color: Theme.danger; wrap: word-wrap; font-size: Theme.fs-sm; }
+    if Stickers.pending != "": Text { text: I18n.t("stickers.downloading"); color: Theme.fg-muted; font-size: Theme.fs-sm; }
+    if ContentLibraries.stickers-enabled && Stickers.configured && !Stickers.loading && Stickers.items.length == 0 && Stickers.error == "": Text {
+        text: I18n.t("stickers.empty"); color: Theme.fg-muted; font-size: Theme.fs-sm; wrap: word-wrap;
+    }
+    if ContentLibraries.stickers-enabled: StickerGrid { }
+    if ContentLibraries.stickers-enabled && Stickers.configured && (Stickers.page-index > 0 || Stickers.more): HorizontalLayout {
+        spacing: 8px;
+        if Stickers.page-index > 0: Button { label: I18n.t("sounds.previousPage"); enabled: !Stickers.loading; clicked => { Stickers.page(false); } }
+        Text { text: I18n.t1("sounds.resultPage", "\{Stickers.page-index + 1}"); color: Theme.fg-muted; vertical-alignment: center; }
+        if Stickers.more: Button { label: I18n.t("sounds.nextPage"); enabled: !Stickers.loading; clicked => { Stickers.page(true); } }
+    }
+}

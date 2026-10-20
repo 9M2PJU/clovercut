@@ -39,7 +39,7 @@ const CONCAT: &str = "concat-";
 
 /// The Concat shelf's categories, as the manifest names them; the sidebar
 /// shows them in the interface's language, after All.
-pub const CATEGORIES: [&str; 5] = ["Whoosh", "Impact", "Riser", "Ambience", "Music"];
+pub const CATEGORIES: [&str; 6] = ["Whoosh", "Impact", "Riser", "Ambience", "Music", "Effects"];
 
 /// Where the Concat shelf stands.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -82,6 +82,12 @@ pub enum SoundsMsg {
     Shown(bool),
     /// "Load Concat sounds", or Refresh: the manifest fetched.
     LoadConcat,
+    /// Submit a public OpenGameArt search.
+    Search(String),
+    /// Move to the next or previous result page.
+    Page(bool),
+    /// Open the asset's original source and licence page.
+    Source(String),
     /// The manifest's worker is done: the list, none yet, or why not.
     ConcatLoaded(Result<Option<Catalogue>, String>),
     /// A category of the Concat shelf picked: 0 All, then [`CATEGORIES`].
@@ -107,6 +113,8 @@ pub struct SoundsPane {
     pub concat: ConcatState,
     /// The category shown: 0 All, then a row of [`CATEGORIES`].
     pub category: usize,
+    /// Search text last submitted to the source.
+    pub query: String,
     /// Downloads running, by card: how far, and what to do once in.
     fetching: HashMap<String, (f32, Then)>,
     /// Stops the downloads when the window goes.
@@ -124,7 +132,8 @@ impl SoundsPane {
     pub fn open(dirs: &concat_host::AppDirs) -> SoundsPane {
         // The manifest as last fetched, if it ever was: the shelf is
         // there from the first frame, and no request is made for it.
-        let catalogue = sounds::cached_catalogue(dirs);
+        let catalogue =
+            sounds::cached_catalogue(dirs).filter(|catalogue| matches!(catalogue.category, 5 | 6));
         SoundsPane {
             library: Library::open(dirs),
             concat: if catalogue.is_some() {
@@ -132,6 +141,13 @@ impl SoundsPane {
             } else {
                 ConcatState::Idle
             },
+            category: catalogue
+                .as_ref()
+                .map_or(5, |c| c.category.min(CATEGORIES.len())),
+            query: catalogue
+                .as_ref()
+                .map(|c| c.query.clone())
+                .unwrap_or_default(),
             catalogue: catalogue.unwrap_or_default(),
             dirs: Some(dirs.clone()),
             ..SoundsPane::default()
@@ -141,24 +157,42 @@ impl SoundsPane {
     /// Applies one message. The studio is the rest of the window; while
     /// this runs the studio's copy of the pane is a blank it must not read.
     pub fn update(&mut self, msg: SoundsMsg, studio: &mut Studio) {
+        if !studio.prefs.opengameart_library
+            && matches!(
+                &msg,
+                SoundsMsg::LoadConcat
+                    | SoundsMsg::Search(_)
+                    | SoundsMsg::Page(_)
+                    | SoundsMsg::ConcatCategory(_)
+            )
+        {
+            return;
+        }
         match msg {
             SoundsMsg::Shown(on) => self.shown = on,
-            SoundsMsg::LoadConcat => {
-                let Some(dirs) = self.dirs.clone() else {
-                    return;
-                };
-                if self.concat == ConcatState::Loading {
-                    return;
+            SoundsMsg::LoadConcat => self.load_page(self.catalogue.page),
+            SoundsMsg::Search(query) => {
+                if self.concat != ConcatState::Loading {
+                    self.query = query.chars().take(160).collect();
+                    self.load_page(0);
                 }
-                if self.concat != ConcatState::Ready {
-                    self.concat = ConcatState::Loading;
+            }
+            SoundsMsg::Page(next) => {
+                if self.concat != ConcatState::Loading && (!next || self.catalogue.more) {
+                    self.load_page(if next {
+                        self.catalogue.page + 1
+                    } else {
+                        self.catalogue.page.saturating_sub(1)
+                    });
                 }
-                crate::host::spawn(
-                    move || sounds::fetch_catalogue(&dirs),
-                    |studio, _, _, result| {
-                        studio.handle(Msg::Sounds(SoundsMsg::ConcatLoaded(result)));
-                    },
-                );
+            }
+            SoundsMsg::Source(card) => {
+                if let Some(sound) = self.listed(&card)
+                    && concat_host::opengameart::is_source(&sound.source)
+                    && let Err(error) = crate::platform::open_link(&sound.source)
+                {
+                    studio.notify(&error, true);
+                }
             }
             SoundsMsg::ConcatLoaded(result) => match result {
                 Ok(Some(catalogue)) => {
@@ -167,18 +201,24 @@ impl SoundsPane {
                 }
                 Ok(None) => self.concat = ConcatState::Soon,
                 Err(error) => {
-                    log::info!("sounds: the Concat list could not be fetched: {error}");
+                    log::info!("sounds: OpenGameArt could not be searched: {error}");
                     // A list already on screen stays: the refresh failed,
                     // not the shelf.
-                    if self.concat != ConcatState::Ready {
+                    if self.catalogue.sounds.is_empty() {
                         self.concat = ConcatState::Offline;
                     } else {
+                        self.concat = ConcatState::Ready;
+                        self.category = self.catalogue.category;
+                        self.query = self.catalogue.query.clone();
                         studio.notify(&t("sounds.offline"), true);
                     }
                 }
             },
             SoundsMsg::ConcatCategory(index) => {
-                self.category = (index.max(0) as usize).min(CATEGORIES.len());
+                if self.concat != ConcatState::Loading {
+                    self.category = (index.max(0) as usize).min(CATEGORIES.len());
+                    self.load_page(0);
+                }
             }
             SoundsMsg::Fetching(card, done) => {
                 if let Some((progress, _)) = self.fetching.get_mut(&card) {
@@ -194,12 +234,28 @@ impl SoundsPane {
                     .map(|sound| sound.name.clone())
                     .unwrap_or_default();
                 match result {
-                    Ok(path) => match then {
-                        Then::Preview => studio.preview_file(&card, &name, &path),
-                        Then::Place(track_id, start) => {
-                            studio.place_sound(&name, &path, track_id, start);
+                    Ok(path) => {
+                        let mut name = name;
+                        if let (Some(dirs), Some(listed)) = (self.dirs.as_ref(), self.listed(&card))
+                            && let Some(resolved) = sounds::resolved_sound(dirs, listed)
+                        {
+                            name = resolved.name.clone();
+                            if let Some(row) = self
+                                .catalogue
+                                .sounds
+                                .iter_mut()
+                                .find(|row| row.id == resolved.id)
+                            {
+                                *row = resolved;
+                            }
                         }
-                    },
+                        match then {
+                            Then::Preview => studio.preview_file(&card, &name, &path),
+                            Then::Place(track_id, start) => {
+                                studio.place_sound(&name, &path, track_id, start);
+                            }
+                        }
+                    }
                     Err(error) if error == "cancelled" => {}
                     Err(error) => {
                         studio.notify(&tf("sounds.downloadFailed", &[&name, &error]), true);
@@ -350,21 +406,31 @@ impl SoundsPane {
         );
     }
 
+    /// Fetch one search page on a worker; never issue requests from the paint path.
+    fn load_page(&mut self, page: usize) {
+        let Some(dirs) = self.dirs.clone() else {
+            return;
+        };
+        if self.concat == ConcatState::Loading {
+            return;
+        }
+        self.concat = ConcatState::Loading;
+        let query = self.query.clone();
+        let category = self.category;
+        crate::host::spawn(
+            move || sounds::search_catalogue(&dirs, &query, category, page),
+            |studio, _, _, result| studio.handle(Msg::Sounds(SoundsMsg::ConcatLoaded(result))),
+        );
+    }
+
     /// The Concat shelf's rows, narrowed to the category picked.
     pub fn concat_rows(&self) -> Vec<SoundCardData> {
-        let category = self
-            .category
-            .checked_sub(1)
-            .and_then(|row| CATEGORIES.get(row));
         let Some(dirs) = self.dirs.as_ref() else {
             return Vec::new();
         };
         self.catalogue
             .sounds
             .iter()
-            .filter(|sound| {
-                category.is_none_or(|wanted| sound.category.eq_ignore_ascii_case(wanted))
-            })
             .map(|sound| {
                 let card = format!("{CONCAT}{}", sound.id);
                 let progress = self.fetching.get(&card).map_or(-1.0, |(done, _)| *done);
@@ -374,7 +440,16 @@ impl SoundsPane {
                     name: sound.name.as_str().into(),
                     duration: sound.duration as f32,
                     wave: SharedString::new(),
-                    detail: category_label(&sound.category).into(),
+                    detail: if sound.author.is_empty() {
+                        format!("{} · CC0 · OpenGameArt", category_label(&sound.category)).into()
+                    } else {
+                        format!(
+                            "{} · CC0 · {}",
+                            category_label(&sound.category),
+                            sound.author
+                        )
+                        .into()
+                    },
                     removable: false,
                     progress,
                 }
@@ -425,6 +500,8 @@ pub fn category_label(category: &str) -> String {
         "riser" => t("sounds.catRiser"),
         "ambience" => t("sounds.catAmbience"),
         "music" => t("sounds.catMusic"),
+        "effects" => t("sounds.catEffects"),
+        "audio" => t("common.audio"),
         _ => category.to_owned(),
     }
 }

@@ -28,6 +28,10 @@ concat-vision = { workspace = true, features = ["infer"] }
 # the detail.
 png = "0.17"
 ureq = "2"
+# Parse the public OpenGameArt catalogue and encode search parameters.
+scraper = { version = "0.24", default-features = false }
+url = "2"
+tempfile = "3"
 # A finished download is checked against the digest its table carries
 # before anything is allowed to call it installed; see models.rs.
 sha2 = "0.10"

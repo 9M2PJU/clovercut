@@ -172,3 +172,115 @@ impl Timeline {
         Some((before, after))
     }
 }
+
+impl Timeline {
+    /// The incoming clip at the nearest valid visual cut on this lane. A
+    /// transition is offered only where clips actually touch, within the
+    /// timeline's frame tolerance, and the pointer is close to that cut.
+    pub fn transition_drop_target(
+        &self,
+        track_id: &str,
+        seconds: f64,
+        tolerance: f64,
+    ) -> Option<&crate::model::Clip> {
+        let frame = self.video.rate_den as f64 / self.video.rate_num.max(1) as f64;
+        self.clips
+            .iter()
+            .filter(|clip| {
+                clip.track_id == track_id
+                    && clip.kind.is_visual()
+                    && (clip.start - seconds).abs() <= tolerance
+                    && clip.duration >= frame
+                    && self.clips.iter().any(|other| {
+                        other.id != clip.id
+                            && other.track_id == track_id
+                            && other.kind.is_visual()
+                            && other.duration >= frame
+                            && (other.start + other.duration - clip.start).abs() < frame / 2.0
+                    })
+            })
+            .min_by(|a, b| {
+                (a.start - seconds)
+                    .abs()
+                    .total_cmp(&(b.start - seconds).abs())
+            })
+            .map(|clip| clip.as_ref())
+    }
+
+    /// The actual audio-capable clip under an effect drop, independent of
+    /// selection. The end is exclusive, so a cut belongs to its incoming clip.
+    pub fn audio_effect_drop_target(
+        &self,
+        track_id: &str,
+        seconds: f64,
+    ) -> Option<&crate::model::Clip> {
+        self.clips
+            .iter()
+            .find(|clip| {
+                clip.track_id == track_id
+                    && matches!(
+                        clip.kind,
+                        crate::model::ClipKind::Audio | crate::model::ClipKind::Video
+                    )
+                    && clip.start <= seconds
+                    && seconds < clip.start + clip.duration
+            })
+            .map(|clip| clip.as_ref())
+    }
+}
+
+#[cfg(test)]
+mod library_drop_tests {
+    use super::*;
+    use crate::model::{Clip, ClipKind};
+    use std::sync::Arc;
+    #[test]
+    fn transitions_snap_only_to_adjacent_visual_cuts_on_the_target_lane() {
+        let timeline = Timeline {
+            clips: vec![
+                Arc::new(Clip::blank("a", "v", ClipKind::Video, "A", 0.0, 2.0)),
+                Arc::new(Clip::blank("b", "v", ClipKind::Image, "B", 2.0, 3.0)),
+                Arc::new(Clip::blank("gap", "v", ClipKind::Video, "Gap", 6.0, 2.0)),
+                Arc::new(Clip::blank(
+                    "audio",
+                    "a",
+                    ClipKind::Audio,
+                    "Audio",
+                    2.0,
+                    2.0,
+                )),
+            ],
+            ..Timeline::default()
+        };
+        assert_eq!(
+            timeline.transition_drop_target("v", 2.1, 0.25).unwrap().id,
+            "b"
+        );
+        assert!(timeline.transition_drop_target("v", 0.0, 0.25).is_none());
+        assert!(timeline.transition_drop_target("v", 3.0, 0.25).is_none());
+        assert!(timeline.transition_drop_target("v", 6.0, 0.25).is_none());
+        assert!(timeline.transition_drop_target("a", 2.0, 0.25).is_none());
+    }
+    #[test]
+    fn audio_effects_target_the_pointer_clip_and_reject_gaps_and_stills() {
+        let timeline = Timeline {
+            clips: vec![
+                Arc::new(Clip::blank("a", "v", ClipKind::Video, "A", 0.0, 2.0)),
+                Arc::new(Clip::blank("b", "v", ClipKind::Video, "B", 2.0, 2.0)),
+                Arc::new(Clip::blank(
+                    "still",
+                    "s",
+                    ClipKind::Image,
+                    "Still",
+                    0.0,
+                    5.0,
+                )),
+            ],
+            ..Timeline::default()
+        };
+        assert_eq!(timeline.audio_effect_drop_target("v", 1.0).unwrap().id, "a");
+        assert_eq!(timeline.audio_effect_drop_target("v", 2.0).unwrap().id, "b");
+        assert!(timeline.audio_effect_drop_target("v", 4.0).is_none());
+        assert!(timeline.audio_effect_drop_target("s", 1.0).is_none());
+    }
+}

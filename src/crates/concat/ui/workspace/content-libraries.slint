@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Clovercut contributors
+
+export global ContentLibraries {
+    in property <bool> audio-enabled;
+    in property <bool> stickers-enabled;
+    callback enable-audio(enabled: bool);
+    callback enable-stickers(enabled: bool);
+    callback open-settings();
+}

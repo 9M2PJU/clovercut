@@ -1,0 +1,352 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Clovercut contributors
+
+//! Session-only GIPHY browsing and animated originals adopted by a project.
+
+use crate::{i18n::t, panes::Msg, studio::Studio};
+use concat_host::{AppDirs, giphy};
+use concat_project::Command;
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
+};
+
+/// Messages deliberately print no arguments: keys and signed media URLs must
+/// never enter the activity log, even with debug logging enabled.
+pub enum StickersMsg {
+    Key(String),
+    Search(String),
+    Page(bool),
+    Source(String),
+    Preview(String),
+    Place(String, Option<String>, f64),
+    Loaded(u64, Result<giphy::Page, String>),
+    Thumbnail(u64, String, concat_core::frame::Frame),
+    Fetched(
+        u64,
+        String,
+        bool,
+        Option<String>,
+        f64,
+        Result<PathBuf, String>,
+    ),
+    Adopted(
+        u64,
+        String,
+        Option<String>,
+        f64,
+        Result<concat_host::media::MediaSummary, String>,
+    ),
+}
+impl std::fmt::Debug for StickersMsg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Key(_) => "Key",
+            Self::Search(_) => "Search",
+            Self::Page(_) => "Page",
+            Self::Source(_) => "Source",
+            Self::Preview(_) => "Preview",
+            Self::Place(..) => "Place",
+            Self::Loaded(..) => "Loaded",
+            Self::Thumbnail(..) => "Thumbnail",
+            Self::Fetched(..) => "Fetched",
+            Self::Adopted(..) => "Adopted",
+        })
+    }
+}
+
+/// State belongs to this window; no search history or media catalogue is persisted.
+pub struct StickersPane {
+    dirs: AppDirs,
+    key: String,
+    scratch: Option<Arc<giphy::Scratch>>,
+    generation: Arc<AtomicU64>,
+    results: Vec<giphy::Sticker>,
+    thumbnails: HashMap<String, slint::Image>,
+    pub query: String,
+    pub page: usize,
+    pub more: bool,
+    pub loading: bool,
+    pub pending: String,
+    pub error: String,
+}
+impl Default for StickersPane {
+    fn default() -> Self {
+        Self {
+            dirs: AppDirs {
+                config: PathBuf::new(),
+                data: PathBuf::new(),
+            },
+            key: String::new(),
+            scratch: None,
+            generation: Arc::new(AtomicU64::new(0)),
+            results: Vec::new(),
+            thumbnails: HashMap::new(),
+            query: String::new(),
+            page: 0,
+            more: false,
+            loading: false,
+            pending: String::new(),
+            error: String::new(),
+        }
+    }
+}
+impl StickersPane {
+    /// Read only local configuration. Nothing goes online at startup.
+    pub fn open(dirs: &AppDirs) -> Self {
+        Self {
+            dirs: dirs.clone(),
+            key: giphy::load_key(dirs),
+            ..Self::default()
+        }
+    }
+    /// Whether a key has been configured; its value is never published to Slint.
+    pub fn configured(&self) -> bool {
+        !self.key.is_empty()
+    }
+    /// Find a public sticker by its opaque provider identifier.
+    pub fn get(&self, id: &str) -> Option<&giphy::Sticker> {
+        self.results.iter().find(|item| item.id == id)
+    }
+    /// Stop browsing when this optional integration is disabled.
+    pub fn suspend(&mut self) {
+        self.generation.fetch_add(1, Ordering::Relaxed);
+        self.loading = false;
+        self.pending.clear();
+        self.results.clear();
+        self.thumbnails.clear();
+        self.error.clear();
+    }
+    /// Cards reuse decoded images rather than doing disk or network work at paint time.
+    pub fn rows(&self) -> Vec<crate::ui::StickerCardData> {
+        self.results
+            .iter()
+            .map(|item| crate::ui::StickerCardData {
+                id: item.id.as_str().into(),
+                title: item.title.as_str().into(),
+                author: item.author.as_str().into(),
+                thumbnail: self.thumbnails.get(&item.id).cloned().unwrap_or_default(),
+            })
+            .collect()
+    }
+    fn search(&mut self, page: usize) {
+        if self.loading || !self.configured() {
+            return;
+        }
+        self.loading = true;
+        self.results.clear();
+        self.thumbnails.clear();
+        self.more = false;
+        self.error.clear();
+        self.page = page;
+        let generation = self.generation.fetch_add(1, Ordering::Relaxed) + 1;
+        let key = self.key.clone();
+        let query = self.query.clone();
+        crate::host::spawn(
+            move || giphy::search(&key, &query, page),
+            move |studio, _, _, result| {
+                studio.handle(Msg::Stickers(StickersMsg::Loaded(generation, result)))
+            },
+        );
+    }
+    fn fetch(&mut self, id: &str, preview: bool, track: Option<String>, start: f64) {
+        if !self.pending.is_empty() {
+            return;
+        }
+        let Some(sticker) = self.get(id).cloned() else {
+            return;
+        };
+        if self.scratch.is_none() {
+            match giphy::Scratch::new() {
+                Ok(scratch) => self.scratch = Some(Arc::new(scratch)),
+                Err(error) => {
+                    self.error = error;
+                    return;
+                }
+            }
+        }
+        let scratch = self.scratch.as_ref().unwrap().clone();
+        self.pending = id.to_owned();
+        self.error.clear();
+        let id = id.to_owned();
+        let epoch = crate::host::project_epoch();
+        crate::host::spawn(
+            move || giphy::original(&sticker, &scratch),
+            move |studio, _, _, result| {
+                studio.handle(Msg::Stickers(StickersMsg::Fetched(
+                    epoch, id, preview, track, start, result,
+                )))
+            },
+        );
+    }
+    /// Apply a browser action or a worker result.
+    pub fn update(&mut self, msg: StickersMsg, studio: &mut Studio) {
+        if !studio.prefs.giphy_library
+            && matches!(
+                &msg,
+                StickersMsg::Search(_)
+                    | StickersMsg::Page(_)
+                    | StickersMsg::Preview(_)
+                    | StickersMsg::Place(..)
+                    | StickersMsg::Fetched(..)
+                    | StickersMsg::Adopted(..)
+            )
+        {
+            self.pending.clear();
+            return;
+        }
+        match msg {
+            StickersMsg::Key(key) if key.trim().is_empty() => {
+                self.error = t("stickers.keyPlaceholder")
+            }
+            StickersMsg::Key(key) => match giphy::save_key(&self.dirs, &key) {
+                Ok(()) => {
+                    self.key = key.trim().to_owned();
+                    self.error.clear();
+                    self.more = false;
+                    self.page = 0;
+                    self.loading = false;
+                    self.generation.fetch_add(1, Ordering::Relaxed);
+                    self.results.clear();
+                    self.thumbnails.clear();
+                }
+                Err(error) => self.error = error,
+            },
+            StickersMsg::Search(query) => {
+                if !self.loading {
+                    self.query = query.chars().take(50).collect();
+                    self.search(0);
+                }
+            }
+            StickersMsg::Page(next) => {
+                if !self.loading && (!next || self.more) {
+                    self.search(if next {
+                        self.page + 1
+                    } else {
+                        self.page.saturating_sub(1)
+                    });
+                }
+            }
+            StickersMsg::Source(id) => {
+                if let Some(sticker) = self.get(&id) {
+                    let _ = crate::platform::open_link(&sticker.source);
+                }
+            }
+            StickersMsg::Preview(id) => self.fetch(&id, true, None, 0.0),
+            StickersMsg::Place(id, track, start) => self.fetch(&id, false, track, start),
+            StickersMsg::Loaded(generation, result) => {
+                if generation != self.generation.load(Ordering::Relaxed) {
+                    return;
+                }
+                self.loading = false;
+                match result {
+                    Err(error) => {
+                        self.error = error;
+                        self.more = false;
+                    }
+                    Ok(page) => {
+                        self.more = page.more;
+                        self.results = page.stickers;
+                        self.thumbnails.clear();
+                        let items = self.results.clone();
+                        let token = self.generation.clone();
+                        crate::host::spawn(
+                            move || {
+                                for item in items {
+                                    if generation != token.load(Ordering::Relaxed) {
+                                        break;
+                                    }
+                                    if let Ok(frame) = giphy::thumbnail(&item) {
+                                        crate::host::on_ui(move |studio, _, _| {
+                                            studio.handle(Msg::Stickers(StickersMsg::Thumbnail(
+                                                generation, item.id, frame,
+                                            )))
+                                        });
+                                    }
+                                }
+                            },
+                            |_, _, _, ()| {},
+                        );
+                    }
+                }
+            }
+            StickersMsg::Thumbnail(generation, id, frame) => {
+                if generation == self.generation.load(Ordering::Relaxed) {
+                    self.thumbnails.insert(id, crate::host::image_of(&frame));
+                }
+            }
+            StickersMsg::Fetched(epoch, id, preview, track, start, result) => {
+                self.pending.clear();
+                if epoch != crate::host::project_epoch() {
+                    return;
+                }
+                match result {
+                    Err(error) => {
+                        self.error = error;
+                    }
+                    Ok(path) => {
+                        let Some(sticker) = self.get(&id).cloned() else {
+                            return;
+                        };
+                        if preview {
+                            studio.preview_file(&format!("giphy:{id}"), &sticker.title, &path);
+                        } else {
+                            let Some(project) =
+                                studio.session.as_ref().map(|s| PathBuf::from(s.path()))
+                            else {
+                                self.error = t("sounds.openProjectFirst");
+                                return;
+                            };
+                            self.pending = id;
+                            let name = sticker.title.clone();
+                            crate::host::spawn(
+                                move || giphy::adopt(&sticker, &path, &project),
+                                move |studio, _, _, result| {
+                                    studio.handle(Msg::Stickers(StickersMsg::Adopted(
+                                        epoch, name, track, start, result,
+                                    )))
+                                },
+                            );
+                        }
+                    }
+                }
+            }
+            StickersMsg::Adopted(epoch, name, track, start, result) => {
+                self.pending.clear();
+                if epoch != crate::host::project_epoch() {
+                    return;
+                }
+                match result {
+                    Err(error) => self.error = error,
+                    Ok(summary) => {
+                        studio.close_source();
+                        let mut item = summary.to_new_media();
+                        item.name = name;
+                        let Some(media_id) = studio.apply(Command::AddMedia { item }) else {
+                            return;
+                        };
+                        let Some(track_id) =
+                            track.or_else(|| studio.apply(Command::AddTrack { bottom: false }))
+                        else {
+                            return;
+                        };
+                        if let Some(id) = studio.apply(Command::AddClip {
+                            media_id,
+                            track_id,
+                            start,
+                            ripple: false,
+                        }) {
+                            studio.selection = vec![id];
+                            studio.clip_set(crate::ui::ClipField::Scale, 0.35);
+                            studio.flush_commit();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

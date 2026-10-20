@@ -1390,6 +1390,47 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         // Voices: Text to speech on the voice or style clicked.
         // Concat's own sounds: the list asked for by a click, never at
         // startup.
+        let stickers = app.global::<crate::ui::Stickers>();
+        stickers.on_save_key(on_window!(|state, key: SharedString| {
+            state.handle(Msg::Stickers(crate::panes::stickers::StickersMsg::Key(
+                key.to_string(),
+            )));
+        }));
+        stickers.on_search(on_window!(|state, query: SharedString| {
+            state.handle(Msg::Stickers(crate::panes::stickers::StickersMsg::Search(
+                query.to_string(),
+            )));
+        }));
+        stickers.on_page(on_window!(|state, next: bool| {
+            state.handle(Msg::Stickers(crate::panes::stickers::StickersMsg::Page(
+                next,
+            )));
+        }));
+        stickers.on_source(on_window!(|state, id: SharedString| {
+            state.handle(Msg::Stickers(crate::panes::stickers::StickersMsg::Source(
+                id.to_string(),
+            )));
+        }));
+        stickers.on_preview(on_window!(|state, id: SharedString| {
+            state.handle(Msg::Stickers(crate::panes::stickers::StickersMsg::Preview(
+                id.to_string(),
+            )));
+        }));
+        stickers.on_add(on_window!(|state, id: SharedString| {
+            state.place_at_playhead(&format!("sticker:{}", id));
+        }));
+        stickers.on_create_key(|| {
+            let _ = crate::platform::open_link("https://developers.giphy.com/dashboard/");
+        });
+        sounds.on_search(on_window!(|state, query: SharedString| {
+            state.handle(Msg::Sounds(SoundsMsg::Search(query.to_string())));
+        }));
+        sounds.on_page(on_window!(|state, next: bool| {
+            state.handle(Msg::Sounds(SoundsMsg::Page(next)));
+        }));
+        sounds.on_source(on_window!(|state, card: SharedString| {
+            state.handle(Msg::Sounds(SoundsMsg::Source(card.to_string())));
+        }));
         sounds.on_load_concat(on_window!(|state| {
             state.handle(Msg::Sounds(SoundsMsg::LoadConcat));
         }));
@@ -1727,6 +1768,24 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     app.on_export_clicked(on_window!(|state| {
         state.handle(Msg::Export(ExportMsg::Open));
     }));
+    {
+        let libraries = app.global::<crate::ui::ContentLibraries>();
+        libraries.on_open_settings(on_window!(|state| {
+            state.handle(Msg::Settings(SettingsMsg::Open));
+            state.handle(Msg::Settings(SettingsMsg::PageChanged(8)));
+        }));
+        libraries.on_enable_audio(on_window!(|state, enabled: bool| {
+            state.prefs.opengameart_library = enabled;
+            state.prefs.save(&state.host.dirs);
+        }));
+        libraries.on_enable_stickers(on_window!(|state, enabled: bool| {
+            state.prefs.giphy_library = enabled;
+            state.prefs.save(&state.host.dirs);
+            if !enabled {
+                state.stickers.suspend();
+            }
+        }));
+    }
     app.on_open_settings(on_window!(|state| {
         state.handle(Msg::Settings(SettingsMsg::Open));
     }));

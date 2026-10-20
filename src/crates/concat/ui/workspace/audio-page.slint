@@ -77,6 +77,12 @@ export global Sounds {
     in property <int> concat-category;
     /// "Load Concat sounds", Refresh, Try again: the list fetched.
     callback load-concat();
+    in property <string> query;
+    in property <int> result-page;
+    in property <bool> more;
+    callback search(query: string);
+    callback page(next: bool);
+    callback source(id: string);
     callback concat-category-changed(index: int);
 
     /// The Import button: the system's picker, for sound files.
@@ -196,13 +202,25 @@ export component SoundRow inherits Rectangle {
                         overflow: elide;
                     }
                     Text {
-                        text: root.item.detail == "" ? Fmt.short-duration(root.item.duration)
-                            : "\{Fmt.short-duration(root.item.duration)} · \{root.item.detail}";
+                        text: root.item.detail;
                         color: Theme.fg-dim;
                         font-family: Theme.font-technical;
                         font-size: Theme.fs-xs;
                         overflow: elide;
                     }
+                }
+
+                Text {
+                    width: 48px;
+                    horizontal-stretch: 0;
+                    text: root.item.duration <= 0 ? "—:—"
+                        : root.item.duration < 10 ? "\{Math.round(root.item.duration * 100) / 100}s"
+                        : Fmt.short-duration(root.item.duration);
+                    color: root.item.duration > 0 ? Theme.fg-muted : Theme.fg-dim;
+                    font-family: Theme.font-technical;
+                    font-size: Theme.fs-xs;
+                    horizontal-alignment: right;
+                    vertical-alignment: center;
                 }
 
                 if root.item.wave != "": VerticalLayout {
@@ -215,6 +233,14 @@ export component SoundRow inherits Rectangle {
                     }
                 }
 
+                if !root.item.removable: VerticalLayout {
+                    alignment: center;
+                    RowButton {
+                        glyph: Glyph.arrow-up-right;
+                        size: root.touch-sized ? 32px : 22px;
+                        clicked => { Sounds.source(root.item.id); }
+                    }
+                }
                 if root.removable-shown: VerticalLayout {
                     alignment: center;
                     RowButton {

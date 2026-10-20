@@ -13,6 +13,8 @@ import { Fmt } from "../util.slint";
 import { Select } from "../primitives/select.slint";
 import { PaneScroll } from "../workspace/pane.slint";
 import { HairlineSplitter } from "../workspace/splitter.slint";
+import { ContentLibraries } from "../workspace/content-libraries.slint";
+import { Stickers } from "../workspace/stickers-page.slint";
 import { Editor } from "../editor.slint";
 
 // Settings: a fixed-height sheet with a column of pages down the side. The
@@ -680,6 +682,7 @@ export component SettingsDialog inherits Modal {
         {label: I18n.t("common.speech"), glyph: Glyph.music, page: 3, desk: false},
         {label: I18n.t("settings.automation"), glyph: Glyph.lock, page: 4, desk: true},
         {label: I18n.t("settings.version"), glyph: Glyph.tag, page: 6, desk: true},
+        {label: I18n.t("libraries.title"), glyph: Glyph.folder, page: 8, desk: false},
         {label: I18n.t("settings.about"), glyph: Glyph.sparkle, page: 5, desk: false},
     ];
 
@@ -841,6 +844,49 @@ export component SettingsDialog inherits Modal {
             width: root.compact ? body.width : Math.max(0px, body.width - body.pages - 1px);
             height: parent.height - body.strip;
             finger: root.phone;
+
+            if root.data.tab == 8: VerticalLayout {
+                spacing: 16px;
+                Text { text: I18n.t("libraries.hint"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs; }
+                DialogSection {
+                    first: true;
+                    title: "OpenGameArt"; switchable: true; on: ContentLibraries.audio-enabled;
+                    switched(enabled) => { ContentLibraries.enable-audio(enabled); }
+                    Text { text: I18n.t("libraries.audioDescription"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs; }
+                }
+                DialogSection {
+                    title: "GIPHY"; switchable: true; on: ContentLibraries.stickers-enabled;
+                    switched(enabled) => { ContentLibraries.enable-stickers(enabled); }
+                    Text { text: I18n.t("libraries.stickerDescription"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs; }
+                    if ContentLibraries.stickers-enabled: VerticalLayout {
+                        spacing: 8px;
+                    Rectangle {
+                            height: Theme.h;
+                            background: Theme.field;
+                            border-width: 1px; border-color: Theme.line; border-radius: Theme.r;
+                            api-key := TextInput {
+                                x: 8px; y: 0; width: parent.width - 16px; height: parent.height;
+                                color: Theme.fg; font-size: Theme.fs;
+                                single-line: true; input-type: password;
+                                vertical-alignment: center;
+                                accepted => { Stickers.save-key(self.text); self.text = ""; }
+                            }
+                            if api-key.text == "": Text {
+                                x: 8px; height: parent.height;
+                                text: Stickers.configured ? I18n.t("stickers.keySaved") : I18n.t("stickers.keyPlaceholder");
+                                color: Theme.fg-dim; font-size: Theme.fs-sm; vertical-alignment: center;
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Button { label: I18n.t("stickers.connect"); enabled: api-key.text != ""; clicked => { Stickers.save-key(api-key.text); api-key.text = ""; } }
+                            Button { label: I18n.t("stickers.createKey"); clicked => { Stickers.create-key(); } }
+                        }
+                    }
+
+                    if Stickers.error != "": Text { text: Stickers.error; color: Theme.danger; wrap: word-wrap; }
+                }
+            }
 
             if root.data.tab == 0: VerticalLayout {
                 DialogSection {
