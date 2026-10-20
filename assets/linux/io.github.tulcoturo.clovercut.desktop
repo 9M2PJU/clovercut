@@ -7,3 +7,8 @@ Icon=clovercut
 Categories=AudioVideo;Video;
 Terminal=false
 StartupWMClass=io.github.tulcoturo.clovercut
+Actions=SafeGraphics;
+
+[Desktop Action SafeGraphics]
+Name=Safe graphics
+Exec=clovercut --software

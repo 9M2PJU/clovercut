@@ -120,6 +120,11 @@ Use the `aarch64` build on ARM64 Linux. On systems without FUSE, run with
 system graphics drivers, GTK 3, ALSA and font libraries are required.
 AI models download separately. See [release preparation](docs/RELEASING.md).
 
+In development builds, if a graphics driver corrupts the window, start with
+`clovercut --software` (or pass `--software` to a newly built AppImage).
+This saves software drawing as the default; turn **Draw on the GPU** back on
+in Settings to restore hardware drawing. The Linux launcher also offers a **Safe graphics** action.
+
 ## Build and run
 
 ### Dependencies

@@ -6,13 +6,16 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-const USAGE: &str = "usage: clovercut [--project <PROJECT_DIRECTORY> | --mcp [auto|window|headless] | --version | --smoke | --whisper-cpu]";
+const USAGE: &str = "usage: clovercut [--project <PROJECT_DIRECTORY> | --software | --mcp [auto|window|headless] | --version | --smoke | --whisper-cpu]";
 
 /// What one run of the binary was asked to do.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Launch {
     /// The window, on the launch screen or on the project it names.
     Normal(Option<PathBuf>),
+    /// Open the launch screen with software drawing enabled persistently,
+    /// so a broken graphics driver cannot hide the Settings GPU switch.
+    Software,
     /// Serve the Concat API to an AI agent as an MCP server on standard
     /// input and output, with no window: what an agent's configuration
     /// names (docs/MCP.md). The mode, when given: through the window's
@@ -47,6 +50,8 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Launch, String>
         Launch::Version
     } else if option == "--smoke" {
         Launch::Smoke
+    } else if option == "--software" {
+        Launch::Software
     } else if option == "--whisper-cpu" {
         Launch::WhisperCpu
     } else if option == "--mcp" {
@@ -98,9 +103,12 @@ mod tests {
     fn version_and_smoke_take_no_arguments() {
         assert_eq!(parse_strs(&["--version"]).unwrap(), Launch::Version);
         assert_eq!(parse_strs(&["--smoke"]).unwrap(), Launch::Smoke);
+        assert_eq!(parse_strs(&["--software"]).unwrap(), Launch::Software);
         assert_eq!(parse_strs(&["--whisper-cpu"]).unwrap(), Launch::WhisperCpu);
         for args in [
             vec!["--version", "--smoke"],
+            vec!["--software", "extra"],
+            vec!["--software", "--project", "one"],
             vec!["--whisper-cpu", "--version"],
             vec!["--smoke", "--project", "one"],
             vec!["--version", "extra"],
