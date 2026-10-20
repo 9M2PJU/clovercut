@@ -7,8 +7,12 @@ name: Clovercut release
   workflow_dispatch:
     inputs:
       tag:
-        description: An existing tag to build and publish, e.g. v0.0.2
+        description: Version tag for the draft, e.g. v0.0.2
         required: true
+      ref:
+        description: Commit to prepare before tagging (leave empty to build the existing tag)
+        required: false
+        default: ''
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -20,6 +24,7 @@ jobs:
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
       version: ${{ steps.tag.outputs.version }}
+      commit: ${{ steps.tag.outputs.commit }}
     steps:
     - name: The tag is a version tag
       env:
@@ -31,7 +36,7 @@ jobs:
         fi
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
-        ref: ${{ inputs.tag || github.ref }}
+        ref: ${{ inputs.ref || inputs.tag || github.ref }}
     - id: tag
       env:
         TAG: ${{ inputs.tag || github.ref_name }}
@@ -51,23 +56,23 @@ jobs:
         # The bundles are named for the version, not the tag: v0.2.1 and
         # v0.2.1-alpha.22 both produce Clovercut-0.2.1-* files.
         echo "version=$version" >> "$GITHUB_OUTPUT"
+        echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
   engine:
     name: CI
     needs: check
     uses: ./.github/workflows/ci.yml
     with:
-      ref: ${{ needs.check.outputs.tag }}
+      ref: ${{ needs.check.outputs.commit }}
   build:
-    needs:
-    - check
-    - engine
+    needs: check
     uses: ./.github/workflows/build-app.yml
     with:
-      ref: ${{ needs.check.outputs.tag }}
+      ref: ${{ needs.check.outputs.commit }}
   publish:
     name: Publish release
     needs:
     - check
+    - engine
     - build
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -81,7 +86,7 @@ jobs:
         merge-multiple: true
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
-        ref: ${{ needs.check.outputs.tag }}
+        ref: ${{ needs.check.outputs.commit }}
         fetch-depth: 0
         path: source
     - name: Write the manifest
@@ -120,6 +125,7 @@ jobs:
     - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64
       with:
         tag_name: ${{ needs.check.outputs.tag }}
+        target_commitish: ${{ needs.check.outputs.commit }}
         name: Clovercut ${{ needs.check.outputs.tag }}
         draft: true
         prerelease: ${{ contains(needs.check.outputs.tag, '-') }}

@@ -18,7 +18,13 @@ then dispatch with that exact commit as `ref`; a successful build produces
 artifacts without publishing a release. Inspect those artifacts before tagging.
 Do not rerun an old version tag expecting it to include newer main-branch changes.
 
-The tag starts `.github/workflows/release.yml`: CI, two Linux builds and a Windows x64 build, staged-binary
+The **Clovercut release** workflow can prepare a complete draft before making a
+version tag. Dispatch it with `tag=v0.0.2` and `ref=<exact commit SHA>`. It resolves
+the ref once, runs CI and package builds against that commit, and uploads assets
+to the draft only if both succeed. It does not publish the draft. A later tag
+push can use the same workflow with an existing tag.
+
+The release workflow runs CI, two Linux builds and a Windows x64 build, staged-binary
 checks, CPU compatibility checks on x86_64, AppImage packaging, and AppImage startup
 checks in Ubuntu 22.04 and Debian 12 containers. Windows checks validate DLL
 completeness, startup with a clean PATH, baseline CPU compatibility and the

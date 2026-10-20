@@ -1,12 +1,12 @@
 ; Clovercut's Windows installer.
 ;
-; Built by build-app.yml with Inno Setup from the staged folder the .msi
-; is also made of, so the two ship the same files; this is the one a
+; Built by build-app.yml with Inno Setup from the same staged folder as
+; the portable ZIP. This is the package a
 ; person double-clicks, and it puts Clovercut in the Start menu and can take
 ; it out again. Everything it needs is handed in on the command line:
 ;
-;   iscc /DVersion=0.2.8 /DArch=x64compatible /DSuffix=x86_64 ^
-;        /DStage=C:\...\stage\Clovercut-0.2.8-windows-x86_64 /DOut=C:\...\stage ^
+;   iscc /DVersion=0.0.2 /DArch=x64compatible /DSuffix=x86_64 ^
+;        /DStage=C:\...\stage\Clovercut-0.0.2-windows-x86_64 /DOut=C:\...\stage ^
 ;        assets\windows\clovercut.iss
 ;
 ; Arch is Inno's own word for the machine: x64compatible for the x86_64
