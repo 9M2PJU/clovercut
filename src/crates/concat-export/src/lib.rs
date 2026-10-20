@@ -2553,6 +2553,45 @@ pub fn preview_moments(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn an_extended_gif_repeats_actual_frames_in_the_shared_render_plan() {
+        let path = std::env::temp_dir().join(format!("clovercut-loop-{}.gif", std::process::id()));
+        let mut bytes = b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\x00\x00".to_vec();
+        for pixel in [0x44, 0x4c] {
+            bytes.extend_from_slice(&[
+                0x21, 0xf9, 4, 1, 10, 0, 0, 0, 0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 2, pixel, 1, 0,
+            ]);
+        }
+        bytes.push(0x3b);
+        std::fs::write(&path, bytes).unwrap();
+        let mut sticker = ExportClip::blank(ClipKind::Video, 0.0, 4.0, 0);
+        sticker.path = path.to_string_lossy().into_owned();
+        sticker.media_duration = Some(0.2);
+        let plan = preview_plan(&[sticker.clone()], 16, 16, 30, 1, ColorSpace::Sdr);
+        let pool = concat_media::ReaderPool::new(1024 * 1024, 1);
+        let frame = |time| {
+            let sources = preview_sources_of(&pool, &plan, time, false).unwrap();
+            let layer = &sources.plan().layers[0];
+            assert!(!layer.paced);
+            layer.source.as_ref().unwrap().pixels().to_vec()
+        };
+        let first = frame(0.0);
+        let second = frame(0.1);
+        assert_ne!(first, second, "fixture must animate");
+        for time in [0.2, 0.8, 2.0, 3.8] {
+            assert_eq!(frame(time), first, "first frame at {time}");
+            assert_eq!(frame(time + 0.1), second, "second frame at {time}");
+        }
+        // Normal footage must continue to its end rather than acquiring GIF looping.
+        sticker.path = "footage.mp4".into();
+        let ordinary = preview_plan(&[sticker], 16, 16, 30, 1, ColorSpace::Sdr);
+        let layer = &plan_frame(&ordinary.built.timeline, Rational::from_int(2)).layers[0];
+        assert_eq!(layer.source_time, Rational::from_int(2));
+        assert!(layer.paced);
+        drop(pool);
+        std::fs::remove_file(path).unwrap();
+    }
+
     /// A treatment on track 1 runs over what track 0 drew and not over what
     /// track 2 draws on top of it, and its strength blends the result back.
     #[test]

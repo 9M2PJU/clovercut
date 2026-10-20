@@ -101,6 +101,8 @@ pub struct Clip {
     /// first frame shown for the length of the dissolve, where other
     /// editors show "repeated frames".
     pub hold: bool,
+    /// Repeat a source animation without stretching its original frame timings.
+    pub loop_duration: Option<Rational>,
     /// The shape that keeps part of the picture, when one does; its
     /// numbers ride the animation's mask tracks.
     pub mask: Option<ShapeMask>,
@@ -226,6 +228,7 @@ impl Clip {
             animation: None,
             blend: Blend::Normal,
             hold: false,
+            loop_duration: None,
             mask: None,
         }
     }
@@ -321,7 +324,18 @@ impl Clip {
             }
             None => (time - self.start) * self.speed,
         };
-        Some(self.source_start + forward)
+        let source = self.source_start + forward;
+        Some(
+            match self
+                .loop_duration
+                .filter(|duration| *duration > Rational::ZERO)
+            {
+                Some(duration) => {
+                    source - duration * Rational::from_int((source / duration).floor())
+                }
+                None => source,
+            },
+        )
     }
 
     /// How much of the source this clip consumes: `duration * speed`, or the
@@ -338,7 +352,7 @@ impl Clip {
     /// the speed changes over it, or when it holds one frame, in which case
     /// every frame has to be sought by its own source time.
     pub fn is_paced(&self) -> bool {
-        self.retime.is_none() && !self.hold
+        self.retime.is_none() && !self.hold && self.loop_duration.is_none()
     }
 }
 
@@ -547,6 +561,26 @@ mod tests {
             )
             .expect("track exists");
         (timeline, track, clip)
+    }
+
+    #[test]
+    fn a_loop_keeps_source_speed_and_phase_across_trim_and_retime() {
+        let mut clip = Clip::new(MediaRef::new("sticker.gif"), seconds(2), seconds(12));
+        clip.loop_duration = Some(seconds(2));
+        assert!(
+            !clip.is_paced(),
+            "loop boundaries require seeking backwards"
+        );
+        for (time, source) in [(2, 0), (3, 1), (4, 0), (9, 1), (13, 1)] {
+            assert_eq!(clip.source_time_at(seconds(time)), Some(seconds(source)));
+        }
+        assert_eq!(clip.source_time_at(seconds(14)), None);
+        clip.source_start = seconds(1);
+        assert_eq!(clip.source_time_at(seconds(4)), Some(seconds(1)));
+        clip.speed = Rational::from_int(2);
+        assert_eq!(clip.source_time_at(seconds(3)), Some(seconds(1)));
+        clip.hold = true;
+        assert_eq!(clip.source_time_at(seconds(9)), Some(seconds(1)));
     }
 
     #[test]

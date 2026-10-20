@@ -319,6 +319,18 @@ pub(crate) fn build_timeline(
         let mut engine_clip = Clip::new(MediaRef::new(&clip.path), start, duration);
         engine_clip.source_start = quantise(clip.source_start, rate);
         engine_clip.hold = clip.hold;
+        // GIF stickers keep their native animation speed when their timeline
+        // span is extended. Both preview and export use this source clock.
+        if clip.kind == ClipKind::Video
+            && Path::new(&clip.path)
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("gif"))
+        {
+            engine_clip.loop_duration = clip
+                .media_duration
+                .filter(|duration| duration.is_finite() && *duration > 0.0)
+                .and_then(Rational::approximate);
+        }
         // The same clamp the audio path applies, so a 2x clip means the same
         // thing to picture and sound. A still has no meaningful rate.
         if clip.kind != ClipKind::Image {
