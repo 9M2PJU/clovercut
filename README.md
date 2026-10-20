@@ -25,8 +25,11 @@ Editing runs locally on a native Rust engine with GPU-accelerated composition. O
 
 ## Editing with Clovercut
 
+- **Animated stickers:** connect your own GIPHY API key to search and preview animated stickers, then add or drag them onto the timeline. Chosen originals are copied into the project.
+- **Online audio library:** search CC0 music and sound effects on OpenGameArt, preview or add original audio files, and keep downloaded sounds available offline. No account or API key required.
 - **Video and audio editing:** arrange multiple tracks, split and trim clips, adjust speed, transform pictures and mix audio.
-- **A clearer inspector:** aligned sliders, compact value fields with units and steppers, paired X/Y position keyframes and separate Color, Curves and Wheels tabs.
+- **Drag-and-drop effects:** drag a transition onto a cut between adjacent visual clips, place visual effects as layers above the footage, or drop an audio effect onto its target clip.
+- **A clearer inspector:** aligned sliders, compact value fields with units and steppers, paired X/Y position keyframes and separate Color, Curves and Wheels tabs. Caption controls have more spacing and recognisable bold, italic and underline toggles; text and caption outlines use a 0–20 px adjustment range.
 - **Titles and captions:** fonts, colours, outlines, shadows, style presets and mixed-script vertical writing. CJK characters remain upright while Latin text reads sideways.
 - **Automatic captions:** transcribe locally with Whisper after downloading a model, write captions manually, or import and export SRT files.
 - **A dedicated captions workspace:** edit the collection's sentences in Captions, adjust its appearance in Style and choose entry/exit animations in Effects. The inspector opens on **Style** by default.
@@ -38,6 +41,40 @@ Editing runs locally on a native Rust engine with GPU-accelerated composition. O
 Clovercut also improves text editing performance by painting only captions visible
 at the current frame, keeping long caption lists virtualised and limiting shadow
 blur work to the occupied area.
+
+## Optional content libraries
+
+External libraries are off by default. Enable **OpenGameArt** or **GIPHY** in
+**Settings → Content libraries**. The Sounds and Stickers pages include a
+shortcut to these settings. Imported local audio and built-in shapes work
+without an external library.
+
+### OpenGameArt audio
+
+Enable **OpenGameArt**, then open **Sounds → OpenGameArt** to browse separate
+Music and Sound effects categories. Preview a sound, add it at the playhead or
+drag it onto the timeline. Duration appears after the original file has been
+downloaded for preview or use; undownloaded results show `—:—`. Downloaded audio
+is cached for offline use and copied into the project when added.
+See the [audio library guide](docs/AUDIO_LIBRARY.md) for details.
+
+### GIPHY stickers
+
+Open **Settings → Content libraries**, enable **GIPHY**, choose **Create API key**,
+then paste your key into the password field and select **Save key**.
+Return to **Stickers → GIPHY** to browse. An empty search shows trending
+stickers. Use the play button to preview, the plus button to add at the playhead,
+or drag a sticker onto a video track. The source button opens the original page.
+
+The key stays in the local app configuration, outside project files and logs.
+`CLOVERCUT_GIPHY_API_KEY` can also configure it through the environment.
+Search results and previews are session-only. Selected original GIFs and source
+attribution are copied into the project's `stickers/` folder for editing and export.
+
+The integration uses the official GIPHY API and attribution mark. GIPHY's
+[API requirements](https://developers.giphy.com/docs/api/) apply, including
+production access and permission for storing media. This implementation does
+not claim approval from GIPHY.
 
 ## Project status
 
@@ -65,7 +102,11 @@ it saves the words and timings with the first caption's style as its initial loo
 
 ## Linux AppImage
 
-The first release is being prepared; builds will appear on the [Clovercut releases page](https://github.com/tulcoturo/clovercut/releases).
+Download **0.0.1** from the [Clovercut releases page](https://github.com/tulcoturo/clovercut/releases/tag/v0.0.1).
+
+This README describes the current development branch. The published 0.0.1
+AppImages predate the online audio and sticker libraries, direct effect dragging
+and latest inspector refinements; build from source to try those changes.
 
 ```bash
 chmod +x Clovercut-0.0.1-x86_64.AppImage
@@ -105,12 +146,13 @@ cargo run --locked -p concat -j 1
 
 If you have a `.env.local` file with your machine's configuration, load it with `source .env.local` from the repository root before entering `src/`. This file is local and excluded from Git.
 
-To build the editor with less debug information and fewer code generation units:
+To build the editor with less debug information and incremental compilation disabled:
 
 ```bash
 cargo build --locked -p concat -j 1 \
   --config 'profile.dev.package.concat.debug=0' \
-  --config 'profile.dev.package.concat.codegen-units=16'
+  --config 'profile.dev.package.concat.codegen-units=64' \
+  --config 'profile.dev.package.concat.incremental=false'
 ```
 
 To open an already compiled executable from the repository root:
