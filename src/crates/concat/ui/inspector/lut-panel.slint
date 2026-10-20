@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { I18n } from "../i18n.slint";
+import { Theme } from "../theme/theme.slint";
+import { Select } from "../primitives/select.slint";
+import { Button } from "../primitives/modal.slint";
+import { SectionBody } from "../primitives/panel.slint";
+import { Param, SwitchRow, Subhead, Note } from "controls.slint";
+
+export struct ClipLutData {
+    index: int,
+    name: string,
+    on: bool,
+    intensity: float,
+}
+export global ClipLuts {
+    in property <[string]> names;
+    in property <[string]> ids;
+    in property <[ClipLutData]> applied;
+    callback choose(id: string);
+    callback import-file();
+    callback toggle(index: int);
+    callback remove(index: int);
+    callback intensity(index: int, value: float);
+    callback commit();
+}
+export component LutPanel inherits VerticalLayout {
+    spacing: 8px;
+    Subhead { title: "LUT"; }
+    SectionBody {
+        HorizontalLayout {
+            padding-left: Theme.pad; padding-right: Theme.pad; spacing: 6px;
+            Select {
+                options: ClipLuts.names;
+                current: -1;
+                placeholder: I18n.t("clipEffects.chooseLut");
+                horizontal-stretch: 1;
+                changed(index) => {
+                    if index >= 0 && index < ClipLuts.ids.length { ClipLuts.choose(ClipLuts.ids[index]); }
+                    self.current = -1;
+                }
+            }
+            Button {
+                label: I18n.t("clipEffects.importCube");
+                clicked => { ClipLuts.import-file(); }
+            }
+        }
+        if ClipLuts.applied.length == 0: Note { text: I18n.t("clipEffects.noLut"); }
+        for lut in ClipLuts.applied: VerticalLayout {
+            spacing: 8px;
+            SwitchRow {
+                label: lut.name;
+                checked: lut.on;
+                toggled(on) => { ClipLuts.toggle(lut.index); }
+                Button { label: I18n.t("common.remove"); clicked => { ClipLuts.remove(lut.index); } }
+            }
+            Rectangle {
+                height: knob.preferred-height + 8px;
+                property <float> amount: lut.intensity;
+                changed amount => { knob.value = self.amount; }
+                knob := Param {
+                    label: I18n.t("studio.intensity");
+                    value: lut.intensity;
+                    minimum: 0; maximum: 100; step: 1; default-value: 100; unit: "%";
+                    changed(value) => { ClipLuts.intensity(lut.index, value); ClipLuts.commit(); }
+                }
+            }
+        }
+    }
+}

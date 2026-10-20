@@ -16,6 +16,7 @@ import {
     CurveData, CurveGroupData, WheelData, WheelGroupData,
 } from "../inspector/grading.slint";
 import { CaptionsLibrary } from "captions-panel.slint";
+import { VideoMotionPanel } from "../inspector/video-motion-panel.slint";
 import { CaptionMotionPanel } from "../inspector/caption-motion-panel.slint";
 import { CaptionEditor } from "captions-panel.slint";
 import { CaptionPanel } from "../inspector/caption-panel.slint";
@@ -283,7 +284,7 @@ export component ConfigPane inherits Rectangle {
 
     /// The sections of the current tab, as the dropdown lists them.
     property <[string]> sections: root.heading == "Video"
-            ? (root.is-shape ? ["Basic"] : ["Basic", "Enhance", "Adjust"])
+            ? (root.is-shape ? ["Basic"] : ["Basic", "Enhance", "Adjust", "Animation"])
         // Audio's chain library is a page of its own, beside the level,
         // fades and treatments rather than under them, the way Video's
         // Adjust sits beside its Basic. Named apart from Video's "Basic"
@@ -299,7 +300,7 @@ export component ConfigPane inherits Rectangle {
     /// The sections as the dropdown shows them; see `tabs-shown`.
     property <[string]> sections-shown: root.heading == "Video"
             ? (root.is-shape ? [I18n.t("configPane.basic")]
-                : [I18n.t("configPane.basic"), I18n.t("common.enhance"), I18n.t("common.adjust")])
+                : [I18n.t("configPane.basic"), I18n.t("common.enhance"), I18n.t("common.adjust"), I18n.t("videoMotion.animation")])
         : root.heading == "Audio"
             ? (root.selected.batch-volume ? [I18n.t("configPane.basic")]
                 : [I18n.t("configPane.basic"), I18n.t("configPane.audioEffects")])
@@ -352,8 +353,8 @@ export component ConfigPane inherits Rectangle {
         else if (root.jump-tab == "Effects") { root.tab = root.tabs.length - 1; }
         // Enhance sits second in the Video tab for a video and a still
         // alike, and Audio effects second in the Audio tab.
-        root.pick-section(root.jump-section == "Enhance" || root.jump-section == "AudioEffects"
-            ? 1 : 0);
+        root.pick-section(root.jump-section == "Adjust" ? 2
+            : root.jump-section == "Enhance" || root.jump-section == "AudioEffects" ? 1 : 0);
     }
     changed jump-token => { root.jump(); }
     init => { root.jump(); if root.is-caption { root.tab = 1; } }
@@ -690,6 +691,8 @@ export component ConfigPane inherits Rectangle {
                     enhance-preview => { root.clip-enhance-preview(); }
                     enhance-run => { root.clip-enhance-run(); }
                 }
+
+                if root.showing == "Animation": VideoMotionPanel { }
 
                 if root.showing == "Adjust": AdjustPanel {
                     params: root.adjust-params;

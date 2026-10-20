@@ -42,6 +42,8 @@ import { PhoneEditor } from "phone/editor.slint";
 import {
     AppliedEntryData, AppliedParamData, CatalogueEntryData, Library, LibraryViewData,
 } from "inspector/clip-inspector.slint";
+import { VideoMotion } from "inspector/video-motion-panel.slint";
+import { ClipLuts, ClipLutData } from "inspector/lut-panel.slint";
 import { ParamFormat } from "inspector/controls.slint";
 import { ToastData, ToastLayer } from "primitives/toast.slint";
 import { TooltipLayer } from "primitives/tooltip.slint";
@@ -60,6 +62,7 @@ import { KeyEditor, KeyMarkData, KeyRowData } from "workspace/keyframes-pane.sli
 import { CaptionsLibrary, CaptionRowData, CaptionSourceData } from "workspace/captions-panel.slint";
 
 export {
+    VideoMotion, ClipLuts, ClipLutData,
     Stickers, StickerCardData, ContentLibraries,
     CaptionsLibrary, CaptionRowData, CaptionSourceData,
     Curves, Fmt, Focus, Payload, Theme, Bezier, Editor, I18n,

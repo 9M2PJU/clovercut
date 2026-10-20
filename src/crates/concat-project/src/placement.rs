@@ -207,6 +207,24 @@ impl Timeline {
             .map(|clip| clip.as_ref())
     }
 
+    /// Visual effect drops address the clip under the pointer, never the selection.
+    /// Half-open bounds give a cut to the incoming clip and reject empty space.
+    pub fn visual_effect_drop_target(
+        &self,
+        track_id: &str,
+        seconds: f64,
+    ) -> Option<&crate::model::Clip> {
+        self.clips
+            .iter()
+            .find(|clip| {
+                clip.track_id == track_id
+                    && !matches!(clip.kind, crate::model::ClipKind::Audio)
+                    && clip.start <= seconds
+                    && seconds < clip.start + clip.duration
+            })
+            .map(|clip| clip.as_ref())
+    }
+
     /// The actual audio-capable clip under an effect drop, independent of
     /// selection. The end is exclusive, so a cut belongs to its incoming clip.
     pub fn audio_effect_drop_target(
@@ -260,6 +278,46 @@ mod library_drop_tests {
         assert!(timeline.transition_drop_target("v", 3.0, 0.25).is_none());
         assert!(timeline.transition_drop_target("v", 6.0, 0.25).is_none());
         assert!(timeline.transition_drop_target("a", 2.0, 0.25).is_none());
+    }
+    #[test]
+    fn visual_effects_target_pictures_and_layers_but_not_audio_or_gaps() {
+        let timeline = Timeline {
+            clips: vec![
+                Arc::new(Clip::blank("a", "v", ClipKind::Video, "A", 0.0, 2.0)),
+                Arc::new(Clip::blank("b", "v", ClipKind::Image, "B", 2.0, 2.0)),
+                Arc::new(Clip::blank("text", "t", ClipKind::Text, "Text", 0.0, 2.0)),
+                Arc::new(Clip::blank(
+                    "layer",
+                    "l",
+                    ClipKind::Layer,
+                    "Layer",
+                    0.0,
+                    2.0,
+                )),
+                Arc::new(Clip::blank(
+                    "audio",
+                    "a",
+                    ClipKind::Audio,
+                    "Audio",
+                    0.0,
+                    2.0,
+                )),
+            ],
+            ..Timeline::default()
+        };
+        assert_eq!(
+            timeline.visual_effect_drop_target("v", 1.0).unwrap().id,
+            "a"
+        );
+        assert_eq!(
+            timeline.visual_effect_drop_target("v", 2.0).unwrap().id,
+            "b"
+        );
+        assert!(timeline.visual_effect_drop_target("v", 4.0).is_none());
+        assert!(timeline.visual_effect_drop_target("v", -0.1).is_none());
+        assert!(timeline.visual_effect_drop_target("a", 1.0).is_none());
+        assert!(timeline.visual_effect_drop_target("t", 1.0).is_some());
+        assert!(timeline.visual_effect_drop_target("l", 1.0).is_some());
     }
     #[test]
     fn audio_effects_target_the_pointer_clip_and_reject_gaps_and_stills() {

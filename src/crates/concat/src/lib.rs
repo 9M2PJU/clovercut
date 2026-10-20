@@ -362,6 +362,10 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         editor.set_catalogue_effects(ModelRc::from(models.catalogue_effects.clone()));
         editor.set_catalogue_filters(ModelRc::from(models.catalogue_filters.clone()));
         editor.set_catalogue_luts(ModelRc::from(models.catalogue_luts.clone()));
+        let luts = app.global::<crate::ui::ClipLuts>();
+        luts.set_names(ModelRc::from(models.lut_names.clone()));
+        luts.set_ids(ModelRc::from(models.lut_ids.clone()));
+        luts.set_applied(ModelRc::from(models.clip_luts.clone()));
         editor.set_catalogue_audio(ModelRc::from(models.catalogue_audio.clone()));
         editor.set_catalogue_transitions(ModelRc::from(models.catalogue_transitions.clone()));
         editor.set_effect_groups(ModelRc::from(models.effect_groups.clone()));
@@ -910,6 +914,30 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     // Nothing borrowed: the dialog is asked on a turn of its own, and the
     // files it answers with are imported there; see `host::after_dialog`.
     editor.on_library_import_lut(Studio::import_lut);
+    let luts = app.global::<crate::ui::ClipLuts>();
+    luts.on_choose(on_window!(|state, id: SharedString| {
+        state.apply_lut(id.as_str(), "LUT");
+    }));
+    luts.on_import_file(on_window!(|state| {
+        state.import_clip_lut();
+    }));
+    luts.on_toggle(on_window!(|state, index: i32| {
+        state.chain_toggle(false, index);
+    }));
+    luts.on_remove(on_window!(|state, index: i32| {
+        state.chain_remove(false, index);
+    }));
+    luts.on_intensity(on_window!(|state, index: i32, value: f32| {
+        state.chain_set_param(false, index, concat_effects::catalogue::INTENSITY, value);
+    }));
+    app.global::<crate::ui::VideoMotion>().on_set(on_window!(
+        |state, entrance: i32, exit: i32, duration: f32| {
+            state.visual_motion(entrance, exit, duration);
+        }
+    ));
+    luts.on_commit(on_window!(|state| {
+        state.clip_commit();
+    }));
     editor.on_library_reload_packages(on_window!(|state| {
         state.reload_packages(true);
     }));

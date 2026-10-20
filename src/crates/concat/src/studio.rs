@@ -623,6 +623,9 @@ pub struct Models {
     pub catalogue_filters: Rc<VecModel<CatalogueEntryData>>,
     /// The looks made from tables, for the Adjustments page's LUTs shelf.
     pub catalogue_luts: Rc<VecModel<CatalogueEntryData>>,
+    pub clip_luts: Rc<VecModel<crate::ui::ClipLutData>>,
+    pub lut_names: Rc<VecModel<SharedString>>,
+    pub lut_ids: Rc<VecModel<SharedString>>,
     pub catalogue_audio: Rc<VecModel<CatalogueEntryData>>,
     pub catalogue_transitions: Rc<VecModel<CatalogueEntryData>>,
     pub effect_groups: Rc<VecModel<SharedString>>,
@@ -719,6 +722,9 @@ impl Models {
             catalogue_effects: Rc::new(VecModel::default()),
             catalogue_filters: Rc::new(VecModel::default()),
             catalogue_luts: Rc::new(VecModel::default()),
+            clip_luts: Rc::new(VecModel::default()),
+            lut_names: Rc::new(VecModel::default()),
+            lut_ids: Rc::new(VecModel::default()),
             catalogue_audio: Rc::new(VecModel::default()),
             catalogue_transitions: Rc::new(VecModel::default()),
             effect_groups: Rc::new(VecModel::default()),
@@ -2206,6 +2212,7 @@ fn copy_commands(source: &Clip, placed: &Clip, track_id: &str, start: f64) -> Ve
             volume: Some(source.volume),
             fade_in: Some(source.fade_in),
             fade_out: Some(source.fade_out),
+            visual_motion: Some(source.visual_motion),
             opacity: Some(source.opacity),
             preserve_pitch: Some(source.preserve_pitch),
             muted: source.muted,
@@ -3857,10 +3864,10 @@ impl Studio {
             }
             // A look dragged from the Filters page: a layer over a span.
             // The package id rides in `media`, there being no file.
-            "effect" => Some(DropPlan {
+            "effect" | "clip-filter" | "lut" => Some(DropPlan {
                 kind: ClipKind::Filter,
                 label: label.to_owned(),
-                media: format!("effect:{id}"),
+                media: format!("{sort}:{id}"),
                 start: 0.0,
                 duration: LAYER_DURATION,
                 row: 0,
@@ -3875,6 +3882,14 @@ impl Studio {
                 media: format!("{sort}:{id}"),
                 start: 0.0,
                 duration: 0.5,
+                row: 0,
+            }),
+            "effect-layer" => Some(DropPlan {
+                kind: ClipKind::Filter,
+                label: label.to_owned(),
+                media: format!("layer:{id}"),
+                start: 0.0,
+                duration: LAYER_DURATION,
                 row: 0,
             }),
             "filter" => Some(DropPlan {
@@ -3912,6 +3927,17 @@ impl Studio {
             )?;
             plan.start = clip.start as f32;
             plan.duration = self.transition_duration(clip, 0.5)? as f32;
+            return Some(plan);
+        }
+        if ["effect:", "clip-filter:", "lut:"]
+            .iter()
+            .any(|prefix| plan.media.starts_with(prefix))
+        {
+            let clip = self
+                .timeline()
+                .visual_effect_drop_target(track_id, f64::from(seconds))?;
+            plan.start = clip.start as f32;
+            plan.duration = clip.duration as f32;
             return Some(plan);
         }
         if plan.media.starts_with("audio-effect:") {
@@ -3953,15 +3979,35 @@ impl Studio {
         if self.locked(&track_id) {
             return;
         }
-        if let Some(id) = plan.media.strip_prefix("effect:") {
-            if let Some(clip_id) = self.apply(Command::AddLayerClip {
+        if let Some(id) = plan.media.strip_prefix("layer:") {
+            if let Some(created) = self.apply(Command::AddLayerClip {
                 track_id: None,
                 start: f64::from(plan.start),
                 duration: Some(f64::from(plan.duration)),
                 effect_id: id.to_owned(),
                 name: plan.label.clone(),
             }) {
-                self.selection = vec![clip_id];
+                self.selection = vec![created];
+            }
+            return;
+        }
+        if let Some(id) = ["effect:", "clip-filter:", "lut:"]
+            .iter()
+            .find_map(|prefix| plan.media.strip_prefix(prefix))
+        {
+            if let Some(target) = self
+                .timeline()
+                .visual_effect_drop_target(
+                    &track_id,
+                    f64::from(plan.start) + self.frame_seconds() / 4.0,
+                )
+                .map(|clip| clip.id.clone())
+            {
+                self.selection = vec![target];
+                self.apply_catalogue(id, true);
+                if plan.media.starts_with("lut:") {
+                    self.show_clip_color();
+                }
             }
             return;
         }
@@ -4320,6 +4366,31 @@ impl Studio {
     }
 
     /// Set preset motion without replacing any transform or paint keyframes.
+    pub fn visual_motion(&mut self, entrance: i32, exit: i32, duration: f32) {
+        let Some(id) = self.sole_selection() else {
+            return;
+        };
+        let Some(clip) = self.clip(&id) else {
+            return;
+        };
+        if !clip.kind.is_visual() || self.locked(&clip.track_id) || !duration.is_finite() {
+            return;
+        }
+        let motion = model::CaptionMotion {
+            entrance: entrance.clamp(0, 3) as u8,
+            exit: exit.clamp(0, 3) as u8,
+            duration: f64::from(duration),
+        }
+        .tidy();
+        self.apply(Command::UpdateClip {
+            clip_id: id,
+            patch: ClipPatch {
+                visual_motion: Some(motion),
+                ..Default::default()
+            },
+        });
+    }
+
     pub fn caption_motion(&mut self, entrance: i32, exit: i32, duration: f32) {
         self.flush_commit();
         let commands = self
@@ -4403,14 +4474,19 @@ impl Studio {
         self.inspector_jump = (self.inspector_jump.0 + 1, "Layer", "Adjust");
     }
 
-    /// A LUT from the Adjustments page: onto the selected clip's chain -
-    /// a picture, a title, a shape or a layer - the way an effect goes on;
-    /// with nothing selected, laid at the playhead as a layer of its own.
-    pub fn apply_lut(&mut self, id: &str, label: &str) {
-        if self.sole_selection().is_some() {
-            self.apply_catalogue(id, true);
-        } else {
-            self.place_filter_layer(id, label);
+    /// A LUT is attached to the selected clip, including an explicit adjustment layer.
+    pub fn apply_lut(&mut self, id: &str, _label: &str) {
+        self.apply_catalogue(id, true);
+        self.show_clip_color();
+    }
+
+    fn show_clip_color(&mut self) {
+        if self
+            .sole_selection()
+            .and_then(|id| self.clip(&id))
+            .is_some_and(|clip| graded(clip.kind))
+        {
+            self.inspector_jump = (self.inspector_jump.0 + 1, "Video", "Adjust");
         }
     }
 
@@ -4432,6 +4508,9 @@ impl Studio {
         }
         if !video && clip.kind == model::ClipKind::Image {
             self.notify("A still has no sound to filter", true);
+            return;
+        }
+        if self.locked(&clip.track_id) {
             return;
         }
         let entry = AppliedFilter::new(id);
@@ -9122,7 +9201,34 @@ impl Studio {
         crate::host::pick_files_then(
             t("studio.importLut"),
             Some((t("studio.lut"), &["cube"])),
-            |studio, _, _, paths| studio.import_luts(paths),
+            |studio, _, _, paths| {
+                studio.import_luts(paths);
+            },
+        );
+    }
+
+    pub fn import_clip_lut(&mut self) {
+        let Some(target) = self.sole_selection() else {
+            return;
+        };
+        let epoch = crate::host::project_epoch();
+        crate::host::pick_files_then(
+            t("studio.importLut"),
+            Some((t("studio.lut"), &["cube"])),
+            move |studio, _, _, paths| {
+                if epoch != crate::host::project_epoch() || studio.clip(&target).is_none() {
+                    return;
+                }
+                let ids = studio.import_luts(paths);
+                if ids.is_empty() {
+                    return;
+                }
+                studio.selection = vec![target];
+                for id in ids {
+                    studio.apply_catalogue(&id, true);
+                }
+                studio.show_clip_color();
+            },
         );
     }
 
@@ -9131,14 +9237,14 @@ impl Studio {
     /// that reads it, the table (see `concat_effects::looks`) - and the
     /// catalogue is rebuilt so the Adjustments page's LUTs shelf shows
     /// them, their cards drawn by their own shaders. Says how many arrived.
-    pub fn import_luts(&mut self, paths: Vec<std::path::PathBuf>) {
+    pub fn import_luts(&mut self, paths: Vec<std::path::PathBuf>) -> Vec<String> {
         let dir = Self::looks_dir(&self.host.dirs);
-        let mut imported = 0;
+        let mut ids = Vec::new();
         for path in paths {
             match concat_effects::looks::import(&dir, &path) {
                 Ok(id) => {
                     self.look_art.borrow_mut().remove(&id);
-                    imported += 1;
+                    ids.push(id);
                 }
                 Err(error) => {
                     self.notify(
@@ -9148,15 +9254,16 @@ impl Studio {
                 }
             }
         }
-        if imported == 0 {
-            return;
+        if ids.is_empty() {
+            return ids;
         }
         // A look that will not load has its reason on screen; the count of
         // the rest would only cover it.
         if self.reload_packages(false) > 0 {
-            return;
+            return Vec::new();
         }
-        self.notify(&tf("studio.importedLutsFindThem", &[&imported]), false);
+        self.notify(&tf("studio.importedLutsFindThem", &[&ids.len()]), false);
+        ids
     }
 
     pub fn save_template(&mut self) {
@@ -9568,6 +9675,41 @@ impl Studio {
                 }
                 None => (Vec::new(), Vec::new(), Vec::new(), Vec::new()),
             };
+        let catalogue = Catalogue::builtin();
+        let luts = self
+            .sole_selection()
+            .and_then(|id| self.clip(&id))
+            .map(|clip| {
+                clip.video_effects
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, effect)| {
+                        let package = catalogue.packages().find(|p| p.answers_to(&effect.id))?;
+                        is_lut(package).then(|| crate::ui::ClipLutData {
+                            index: index as i32,
+                            name: package.manifest.effect.name.clone().into(),
+                            on: effect.enabled,
+                            intensity: effect
+                                .params
+                                .get(concat_effects::catalogue::INTENSITY)
+                                .copied()
+                                .unwrap_or(100.0) as f32,
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        sync(&models.clip_luts, luts);
+        let motion = self
+            .sole_selection()
+            .and_then(|id| self.clip(&id))
+            .filter(|clip| clip.kind.is_visual())
+            .map(|clip| clip.visual_motion)
+            .unwrap_or_default();
+        let motion_ui = app.global::<crate::ui::VideoMotion>();
+        motion_ui.set_entrance(i32::from(motion.entrance));
+        motion_ui.set_exit(i32::from(motion.exit));
+        motion_ui.set_duration(motion.duration as f32);
         sync(&models.applied_visual, visual);
         sync(&models.visual_params, visual_params);
         sync(
@@ -11175,6 +11317,14 @@ impl Studio {
                 &self.look_art,
                 &self.card_paths,
                 is_lut,
+            );
+            sync(
+                &models.lut_names,
+                entries.iter().map(|entry| entry.name.clone()).collect(),
+            );
+            sync(
+                &models.lut_ids,
+                entries.iter().map(|entry| entry.id.clone()).collect(),
             );
             sync(&models.catalogue_luts, entries);
             app.global::<Editor>().set_adjustment_art(

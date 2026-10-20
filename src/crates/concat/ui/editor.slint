@@ -134,8 +134,7 @@ export global Editor {
     /// colour panel's package at its defaults over everything beneath it -
     /// called `label`, in the interface's language.
     callback library-add-adjustment(label: string);
-    /// Adjustments page: a LUT onto the selected clip's chain, or with
-    /// nothing selected, laid at the playhead as a layer of its own.
+    /// Adjustments page: attach a LUT to the selected clip or adjustment layer.
     callback library-apply-lut(lut-id: string, label: string);
     /// Effects and Filters pages: read the user's effects folder again, so
     /// a package written or dropped in while the app runs shows up without

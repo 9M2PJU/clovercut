@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Jareer and Concat contributors
 
+import { LutPanel } from "lut-panel.slint";
 import { I18n } from "../i18n.slint";
 import { Theme } from "../theme/theme.slint";
 import { Glyph, Icon } from "../icons.slint";
@@ -2440,6 +2441,7 @@ export component AdjustPanel inherits VerticalLayout {
 
             if root.tab == 0: VerticalLayout {
                 spacing: Theme.gap;
+                LutPanel { }
                 for p[i] in root.params: VerticalLayout {
                     spacing: Theme.gap;
 
