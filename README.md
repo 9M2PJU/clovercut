@@ -28,7 +28,9 @@ Editing runs locally on a native Rust engine with GPU-accelerated composition. O
 - **Animated stickers:** connect your own GIPHY API key to search and preview animated stickers, then add or drag them onto the timeline. Chosen originals are copied into the project.
 - **Online audio library:** search CC0 music and sound effects on OpenGameArt, preview or add original audio files, and keep downloaded sounds available offline. No account or API key required.
 - **Video and audio editing:** arrange multiple tracks, split and trim clips, adjust speed, transform pictures and mix audio.
-- **Drag-and-drop effects:** drag a transition onto a cut between adjacent visual clips, place visual effects as layers above the footage, or drop an audio effect onto its target clip.
+- **Drag-and-drop effects:** drag a transition onto a cut between adjacent visual clips, drop visual effects and filters directly onto a clip, or drop an audio effect onto its target clip. Enable **Create adjustment layer** to place a visual treatment above the footage instead.
+- **Video and image animation:** choose independent Fade, Slide or Pop entrance/exit presets in **Video → Animation**, composed with transform and opacity keyframes. Audio fades remain separate.
+- **LUTs on clips:** import `.cube` files or choose a saved LUT in **Video → Adjust → Color**, with intensity, bypass and removal controls. The same controls work on adjustment layers.
 - **A clearer inspector:** aligned sliders, compact value fields with units and steppers, paired X/Y position keyframes and separate Color, Curves and Wheels tabs. Caption controls have more spacing and recognisable bold, italic and underline toggles; text and caption outlines use a 0–20 px adjustment range.
 - **Titles and captions:** fonts, colours, outlines, shadows, style presets and mixed-script vertical writing. CJK characters remain upright while Latin text reads sideways.
 - **Automatic captions:** transcribe locally with Whisper after downloading a model, write captions manually, or import and export SRT files.
@@ -151,7 +153,7 @@ To build the editor with less debug information and incremental compilation disa
 ```bash
 cargo build --locked -p concat -j 1 \
   --config 'profile.dev.package.concat.debug=0' \
-  --config 'profile.dev.package.concat.codegen-units=64' \
+  --config 'profile.dev.package.concat.codegen-units=256' \
   --config 'profile.dev.package.concat.incremental=false'
 ```
 
