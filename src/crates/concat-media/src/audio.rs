@@ -162,7 +162,9 @@ pub fn validate_chain(chain: &str) -> Result<()> {
 /// exact whatever the source's rate was, then shifts, then lands back.
 pub fn speed_filters(speed: f64, preserve_pitch: bool) -> Vec<String> {
     let speed = clamp_speed(speed);
-    if (speed - 1.0).abs() < f64::EPSILON {
+    // Match the six decimal places used below: do not start a tempo
+    // filter for numerical noise that would be formatted as exactly 1x.
+    if (speed - 1.0).abs() < 0.000_000_5 {
         return Vec::new();
     }
     if preserve_pitch {
@@ -224,7 +226,7 @@ fn mix_graph_from(clips: &[AudioClip], leads: &[f64]) -> Result<String> {
 
     for (index, clip) in clips.iter().enumerate() {
         validate_chain(&clip.filter_chain)?;
-        let delay_ms = (clip.start * 1000.0).round().max(0.0) as i64;
+        let delay_samples = (clip.start * f64::from(MIX_RATE)).round().max(0.0) as i64;
         let speed = clamp_speed(clip.speed);
 
         // Each input is cut to its in-point, restamped from zero, then delayed
@@ -258,6 +260,14 @@ fn mix_graph_from(clips: &[AudioClip], leads: &[f64]) -> Result<String> {
             stage.push_str(&clip.filter_chain);
         }
 
+        // A decoder hands us whole packets, including samples past this
+        // piece's end. Clip them by output sample count before the delay:
+        // otherwise every tiny speed-curve piece overlaps the next one.
+        let samples = (clip.duration * f64::from(MIX_RATE)).round().max(0.0) as u64;
+        stage.push_str(&format!(
+            ",aresample={MIX_RATE},atrim=end_sample={samples},asetpts=N/SR/TB"
+        ));
+
         match volume_expr(&clip.volume_curve, clip.duration) {
             // `eval=frame` is what makes the expression a curve rather than
             // a number: without it `volume` evaluates once, at init, and a
@@ -279,7 +289,7 @@ fn mix_graph_from(clips: &[AudioClip], leads: &[f64]) -> Result<String> {
             ));
         }
 
-        stage.push_str(&format!(",adelay={delay_ms}:all=1[a{index}]"));
+        stage.push_str(&format!(",adelay={delay_samples}S:all=1[a{index}]"));
         chains.push(stage);
     }
 
@@ -404,11 +414,11 @@ pub fn mix_to_file(clips: &[AudioClip], duration: f64, destination: &Path) -> Re
         let decoder = ffmpeg::codec::Context::from_parameters(stream.parameters())
             .and_then(|context| context.decoder().audio())
             .map_err(|error| ffi::fail("open decoder", path, error))?;
-        // Near the in-point: the packet at or before it. The graph cuts the
-        // rest, by the lead measured off the first frame below.
+        // Warm compressed codecs before the in-point (MP3 needs its bit
+        // reservoir). The graph cuts the lead measured from the first frame.
         if clip.source_start > 0.0 {
-            let target =
-                ((clip.source_start + start) * f64::from(ffmpeg::sys::AV_TIME_BASE)) as i64;
+            let target = (((clip.source_start - crate::samples::SEEK_PREROLL).max(0.0) + start)
+                * f64::from(ffmpeg::sys::AV_TIME_BASE)) as i64;
             let _ = input.seek(target, ..=target);
         }
         let label = format!("{index}:a");
@@ -916,6 +926,10 @@ mod tests {
     fn normal_speed_needs_no_filters() {
         assert!(speed_filters(1.0, true).is_empty());
         assert!(speed_filters(1.0, false).is_empty());
+        for pitch in [true, false] {
+            assert!(speed_filters(1.0 + 1e-12, pitch).is_empty());
+            assert!(!speed_filters(1.000168, pitch).is_empty());
+        }
     }
 
     #[test]

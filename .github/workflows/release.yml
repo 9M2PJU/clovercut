@@ -10,7 +10,7 @@ name: Clovercut release
         description: Version tag for the draft, e.g. v0.0.2
         required: true
       ref:
-        description: Commit to prepare before tagging (leave empty to build the existing tag)
+        description: Full commit SHA, branch or tag to prepare (empty builds the existing tag)
         required: false
         default: ''
 concurrency:

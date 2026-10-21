@@ -21,6 +21,11 @@ use ffmpeg_the_third::util::frame::audio::Audio;
 use crate::error::{Error, Result};
 use crate::ffi;
 
+// Compressed audio (notably MP3's bit reservoir) needs preceding packets
+// before it can decode the in-point cleanly. The filter still cuts at the
+// requested sample; this only warms the codec before that cut.
+pub(crate) const SEEK_PREROLL: f64 = 1.0;
+
 /// The sample format decoded audio comes back in. Interleaved either way.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SampleFormat {
@@ -189,7 +194,8 @@ impl AudioDecoder {
         if let Some(start) = options.start
             && start > 0.0
         {
-            let target = ((start + origin) * f64::from(ffmpeg::sys::AV_TIME_BASE)) as i64;
+            let target = (((start - SEEK_PREROLL).max(0.0) + origin)
+                * f64::from(ffmpeg::sys::AV_TIME_BASE)) as i64;
             input
                 .seek(target, ..=target)
                 .map_err(|error| ffi::fail("seek", path, error))?;

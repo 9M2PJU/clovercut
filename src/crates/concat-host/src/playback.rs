@@ -805,8 +805,9 @@ fn decode_key(spec: &ClipSpec) -> String {
     // Spans decoded before a late-starting stream was measured from its
     // first sample were cut in the wrong place on MPEG-TS and MTS files;
     // this retires every one of them (audit 2026-10-04, #3). The disk
-    // budget sweeps the orphans.
-    eat(b"origin");
+    // budget sweeps the orphans. Decoder preroll also retires the short
+    // MP3 spans cached before its bit reservoir was warmed at each seek.
+    eat(b"origin-preroll-v2");
     format!("{hash:016x}")
 }
 
@@ -1219,6 +1220,153 @@ where
 mod tests {
     use super::{COAST, Shared, sweep_plan, wav_data_range};
     use std::sync::atomic::Ordering;
+
+    #[test]
+    fn a_speed_ramp_returning_to_unity_keeps_the_original_samples() {
+        use super::{ClipSpec, PCM_RATE, decode, decode_key};
+        use concat_export::{ClipKind, ExportClip, audio_pieces};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("music.mp3");
+        std::fs::write(&path, include_bytes!("../tests/data/speed-ramp-tone.mp3")).unwrap();
+        let reference = decode(
+            &ClipSpec {
+                path: path.to_string_lossy().into_owned(),
+                audio_stream: None,
+                start: 0.0,
+                duration: 10.0,
+                source_start: 2.0,
+                speed: 1.0,
+                preserve_pitch: true,
+                volume: 1.0,
+                volume_curve: vec![],
+                fade_in: 0.0,
+                fade_out: 0.0,
+                chain: String::new(),
+            },
+            dir.path(),
+            "reference",
+        )
+        .unwrap();
+        for (preserve_pitch, returned_speed) in [
+            (true, 1.0),
+            (false, 1.0),
+            (true, 1.000168),
+            (false, 1.000168),
+        ] {
+            let mut clip = ExportClip::blank(ClipKind::Audio, 0.0, 6.0, 0);
+            clip.path = path.to_string_lossy().into_owned();
+            clip.preserve_pitch = preserve_pitch;
+            clip.speed_curve = vec![(0.0, 1.0), (0.15, 2.0), (0.3, returned_speed), (1.0, 1.0)];
+            clip.speed_slopes = vec![0.0; 4];
+            let mut squared_error = 0.0;
+            let mut frames = 0;
+            for piece in audio_pieces(&clip)
+                .into_iter()
+                .filter(|piece| piece.start >= 2.0)
+            {
+                let spec = ClipSpec {
+                    path: clip.path.clone(),
+                    audio_stream: None,
+                    start: piece.start,
+                    duration: piece.duration,
+                    source_start: piece.source_start,
+                    speed: piece.speed,
+                    preserve_pitch,
+                    volume: 1.0,
+                    volume_curve: vec![],
+                    fade_in: 0.0,
+                    fade_out: 0.0,
+                    chain: String::new(),
+                };
+                let pcm = decode(&spec, dir.path(), &decode_key(&spec)).unwrap();
+                let count = (piece.duration * f64::from(PCM_RATE)).round() as u64;
+                let source = (piece.source_start * f64::from(PCM_RATE)).round() as u64;
+                assert!(
+                    pcm.frames + 2 >= count,
+                    "short audio block: {} of {count}, speed {}",
+                    pcm.frames,
+                    piece.speed
+                );
+                for frame in 0..count {
+                    let expected = reference.sample(source + frame - u64::from(PCM_RATE) * 2, 0);
+                    squared_error += f64::from((pcm.sample(frame, 0) - expected).powi(2));
+                }
+                frames += count;
+            }
+            let error = (squared_error / frames as f64).sqrt();
+            assert!(
+                frames > u64::from(PCM_RATE),
+                "must check the sustained 1x tail"
+            );
+            assert!(
+                error < 0.01,
+                "1x tail RMS error {error}, preserve_pitch={preserve_pitch}"
+            );
+        }
+    }
+
+    #[test]
+    fn an_exported_mp3_ramp_returns_to_clean_normal_speed() {
+        use concat_export::{ClipKind, ExportClip, audio_pieces};
+        use concat_media::{AudioDecoder, AudioOptions, SampleFormat};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("music.mp3");
+        std::fs::write(&path, include_bytes!("../tests/data/speed-ramp-tone.mp3")).unwrap();
+        let reference = AudioDecoder::open(
+            &path,
+            &AudioOptions {
+                start: Some(2.0),
+                duration: Some(5.0),
+                format: SampleFormat::F32,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .collect_f32()
+        .unwrap();
+        let mut clip = ExportClip::blank(ClipKind::Audio, 0.0, 4.137, 0);
+        clip.path = path.to_string_lossy().into_owned();
+        clip.source_start = 2.0;
+        clip.speed_curve = vec![(0.0, 2.0), (0.25, 1.0), (1.0, 1.0)];
+        clip.speed_slopes = vec![0.0; 3];
+        let output = dir.path().join("export.m4a");
+        concat_media::audio::mix_to_file(&audio_pieces(&clip), clip.duration, &output).unwrap();
+        let rendered = AudioDecoder::open(
+            &output,
+            &AudioOptions {
+                format: SampleFormat::F32,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .collect_f32()
+        .unwrap();
+        let curve = clip.retime().unwrap();
+        let start = (2.0 * 48000.0) as usize;
+        let end = (3.9 * 48000.0) as usize;
+        // Allow a single small codec/resampler delay; periodic gaps or
+        // overlapping pieces cannot be corrected by one fixed alignment.
+        let error = (-100i64..=100)
+            .map(|lag| {
+                let mut squared = 0.0;
+                let mut count = 0;
+                for frame in (start..end).step_by(8) {
+                    let t = frame as f64 / 48000.0;
+                    let source = clip.duration * curve.consumed(t / clip.duration);
+                    let at = ((source * 48000.0).round() as i64 + lag) as usize;
+                    let difference = rendered[frame * 2] - reference[at * 2];
+                    squared += f64::from(difference * difference);
+                    count += 1;
+                }
+                (squared / count as f64).sqrt()
+            })
+            .min_by(f64::total_cmp)
+            .unwrap();
+        assert!(
+            error < 0.02,
+            "exported normal-speed tail RMS error: {error}"
+        );
+    }
 
     #[test]
     fn the_clock_runs_on_between_buffers_but_not_past_a_stall() {
