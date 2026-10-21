@@ -15,6 +15,7 @@
 //! the stage - stay with the controller: one gesture spans the lanes and
 //! the stage, and an echo of the document, and moves next.
 
+use std::cell::Cell;
 use std::collections::HashMap;
 
 use crate::studio::Studio;
@@ -67,16 +68,16 @@ pub enum TimelineMsg {
     /// The button's menu: whether the sound under the pointer plays too.
     PreviewAxisAudioChanged(bool),
     /// The pointer is over the lanes at this many seconds.
-    Hovered(f32),
+    Hovered(f64),
     /// The pointer left the lanes.
     HoverEnded,
     /// The lanes scrolled sideways, to this many seconds from the start.
-    Scrolled(f32),
+    Scrolled(f64),
     /// The wheel or a pinch: by a factor, about an instant; an anchor
     /// below zero keeps the left edge where it is.
     Zoomed {
         factor: f32,
-        anchor: f32,
+        anchor: f64,
     },
     /// The whole cut across this many pixels.
     ZoomToFit(f32),
@@ -91,8 +92,10 @@ pub enum TimelineMsg {
 /// The timeline's view.
 pub struct TimelinePane {
     /// Seconds from the start of the cut at the lanes' left edge.
-    pub scroll_left: f32,
+    pub scroll_left: f64,
     pub seconds_per_pixel: f32,
+    /// Origin used by the last published local Slint coordinates.
+    pub time_origin: Cell<f64>,
     pub tool: TimelineTool,
     pub snap: bool,
     /// Hand tool: wheel and drag pan time instead of scrolling the stack.
@@ -115,6 +118,7 @@ impl Default for TimelinePane {
     fn default() -> Self {
         Self {
             scroll_left: 0.0,
+            time_origin: Cell::new(0.0),
             seconds_per_pixel: 0.05,
             tool: TimelineTool::Select,
             snap: true,
@@ -127,6 +131,13 @@ impl Default for TimelinePane {
 }
 
 impl TimelinePane {
+    /// Convert a callback using exactly the origin that produced its UI.
+    pub fn absolute(&self, local: f32) -> f64 {
+        crate::timeline_time::absolute(local, self.time_origin.get())
+    }
+    pub fn local(&self, absolute: f64) -> f32 {
+        crate::timeline_time::local(absolute, self.time_origin.get())
+    }
     /// Applies one message. The studio is the rest of the window; while
     /// this runs the studio's copy of the pane is a blank it must not read.
     pub fn update(&mut self, msg: TimelineMsg, studio: &mut Studio) {
@@ -182,7 +193,8 @@ impl TimelinePane {
             TimelineMsg::ZoomToFit(width) => {
                 let span = studio.duration().max(1.0) * 1.05;
                 if width > 1.0 {
-                    self.seconds_per_pixel = (span / width).clamp(ZOOM_IN_LIMIT, ZOOM_OUT_LIMIT);
+                    self.seconds_per_pixel =
+                        ((span / f64::from(width)) as f32).clamp(ZOOM_IN_LIMIT, ZOOM_OUT_LIMIT);
                     self.scroll_left = 0.0;
                     self.recentre(studio.playhead);
                 }
@@ -210,7 +222,7 @@ impl TimelinePane {
     }
 
     /// The lanes scrolled to `seconds` at their left edge. See `Scrolled`.
-    fn scrolled(&mut self, seconds: f32) {
+    fn scrolled(&mut self, seconds: f64) {
         self.scroll_left = if self.centred {
             seconds
         } else {
@@ -223,18 +235,19 @@ impl TimelinePane {
     /// said how wide they are. Called after every move of the playhead and
     /// every change of the view's scale or size, so the two never come
     /// apart.
-    pub fn recentre(&mut self, playhead: f32) {
+    pub fn recentre(&mut self, playhead: f64) {
         if self.centred && self.width > 0.0 {
-            self.scroll_left = playhead - self.width * self.seconds_per_pixel / 2.0;
+            self.scroll_left =
+                playhead - f64::from(self.width) * f64::from(self.seconds_per_pixel) / 2.0;
         }
     }
 
     /// The anchor point for a zoom that has no pointer position (e.g. keyboard
     /// shortcut or tray buttons): the playhead if on screen, else the center of
     /// the visible timeline.
-    fn default_anchor(&self, studio: &Studio) -> f32 {
-        let playhead = f64::from(studio.playhead) as f32;
-        let screen = self.width * self.seconds_per_pixel;
+    fn default_anchor(&self, studio: &Studio) -> f64 {
+        let playhead = studio.playhead;
+        let screen = f64::from(self.width) * f64::from(self.seconds_per_pixel);
         if screen > 0.0 && (self.scroll_left..=self.scroll_left + screen).contains(&playhead) {
             playhead
         } else if screen > 0.0 {
@@ -246,7 +259,7 @@ impl TimelinePane {
 
     /// Zooms by a factor about an instant, so the instant under the pointer
     /// stays under it; an anchor below zero holds the left edge instead.
-    fn zoom(&mut self, factor: f32, anchor: f32) {
+    fn zoom(&mut self, factor: f32, anchor: f64) {
         let before = self.seconds_per_pixel;
         if !(factor.is_finite() && factor > 0.0) {
             return;
@@ -254,7 +267,7 @@ impl TimelinePane {
         let after = (before * factor).clamp(ZOOM_IN_LIMIT, ZOOM_OUT_LIMIT);
         self.seconds_per_pixel = after;
         if anchor >= 0.0 {
-            let left = anchor - (anchor - self.scroll_left) * (after / before);
+            let left = anchor - (anchor - self.scroll_left) * f64::from(after / before);
             self.scroll_left = if self.centred { left } else { left.max(0.0) };
         }
     }
@@ -262,17 +275,17 @@ impl TimelinePane {
     /// The span of the cut worth publishing: what the lanes show, plus one
     /// screen either side so a scroll never waits on a publish. None until
     /// the lanes have said how wide they are, which means everything.
-    pub fn published_span(&self) -> Option<(f32, f32)> {
+    pub fn published_span(&self) -> Option<(f64, f64)> {
         if self.width <= 0.0 {
             return None;
         }
-        let screen = self.width * self.seconds_per_pixel;
+        let screen = f64::from(self.width) * f64::from(self.seconds_per_pixel);
         Some((self.scroll_left - screen, self.scroll_left + 2.0 * screen))
     }
 
     /// Whether a clip at `start` for `duration` seconds falls in a span;
     /// every clip does when there is no span.
-    pub fn shows(span: Option<(f32, f32)>, start: f32, duration: f32) -> bool {
+    pub fn shows(span: Option<(f64, f64)>, start: f64, duration: f64) -> bool {
         match span {
             None => true,
             Some((from, to)) => start + duration.max(0.0) >= from && start <= to,
@@ -284,7 +297,7 @@ impl TimelinePane {
 mod tests {
     use super::*;
 
-    fn pane(width: f32, scroll_left: f32, seconds_per_pixel: f32) -> TimelinePane {
+    fn pane(width: f32, scroll_left: f64, seconds_per_pixel: f32) -> TimelinePane {
         TimelinePane {
             width,
             scroll_left,
@@ -331,10 +344,14 @@ mod tests {
             "{}",
             view.scroll_left
         );
-        assert!(((3.0 - view.scroll_left) / view.seconds_per_pixel - 200.0).abs() < 1e-3);
+        assert!(
+            ((3.0 - view.scroll_left) / f64::from(view.seconds_per_pixel) - 200.0).abs() < 1e-3
+        );
         // A zoom about the playhead keeps it where it is: the middle.
         view.zoom(0.5, 3.0);
-        assert!(((3.0 - view.scroll_left) / view.seconds_per_pixel - 200.0).abs() < 1e-3);
+        assert!(
+            ((3.0 - view.scroll_left) / f64::from(view.seconds_per_pixel) - 200.0).abs() < 1e-3
+        );
         // A scroll may take the view off its playhead, before zero included.
         view.scrolled(-4.0);
         assert_eq!(view.scroll_left, -4.0);
@@ -348,7 +365,7 @@ mod tests {
 
     /// What the lanes' pinch sends: Slint's scale since the fingers landed,
     /// turned into the step since the last update.
-    fn pinch(view: &mut TimelinePane, scales: &[f32], anchor: f32) {
+    fn pinch(view: &mut TimelinePane, scales: &[f32], anchor: f64) {
         let mut last = 1.0;
         for &scale in scales {
             view.zoom(last / scale, anchor);
@@ -361,14 +378,14 @@ mod tests {
     fn a_pinch_zooms_by_its_whole_scale_about_the_fingers() {
         // On a desk: the instant between the fingers stays between them.
         let mut view = pane(1000.0, 10.0, 0.1);
-        let before = (20.0 - view.scroll_left) / view.seconds_per_pixel;
+        let before = (20.0 - view.scroll_left) / f64::from(view.seconds_per_pixel);
         pinch(&mut view, &[1.1, 1.3, 1.25, 2.0], 20.0);
         assert!(
             (view.seconds_per_pixel - 0.05).abs() < 1e-6,
             "{}",
             view.seconds_per_pixel
         );
-        let after = (20.0 - view.scroll_left) / view.seconds_per_pixel;
+        let after = (20.0 - view.scroll_left) / f64::from(view.seconds_per_pixel);
         assert!((before - after).abs() < 1e-2, "{before} {after}");
         // Spread past the closest zoom and back: held at the limit, and
         // turning back zooms out at once rather than after a dead stretch.
@@ -383,7 +400,9 @@ mod tests {
         phone.recentre(3.0);
         pinch(&mut phone, &[0.8, 0.5], 9.0);
         assert!((phone.seconds_per_pixel - 0.1).abs() < 1e-6);
-        assert!(((3.0 - phone.scroll_left) / phone.seconds_per_pixel - 200.0).abs() < 1e-3);
+        assert!(
+            ((3.0 - phone.scroll_left) / f64::from(phone.seconds_per_pixel) - 200.0).abs() < 1e-3
+        );
     }
 
     #[test]
@@ -393,7 +412,9 @@ mod tests {
         view.zoom(0.5, 20.0);
         assert!((view.seconds_per_pixel - 0.05).abs() < 1e-6);
         assert!((view.scroll_left - 15.0).abs() < 1e-6);
-        assert!(((20.0 - view.scroll_left) / view.seconds_per_pixel - 100.0).abs() < 1e-3);
+        assert!(
+            ((20.0 - view.scroll_left) / f64::from(view.seconds_per_pixel) - 100.0).abs() < 1e-3
+        );
         // The limits hold, and a scroll never goes negative.
         view.zoom(1e9, -1.0);
         assert_eq!(view.seconds_per_pixel, ZOOM_OUT_LIMIT);

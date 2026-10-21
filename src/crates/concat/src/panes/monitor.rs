@@ -74,6 +74,10 @@ pub enum Picture {
 /// The monitor's state.
 #[derive(Default)]
 pub struct MonitorPane {
+    #[cfg(test)]
+    pub(crate) observed_frames: Vec<(FrameSpec, f64, [u8; 4])>,
+    #[cfg(test)]
+    requested_clock: f64,
     /// The last frame drawn.
     pub image: slint::Image,
     busy: bool,
@@ -168,6 +172,15 @@ impl MonitorPane {
                                 .map_err(|error| format!("preview texture: {error}"))
                         }),
                     Ok(Picture::Pixels(bytes, width, height)) => {
+                        #[cfg(test)]
+                        {
+                            let offset = ((height / 2 * width + width / 2) * 4) as usize;
+                            self.observed_frames.push((
+                                spec,
+                                self.requested_clock,
+                                bytes[offset..offset + 4].try_into().unwrap(),
+                            ));
+                        }
                         let buffer =
                             slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(
                                 &bytes, width, height,
@@ -233,14 +246,27 @@ impl MonitorPane {
         }
         let (width, height) =
             Self::frame_size(self.quality_of(studio.project()), studio.output_size());
-        let Some((clips, settings)) =
-            studio.preview_clips(width, height, f64::from(studio.preview_time()))
-        else {
+        let clock = studio.preview_time();
+        // A running clock names its containing half-open frame interval.
+        // The renderer expects a chosen frame boundary and rounds nearest;
+        // pass that boundary, while retaining the precise clock for audio
+        // and the playhead. Paused picks and library-source policy stay as-is.
+        let time = if studio.playing && studio.source.is_none() {
+            let video = studio.project().active().video;
+            crate::timeline_time::frame_time(
+                (clock * video.rate() + 1e-6).floor() as i64,
+                video.rate_num,
+                video.rate_den,
+            )
+        } else {
+            clock
+        };
+        let Some((clips, settings)) = studio.preview_clips(width, height, time) else {
             return;
         };
         let quality = self.quality_of(studio.project());
         let spec = FrameSpec {
-            time: f64::from(studio.preview_time()),
+            time,
             width,
             height,
             moving: studio.playing || studio.source.as_ref().is_some_and(|source| source.playing),
@@ -260,6 +286,10 @@ impl MonitorPane {
         self.busy = true;
         self.wanted = false;
         self.asked = Some(std::time::Instant::now());
+        #[cfg(test)]
+        {
+            self.requested_clock = studio.preview_time();
+        }
         spawn_frame(
             move || {
                 // On the window's device the frame stays a texture; without

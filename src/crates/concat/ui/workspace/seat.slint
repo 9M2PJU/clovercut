@@ -395,8 +395,11 @@ export component Seat inherits Rectangle {
             recording: Editor.recording;
             record-level: Editor.record-level;
             reversible: Editor.reversible;
-            playhead: Editor.playhead;
+            playhead: Editor.timeline-playhead;
             frame-rate: Editor.frame-rate;
+            time-origin: Editor.time-origin;
+                frame-phase: Editor.frame-phase;
+            absolute-scroll: Editor.absolute-scroll;
             scroll-left: Editor.scroll-left;
             seconds-per-pixel: Editor.seconds-per-pixel;
             duration-seconds: Editor.duration-seconds;
@@ -443,6 +446,7 @@ export component Seat inherits Rectangle {
             clip-volume(id, gain) => { Editor.clip-volume(id, gain); }
             clip-dragged(seconds, pixels) => { Editor.clip-dragged(seconds, pixels); }
             clip-released => { Editor.clip-released(); }
+                clip-cancelled => { Editor.clip-cancelled(); }
             menu-items: Editor.menu-items;
             menu-height: Editor.menu-height;
             menu-token: Editor.menu-token;

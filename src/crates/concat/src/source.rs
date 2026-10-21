@@ -249,7 +249,7 @@ impl Studio {
         source.timer.stop();
         self.host.playback.pause();
         self.sync_audio();
-        self.host.playback.seek(f64::from(self.playhead));
+        self.host.playback.seek(self.playhead);
         self.request_preview();
     }
 

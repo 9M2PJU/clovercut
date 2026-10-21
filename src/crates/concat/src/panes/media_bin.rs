@@ -201,7 +201,7 @@ impl MediaBin {
                     .collect();
                 // One after another on one lane, as one step - not each at
                 // the playhead on a lane of its own, which stacked them.
-                let start = f64::from(studio.playhead.max(0.0));
+                let start = studio.playhead.max(0.0);
                 studio.apply(Command::AddClipsInSequence {
                     media_ids: ids,
                     track_id: None,

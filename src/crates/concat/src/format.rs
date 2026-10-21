@@ -27,9 +27,10 @@ pub fn bezier_y_at_x(x1: f32, y1: f32, x2: f32, y2: f32, x: f32) -> f32 {
 /// hh:mm:ss:ff, non-drop-frame, the way the ruler and the tray spell a
 /// moment - see `Fmt.frames-timecode` in util.slint, which this mirrors so
 /// the Details panel's duration reads like the readout beside it.
-pub fn frames_timecode(seconds: f32, rate: f32) -> String {
+pub fn frames_timecode(seconds: impl Into<f64>, rate: f32) -> String {
+    let seconds = seconds.into();
     let rate = rate.round().max(1.0) as i64;
-    let frames = (seconds.max(0.0) * rate as f32).floor() as i64;
+    let frames = (seconds.max(0.0) * rate as f64).floor() as i64;
     let whole = frames / rate;
     format!(
         "{:02}:{:02}:{:02}:{:02}",

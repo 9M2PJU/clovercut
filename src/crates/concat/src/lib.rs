@@ -65,6 +65,7 @@ mod source;
 mod speed_ramp;
 mod studio;
 mod sysinfo;
+mod timeline_time;
 /// Native Wayland file drops, which winit does not report; see the module.
 #[cfg(target_os = "linux")]
 mod wayland_drop;
@@ -1054,6 +1055,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     // The preview axis: on every move of the pointer across the lanes, so
     // it publishes the lanes and no more, the way a scrub does.
     editor.on_hovered(on_lanes!(|state, seconds: f32| {
+        let seconds = state.lanes.absolute(seconds);
         state.handle(Msg::Timeline(TimelineMsg::Hovered(seconds)));
     }));
     editor.on_hover_ended(on_lanes!(|state| {
@@ -1083,9 +1085,11 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
 
     // ── the view ──
     editor.on_key_mark_moved(on_lanes!(|state, from: f32, to: f32| {
+        let (from, to) = (state.key_mark_time(from), state.lanes.absolute(to));
         state.move_keys_at(from, to);
     }));
     editor.on_scrubbed(on_lanes!(|state, seconds: f32| {
+        let seconds = state.lanes.absolute(seconds);
         state.scrub(seconds);
     }));
     editor.on_finger_held(on_lanes!(|state| {
@@ -1095,9 +1099,11 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         state.finger_lifted();
     }));
     editor.on_scrolled(on_lanes!(|state, seconds: f32| {
+        let seconds = state.lanes.absolute(seconds);
         state.handle(Msg::Timeline(TimelineMsg::Scrolled(seconds)));
     }));
     editor.on_zoom(on_lanes!(|state, factor: f32, anchor: f32| {
+        let anchor = state.lanes.absolute(anchor);
         state.handle(Msg::Timeline(TimelineMsg::Zoomed { factor, anchor }));
     }));
     editor.on_zoom_to_fit(on_lanes!(|state, width: f32| {
@@ -1128,6 +1134,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         state.clip_pressed(id.as_str(), additive, edge);
     }));
     editor.on_clip_split(on_lanes!(|state, id: SharedString, seconds: f32| {
+        let seconds = state.lanes.absolute(seconds);
         state.split_clip_at(&id, seconds);
     }));
     editor.on_clip_volume(on_lanes!(|state, id: SharedString, gain: f32| {
@@ -1139,6 +1146,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     editor.on_clip_dragged(on_lanes!(|state, seconds: f32, pixels: f32| {
         state.clip_dragged(seconds, pixels);
     }));
+    editor.on_clip_cancelled(on_window!(|state| {
+        state.clip_cancelled();
+    }));
     editor.on_clip_released(on_window!(|state| {
         state.clip_released();
     }));
@@ -1149,7 +1159,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
                                       seconds: f32,
                                       y: f32| {
         let row = state.row_at(y);
-        state.drop = state.plan(payload.as_str(), seconds, row);
+        state.drop = state.plan(payload.as_str(), state.lanes.absolute(seconds), row);
     }));
     editor.on_dropped(on_window!(|state,
                                   payload: SharedString,
@@ -1157,7 +1167,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
                                   y: f32| {
         state.drop = None;
         let row = state.row_at(y);
-        if let Some(plan) = state.plan(payload.as_str(), seconds, row) {
+        if let Some(plan) = state.plan(payload.as_str(), state.lanes.absolute(seconds), row) {
             state.place(&plan);
         }
     }));
@@ -1169,6 +1179,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
             // title's text box, and it ends here, with the band it drew -
             // usually an empty one that clears the selection.
             state.flush_commit();
+            let (from, to) = (state.lanes.absolute(from), state.lanes.absolute(to));
             let (from_row, to_row) = (state.row_at(from_y), state.row_at(to_y));
             let caught: Vec<String> = state
                 .timeline()
@@ -1178,8 +1189,8 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
                     let row = state.row_of(&clip.track_id);
                     row >= from_row
                         && row <= to_row
-                        && (clip.start + clip.duration) as f32 >= from
-                        && clip.start as f32 <= to
+                        && clip.start + clip.duration >= from
+                        && clip.start <= to
                         && !state.locked(&clip.track_id)
                 })
                 .map(|clip| clip.id.clone())
@@ -1408,9 +1419,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     editor.on_step_frames(on_lanes!(|state, frames: f32| {
         state.stop_glide();
         state.pause();
-        let fps = state.frame_rate().round().max(1.0);
-        let at = (state.playhead * fps).round() + frames;
-        state.seek(at / fps);
+        state.step_frames(frames.round() as i64);
     }));
     editor.on_ratio_changed(on_window!(|state, index: i32| {
         state.set_output((index.max(0) as usize).min(OUTPUTS.len() - 1));
@@ -1771,9 +1780,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
                     {
                         let mut state = shell.studio.borrow_mut();
                         state.pause();
-                        let fps = state.frame_rate().round().max(1.0);
-                        let at = (state.playhead * fps).round() + frames;
-                        state.seek(at / fps);
+                        state.step_frames(frames.round() as i64);
                     }
                     shell.studio.borrow_mut().refresh_art();
                     shell.studio.borrow().publish_lanes(&app, &shell.models);
@@ -2505,7 +2512,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
                     .peaks
                     .get(&plan.media)
                     .filter(|_| plan.kind == ClipKind::Audio)
-                    .map(|peaks| format::wave_path(peaks, 0.0, plan.duration, 32, 0.75))
+                    .map(|peaks| format::wave_path(peaks, 0.0, plan.duration as f32, 32, 0.75))
                     .unwrap_or_default();
                 let document = chips::drag_chip_svg(
                     chips::chip_glyph(plan.kind),

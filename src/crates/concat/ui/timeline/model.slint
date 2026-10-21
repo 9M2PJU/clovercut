@@ -110,6 +110,11 @@ export struct ClipData {
     /// seconds of audio ramp at each end; zero for none
     fade-in: float,
     fade-out: float,
+    /// Shade endpoints after clipping long geometry to the published window.
+    fade-in-start: float,
+    fade-in-end: float,
+    fade-out-start: float,
+    fade-out-end: float,
     /// linear gain, 1 being unity — the drawn waveform follows it
     volume: float,
     /// a title's words, for the body of a text clip

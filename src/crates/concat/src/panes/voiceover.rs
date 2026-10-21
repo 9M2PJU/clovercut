@@ -196,7 +196,7 @@ struct Running {
     /// Where the playhead was when it was paused: where the picture
     /// carries on from, wherever the playhead was moved meanwhile, so the
     /// take and the picture stay one continuous run.
-    held: f32,
+    held: f64,
 }
 
 /// The take that landed last, for Retake.
@@ -544,7 +544,7 @@ impl VoiceoverPane {
         log::info!("voiceover: recording from {:.3}s", studio.playhead);
         self.error = None;
         self.told = false;
-        let start = f64::from(studio.playhead.max(0.0));
+        let start = studio.playhead.max(0.0);
         // The picture rolls under the words, without its sound unless the
         // panel says otherwise. At the end of the cut there is nothing to
         // roll, and the take just records.

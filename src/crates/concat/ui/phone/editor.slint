@@ -730,8 +730,10 @@ export component PhoneEditor inherits Rectangle {
                 clips: Editor.clips;
                 key-marks: Editor.key-marks;
                 tool: Editor.tool;
-                playhead: Editor.playhead;
+                playhead: Editor.timeline-playhead;
                 frame-rate: Editor.frame-rate;
+                time-origin: Editor.time-origin;
+                frame-phase: Editor.frame-phase;
                 scroll-left: Editor.scroll-left;
                 seconds-per-pixel: Editor.seconds-per-pixel;
                 pan-mode: false;
@@ -757,6 +759,7 @@ export component PhoneEditor inherits Rectangle {
                 }
                 clip-dragged(seconds, pixels) => { Editor.clip-dragged(seconds, pixels); }
                 clip-released => { Editor.clip-released(); }
+                clip-cancelled => { Editor.clip-cancelled(); }
                 clip-context(id) => { Editor.clip-context(id); }
                 menu-selected(id) => { Editor.menu-selected(id); }
                 band-selected(a, b, c, d, additive) => {

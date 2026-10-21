@@ -313,7 +313,7 @@ impl SoundsPane {
                 }
             }
             SoundsMsg::Add(card) => {
-                let start = f64::from(studio.playhead.max(0.0));
+                let start = studio.playhead.max(0.0);
                 if let Some((name, path)) = self.file_of(&card) {
                     studio.place_sound(&name, &path, None, start);
                 } else {

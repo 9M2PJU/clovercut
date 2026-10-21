@@ -418,7 +418,7 @@ pub enum Edge {
 /// Where one clip sat when a gesture began, so the whole set moves rigidly.
 pub struct MoveOrigin {
     pub clip: String,
-    pub start: f32,
+    pub start: f64,
     pub row: i32,
 }
 
@@ -437,14 +437,14 @@ pub enum Gesture {
     Trim {
         clip: String,
         edge: Edge,
-        start: f32,
-        duration: f32,
-        source_start: f32,
+        start: f64,
+        duration: f64,
+        source_start: f64,
     },
     /// Dragging a transition's duration handle on the timeline.
     TransitionResize {
         clip: String,
-        original_duration: f32,
+        original_duration: f64,
     },
     /// A drag on the stage: every selected picture under the playhead slides
     /// with the pointer, from where each one was when the press landed.
@@ -601,8 +601,8 @@ pub struct DropPlan {
     pub label: String,
     /// The bin's media id, for a clip cut from a file. Empty for a title.
     pub media: String,
-    pub start: f32,
-    pub duration: f32,
+    pub start: f64,
+    pub duration: f64,
     pub row: i32,
 }
 
@@ -869,7 +869,7 @@ pub struct Studio {
     /// about a track that the document does not.
     pub lanes: crate::panes::timeline::TimelinePane,
     pub selection: Vec<String>,
-    pub playhead: f32,
+    pub playhead: f64,
     pub caption_apply_all: bool,
     pub playing: bool,
     transport: slint::Timer,
@@ -880,7 +880,7 @@ pub struct Studio {
     /// The preview axis: the instant under the pointer while it crosses the
     /// lanes, which the monitor shows instead of the playhead's. None when
     /// the pointer is elsewhere, or the axis is off, or the cut is playing.
-    pub hover: Option<f32>,
+    pub hover: Option<f64>,
     /// Stops the burst of sound a hover with audio plays.
     hover_hush: slint::Timer,
     /// One clip, held for Paste.
@@ -1445,11 +1445,11 @@ fn ease_before(keys: &[model::ParamKey], at: f64) -> model::KeyEase {
 /// property is shown and written from. `Studio::key_point` is the same
 /// without the clamp, for the diamonds, which must not land a key on an end
 /// nobody aimed at.
-fn place_in(clip: &Clip, playhead: f32) -> f64 {
+fn place_in(clip: &Clip, playhead: f64) -> f64 {
     if clip.duration <= 0.0 {
         return 0.0;
     }
-    ((f64::from(playhead) - clip.start) / clip.duration).clamp(0.0, 1.0)
+    ((playhead - clip.start) / clip.duration).clamp(0.0, 1.0)
 }
 
 /// What a keyable property is worth on screen: its constant, or once it
@@ -2708,10 +2708,10 @@ impl Studio {
     }
 
     /// Seconds the project runs to, for Fit and for the scroll floor.
-    pub fn duration(&self) -> f32 {
+    pub fn duration(&self) -> f64 {
         self.timeline().clips.iter().fold(0.0_f64, |longest, clip| {
             longest.max(clip.start + clip.duration)
-        }) as f32
+        })
     }
 
     /// Clip edges, the playhead and zero all pull, and the nearest inside
@@ -2722,7 +2722,7 @@ impl Studio {
     /// when nothing is in reach. A drag used to snap only the dragged
     /// clip's start, so an end never met the next clip (reported on
     /// Reddit), and a group could snap to where its own clips had been.
-    pub fn snap_shift(&self, edges: &[f32], threshold: f32, moving: &[&str]) -> f32 {
+    pub fn snap_shift(&self, edges: &[f64], threshold: f64, moving: &[&str]) -> f64 {
         if !self.lanes.snap {
             return 0.0;
         }
@@ -2731,8 +2731,8 @@ impl Studio {
             if moving.contains(&clip.id.as_str()) {
                 continue;
             }
-            targets.push(clip.start as f32);
-            targets.push((clip.start + clip.duration) as f32);
+            targets.push(clip.start);
+            targets.push(clip.start + clip.duration);
         }
         let mut best = 0.0;
         let mut best_distance = threshold;
@@ -2748,13 +2748,13 @@ impl Studio {
         best
     }
 
-    pub fn snapped(&self, time: f32, threshold: f32, exclude: &str) -> f32 {
+    pub fn snapped(&self, time: f64, threshold: f64, exclude: &str) -> f64 {
         if !self.lanes.snap {
             return time;
         }
         let mut best = time;
         let mut best_distance = threshold;
-        let mut consider = |target: f32| {
+        let mut consider = |target: f64| {
             let distance = (target - time).abs();
             if distance < best_distance {
                 best = target;
@@ -2767,8 +2767,8 @@ impl Studio {
             if clip.id == exclude {
                 continue;
             }
-            consider(clip.start as f32);
-            consider((clip.start + clip.duration) as f32);
+            consider(clip.start);
+            consider(clip.start + clip.duration);
         }
         best
     }
@@ -3121,7 +3121,7 @@ impl Studio {
                     ..concat_export::ExportClip::blank(
                         concat_export::ClipKind::Layer,
                         0.0,
-                        f64::from(self.duration()).max(1.0),
+                        self.duration().max(1.0),
                         track,
                     )
                 });
@@ -3179,7 +3179,7 @@ impl Studio {
         self.end_hover();
         self.playing = true;
         log::debug!("playback: playing from {:.3}s", self.playhead);
-        self.host.playback.play(f64::from(self.playhead));
+        self.host.playback.play(self.playhead);
         self.wake_meters();
         // The clock is the audio device's. This looks at it far more often
         // than any timeline's frame rate and acts only when the frame under
@@ -3195,9 +3195,9 @@ impl Studio {
                     {
                         let mut studio = shell.studio.borrow_mut();
                         let end = studio.duration();
-                        let position = studio.host.playback.position_now() as f32;
+                        let position = studio.host.playback.position_now();
                         let fps = studio.project().active().video.rate();
-                        let frame = (f64::from(position) * fps + 1e-6).floor() as i64;
+                        let frame = (position * fps + 1e-6).floor() as i64;
                         if position < end && shown == Some(frame) {
                             return;
                         }
@@ -3234,6 +3234,17 @@ impl Studio {
         );
     }
 
+    pub fn step_frames(&mut self, frames: i64) {
+        let video = self.project().active().video;
+        let current =
+            crate::timeline_time::nearest_frame(self.playhead, video.rate_num, video.rate_den);
+        self.seek(crate::timeline_time::frame_time(
+            current.saturating_add(frames),
+            video.rate_num,
+            video.rate_den,
+        ));
+    }
+
     pub fn pause(&mut self) {
         // The picture stopped from anywhere - a seek, a step, an edit -
         // stops the take with it. The panel's own pause comes through here
@@ -3260,7 +3271,8 @@ impl Studio {
     /// Never before zero; past the end of the content only when Settings
     /// lets it, which is the default, so the ruler can be clicked beyond the
     /// last clip and something placed at the playhead there.
-    pub fn seek(&mut self, seconds: f32) {
+    pub fn seek(&mut self, seconds: impl Into<f64>) {
+        let seconds = seconds.into();
         // The playhead belongs to a voiceover take until it stops: moved
         // under it, the words would land away from the frames they were
         // spoken to.
@@ -3278,7 +3290,7 @@ impl Studio {
         }
         // A phone's lanes move under a playhead held at their middle.
         self.lanes.recentre(self.playhead);
-        self.host.playback.seek(f64::from(self.playhead));
+        self.host.playback.seek(self.playhead);
         self.request_preview();
     }
 
@@ -3295,11 +3307,11 @@ impl Studio {
 
     /// A scrub: the playhead goes to `seconds`, and while a finger is on
     /// the phone's lanes, where it went is a sample of how fast they move.
-    pub fn scrub(&mut self, seconds: f32) {
+    pub fn scrub(&mut self, seconds: f64) {
         self.seek(seconds.max(0.0));
         if self.coast.tracking {
             let at = self.coast.clock();
-            self.coast.tracker.push(at, f64::from(self.playhead));
+            self.coast.tracker.push(at, self.playhead);
         }
     }
 
@@ -3347,12 +3359,11 @@ impl Studio {
         };
         let (moved, going) = glide.step(since.elapsed().as_secs_f64());
         let per_pixel = f64::from(self.lanes.seconds_per_pixel);
-        let wanted = f64::from(self.playhead) + moved * per_pixel;
-        let limit = f64::from(limit);
+        let wanted = self.playhead + moved * per_pixel;
         let reached = wanted <= 0.0 || wanted >= limit;
-        self.seek(wanted.clamp(0.0, limit) as f32);
+        self.seek(wanted.clamp(0.0, limit));
         if going && !reached {
-            self.coast.glide = Some((glide, since, limit as f32));
+            self.coast.glide = Some((glide, since, limit));
         } else {
             self.stop_glide();
         }
@@ -3368,16 +3379,16 @@ impl Studio {
 
     /// The instant the monitor shows: the pointer's while it crosses the
     /// lanes with the preview axis on, else the playhead's.
-    pub fn preview_time(&self) -> f32 {
+    pub fn preview_time(&self) -> f64 {
         if let Some(source) = self.source.as_ref() {
-            return source.time as f32;
+            return source.time;
         }
         self.hover.unwrap_or(self.playhead)
     }
 
     /// The pointer is over the lanes at `seconds`. Nothing while playing -
     /// the transport owns the monitor then - and nothing with the axis off.
-    pub fn hover(&mut self, seconds: f32) {
+    pub fn hover(&mut self, seconds: f64) {
         if !self.prefs.preview_axis || self.playing {
             return;
         }
@@ -3390,8 +3401,8 @@ impl Studio {
             // A burst of the sound under the pointer: the engine plays from
             // there and is stopped a beat later, then put back where the
             // playhead is, so the next Play starts where the cut says.
-            self.host.playback.play(f64::from(seconds));
-            let playhead = f64::from(self.playhead);
+            self.host.playback.play(seconds);
+            let playhead = self.playhead;
             self.hover_hush.start(
                 slint::TimerMode::SingleShot,
                 std::time::Duration::from_millis(120),
@@ -3734,7 +3745,7 @@ impl Studio {
     /// where in the footage it starts and how much of the footage it spans,
     /// both as fractions, so the lane can pick the frame under each tile
     /// without knowing about speed or source time.
-    fn strip_of(&self, clip: &Clip) -> StripData {
+    fn strip_of(&self, clip: &Clip, offset: f64, shown: f64) -> StripData {
         if !matches!(clip.kind, model::ClipKind::Video | model::ClipKind::Image) {
             return StripData::default();
         }
@@ -3757,6 +3768,8 @@ impl Studio {
                 strip = window;
             }
         }
+        start += span * offset / clip.duration;
+        span *= shown / clip.duration;
         StripData {
             image: strip.image.clone(),
             frames: strip.frames,
@@ -3788,7 +3801,7 @@ impl Studio {
     /// of sixty-four bars, so a scroll rebuilds at each stride and not at
     /// every pixel, and the cache holds a few hundred windows before it
     /// is emptied.
-    fn wave(&self, clip: &Clip) -> (SharedString, f32, f32) {
+    fn wave(&self, clip: &Clip) -> (SharedString, f64, f64) {
         if clip.muted == Some(true) {
             return Default::default();
         }
@@ -3800,16 +3813,16 @@ impl Studio {
             return Default::default();
         };
         let step = |seconds: f32| (seconds * WAVE_STEPS).round() / WAVE_STEPS;
-        let (source_start, duration) = (step(clip.source_start as f32), step(clip.duration as f32));
+        let (source_start, duration) = (step(clip.source_start as f32), clip.duration);
         if duration <= 0.0 {
             return Default::default();
         }
         let seconds_per_pixel = self.lanes.seconds_per_pixel;
-        let stride = (WAVE_PITCH * seconds_per_pixel * 64.0).max(1.0 / WAVE_STEPS);
+        let stride = f64::from((WAVE_PITCH * seconds_per_pixel * 64.0).max(1.0 / WAVE_STEPS));
         let (from, to) = match self.lanes.published_span() {
             Some((left, right)) => {
-                let from = (left - clip.start as f32).max(0.0);
-                let to = (right - clip.start as f32).min(duration);
+                let from = (left - clip.start).max(0.0);
+                let to = (right - clip.start).min(duration);
                 if to > from {
                     (
                         (from / stride).floor() * stride,
@@ -3822,7 +3835,7 @@ impl Studio {
             None => (0.0, duration),
         };
         let window = to - from;
-        let columns = wave_columns(window, seconds_per_pixel);
+        let columns = wave_columns(window as f32, seconds_per_pixel);
         let placed = (from / duration, window / duration);
         let key = format!("{art}|{source_start:.3}|{from:.3}|{window:.3}|{columns}");
         if let Some(cached) = self.waves.borrow().get(&key) {
@@ -3830,8 +3843,8 @@ impl Studio {
         }
         let built = SharedString::from(wave_path(
             peaks,
-            source_start + from,
-            window,
+            source_start + from as f32,
+            window as f32,
             columns,
             WAVE_BAR,
         ));
@@ -3866,11 +3879,11 @@ impl Studio {
                     // A still has no length of its own; a file with no stated
                     // duration gets the engine's own fallback.
                     duration: if item.kind == model::MediaKind::Image {
-                        LAYER_DURATION
+                        f64::from(LAYER_DURATION)
                     } else {
-                        item.duration.unwrap_or(5.0) as f32
+                        item.duration.unwrap_or(5.0)
                     }
-                    .max(MIN_DURATION),
+                    .max(f64::from(MIN_DURATION)),
                     row: 0,
                 })
             }
@@ -3890,9 +3903,9 @@ impl Studio {
                     start: 0.0,
                     duration: cues
                         .iter()
-                        .map(|cue| cue.end as f32)
-                        .fold(0.0_f32, f32::max)
-                        .max(MIN_DURATION),
+                        .map(|cue| cue.end)
+                        .fold(0.0_f64, f64::max)
+                        .max(f64::from(MIN_DURATION)),
                     row: 0,
                 })
             }
@@ -3901,7 +3914,7 @@ impl Studio {
                 label: label.to_owned(),
                 media: id.to_owned(),
                 start: 0.0,
-                duration: LAYER_DURATION,
+                duration: f64::from(LAYER_DURATION),
                 row: 0,
             }),
             // A figure from the Stickers page: the shape's name rides
@@ -3912,7 +3925,7 @@ impl Studio {
                 label: label.to_owned(),
                 media: model::ShapeKind::parse(id)?.id().to_owned(),
                 start: 0.0,
-                duration: LAYER_DURATION,
+                duration: f64::from(LAYER_DURATION),
                 row: 0,
             }),
             // A sound from the Audio page: not in the bin yet, so its card
@@ -3935,7 +3948,7 @@ impl Studio {
                     label: name,
                     media: format!("sound:{id}"),
                     start: 0.0,
-                    duration: (duration as f32).max(MIN_DURATION),
+                    duration: duration.max(f64::from(MIN_DURATION)),
                     row: 0,
                 })
             }
@@ -3946,7 +3959,7 @@ impl Studio {
                 label: label.to_owned(),
                 media: format!("{sort}:{id}"),
                 start: 0.0,
-                duration: LAYER_DURATION,
+                duration: f64::from(LAYER_DURATION),
                 row: 0,
             }),
             "transition" | "audio-effect" => Some(DropPlan {
@@ -3966,7 +3979,7 @@ impl Studio {
                 label: label.to_owned(),
                 media: format!("layer:{id}"),
                 start: 0.0,
-                duration: LAYER_DURATION,
+                duration: f64::from(LAYER_DURATION),
                 row: 0,
             }),
             "filter" => Some(DropPlan {
@@ -3974,7 +3987,7 @@ impl Studio {
                 label: label.to_owned(),
                 media: id.to_owned(),
                 start: 0.0,
-                duration: LAYER_DURATION,
+                duration: f64::from(LAYER_DURATION),
                 row: 0,
             }),
             _ => None,
@@ -3982,7 +3995,8 @@ impl Studio {
     }
 
     /// A drag over the lanes: the pointer names the moment and the lane.
-    pub fn plan(&self, payload: &str, seconds: f32, row: i32) -> Option<DropPlan> {
+    pub fn plan(&self, payload: &str, seconds: impl Into<f64>, row: i32) -> Option<DropPlan> {
+        let seconds = seconds.into();
         let mut plan = self.incoming(payload)?;
         let lanes = self.timeline().tracks.len() as i32;
         if lanes == 0 {
@@ -3999,11 +4013,11 @@ impl Studio {
         if plan.media.starts_with("transition:") {
             let clip = self.timeline().transition_drop_target(
                 track_id,
-                f64::from(seconds),
+                seconds,
                 (16.0 * f64::from(self.lanes.seconds_per_pixel)).max(0.25),
             )?;
-            plan.start = clip.start as f32;
-            plan.duration = self.transition_duration(clip, 0.5)? as f32;
+            plan.start = clip.start;
+            plan.duration = self.transition_duration(clip, 0.5)?;
             return Some(plan);
         }
         if ["effect:", "clip-filter:", "lut:"]
@@ -4012,21 +4026,25 @@ impl Studio {
         {
             let clip = self
                 .timeline()
-                .visual_effect_drop_target(track_id, f64::from(seconds))?;
-            plan.start = clip.start as f32;
-            plan.duration = clip.duration as f32;
+                .visual_effect_drop_target(track_id, seconds)?;
+            plan.start = clip.start;
+            plan.duration = clip.duration;
             return Some(plan);
         }
         if plan.media.starts_with("audio-effect:") {
             let clip = self
                 .timeline()
-                .audio_effect_drop_target(track_id, f64::from(seconds))?;
-            plan.start = clip.start as f32;
-            plan.duration = clip.duration as f32;
+                .audio_effect_drop_target(track_id, seconds)?;
+            plan.start = clip.start;
+            plan.duration = clip.duration;
             return Some(plan);
         }
         plan.start = self
-            .snapped(seconds.max(0.0), 8.0 * self.lanes.seconds_per_pixel, "")
+            .snapped(
+                seconds.max(0.0),
+                8.0 * f64::from(self.lanes.seconds_per_pixel),
+                "",
+            )
             .max(0.0);
         Some(plan)
     }
@@ -4059,8 +4077,8 @@ impl Studio {
         if let Some(id) = plan.media.strip_prefix("layer:") {
             if let Some(created) = self.apply(Command::AddLayerClip {
                 track_id: None,
-                start: f64::from(plan.start),
-                duration: Some(f64::from(plan.duration)),
+                start: plan.start,
+                duration: Some(plan.duration),
                 effect_id: id.to_owned(),
                 name: plan.label.clone(),
             }) {
@@ -4074,10 +4092,7 @@ impl Studio {
         {
             if let Some(target) = self
                 .timeline()
-                .visual_effect_drop_target(
-                    &track_id,
-                    f64::from(plan.start) + self.frame_seconds() / 4.0,
-                )
+                .visual_effect_drop_target(&track_id, plan.start + self.frame_seconds() / 4.0)
                 .map(|clip| clip.id.clone())
             {
                 self.selection = vec![target];
@@ -4091,11 +4106,7 @@ impl Studio {
         if let Some(id) = plan.media.strip_prefix("transition:") {
             if let Some(target) = self
                 .timeline()
-                .transition_drop_target(
-                    &track_id,
-                    f64::from(plan.start),
-                    self.frame_seconds() / 2.0,
-                )
+                .transition_drop_target(&track_id, plan.start, self.frame_seconds() / 2.0)
                 .map(|clip| clip.id.clone())
             {
                 self.apply_transition_to(&target, id);
@@ -4106,10 +4117,7 @@ impl Studio {
         if let Some(id) = plan.media.strip_prefix("audio-effect:") {
             if let Some(target) = self
                 .timeline()
-                .audio_effect_drop_target(
-                    &track_id,
-                    f64::from(plan.start) + self.frame_seconds() / 4.0,
-                )
+                .audio_effect_drop_target(&track_id, plan.start + self.frame_seconds() / 4.0)
                 .map(|clip| clip.id.clone())
             {
                 self.selection = vec![target];
@@ -4122,41 +4130,36 @@ impl Studio {
                 crate::panes::stickers::StickersMsg::Place(
                     id.to_owned(),
                     Some(track_id),
-                    f64::from(plan.start),
+                    plan.start,
                 ),
             ));
             return;
         }
         if let Some(card) = plan.media.strip_prefix("sound:") {
-            self.place_card(card, Some(track_id), f64::from(plan.start));
+            self.place_card(card, Some(track_id), plan.start);
             return;
         }
         let created = if let Some(source_id) = plan.media.strip_prefix("caption:") {
             self.apply(Command::PlaceCaptionSource {
                 source_id: source_id.to_owned(),
-                start: f64::from(plan.start),
+                start: plan.start,
                 track_id: Some(track_id),
             })
         } else if plan.kind == ClipKind::Text {
-            self.add_title(
-                Some(track_id),
-                f64::from(plan.start),
-                f64::from(plan.duration),
-                &plan.media,
-            )
+            self.add_title(Some(track_id), plan.start, plan.duration, &plan.media)
         } else if plan.kind == ClipKind::Shape {
             self.add_shape(
                 Some(track_id),
-                f64::from(plan.start),
-                f64::from(plan.duration),
+                plan.start,
+                plan.duration,
                 &plan.media,
                 &plan.label,
             )
         } else if plan.kind == ClipKind::Filter {
             self.apply(Command::AddLayerClip {
                 track_id: Some(track_id),
-                start: f64::from(plan.start),
-                duration: Some(f64::from(plan.duration)),
+                start: plan.start,
+                duration: Some(plan.duration),
                 effect_id: plan.media.clone(),
                 name: plan.label.clone(),
             })
@@ -4167,14 +4170,14 @@ impl Studio {
             self.apply(Command::AddClipsInSequence {
                 media_ids,
                 track_id: Some(track_id),
-                start: f64::from(plan.start),
+                start: plan.start,
                 ripple: true,
             })
         } else {
             self.apply(Command::AddClip {
                 media_id: plan.media.clone(),
                 track_id,
-                start: f64::from(plan.start),
+                start: plan.start,
                 ripple: true,
             })
         };
@@ -4189,7 +4192,7 @@ impl Studio {
         let Some(plan) = self.incoming(payload) else {
             return;
         };
-        let start = f64::from(self.playhead.max(0.0));
+        let start = self.playhead.max(0.0);
         if let Some(id) = plan.media.strip_prefix("sticker:") {
             self.handle(crate::panes::Msg::Stickers(
                 crate::panes::stickers::StickersMsg::Place(id.to_owned(), None, start),
@@ -4207,20 +4210,14 @@ impl Studio {
                 track_id: None,
             })
         } else if plan.kind == ClipKind::Text {
-            self.add_title(None, start, f64::from(plan.duration), &plan.media)
+            self.add_title(None, start, plan.duration, &plan.media)
         } else if plan.kind == ClipKind::Shape {
-            self.add_shape(
-                None,
-                start,
-                f64::from(plan.duration),
-                &plan.media,
-                &plan.label,
-            )
+            self.add_shape(None, start, plan.duration, &plan.media, &plan.label)
         } else if plan.kind == ClipKind::Filter {
             self.apply(Command::AddLayerClip {
                 track_id: None,
                 start,
-                duration: Some(f64::from(plan.duration)),
+                duration: Some(plan.duration),
                 effect_id: plan.media.clone(),
                 name: plan.label.clone(),
             })
@@ -4478,7 +4475,7 @@ impl Studio {
                 style.caption_motion = model::CaptionMotion {
                     entrance: entrance.clamp(0, 3) as u8,
                     exit: exit.clamp(0, 3) as u8,
-                    duration: f64::from(duration).clamp(0.05, 5.0),
+                    duration: f64::from(duration.clamp(0.05, 5.0)),
                 };
                 Some(Command::UpdateClip {
                     clip_id: id,
@@ -5284,7 +5281,7 @@ impl Studio {
         let Some(target) = (if delta < 0 { prev } else { next }) else {
             return;
         };
-        self.seek((clip.start + target * clip.duration) as f32);
+        self.seek(clip.start + target * clip.duration);
     }
 
     // ── gestures ──
@@ -5312,7 +5309,7 @@ impl Studio {
             self.begin_echo();
             self.gesture = Gesture::TransitionResize {
                 clip: id.to_owned(),
-                original_duration: transition.duration as f32,
+                original_duration: transition.duration,
             };
             return;
         }
@@ -5341,9 +5338,9 @@ impl Studio {
             self.gesture = Gesture::Trim {
                 clip: id.to_owned(),
                 edge: if edge == 0 { Edge::Start } else { Edge::End },
-                start: clip.start as f32,
-                duration: clip.duration as f32,
-                source_start: clip.source_start as f32,
+                start: clip.start,
+                duration: clip.duration,
+                source_start: clip.source_start,
             };
             return;
         }
@@ -5363,7 +5360,7 @@ impl Studio {
                 let clip = self.clip(clip_id)?;
                 Some(MoveOrigin {
                     clip: clip.id.clone(),
-                    start: clip.start as f32,
+                    start: clip.start,
                     row: self.row_of(&clip.track_id),
                 })
             })
@@ -5377,6 +5374,7 @@ impl Studio {
 
     /// The pointer moved: the echo follows it.
     pub fn clip_dragged(&mut self, seconds: f32, pixels: f32) {
+        let seconds = f64::from(seconds);
         let gesture = std::mem::replace(&mut self.gesture, Gesture::None);
         match &gesture {
             Gesture::Move {
@@ -5388,20 +5386,24 @@ impl Studio {
                     self.gesture = gesture;
                     return;
                 };
-                let threshold = 8.0 * self.lanes.seconds_per_pixel;
+                let threshold = 8.0 * f64::from(self.lanes.seconds_per_pixel);
                 // Every moving clip's two edges, where the pointer would
                 // put them, and the shift that lands the nearest on a target.
                 let moving: Vec<&str> = origins.iter().map(|origin| origin.clip.as_str()).collect();
-                let edges: Vec<f32> = origins
+                let edges: Vec<f64> = origins
                     .iter()
                     .filter_map(|origin| {
                         let clip = self.clip(&origin.clip)?;
                         let start = origin.start + seconds;
-                        Some([start, start + clip.duration as f32])
+                        Some([start, start + clip.duration])
                     })
                     .flatten()
                     .collect();
-                let shift = seconds + self.snap_shift(&edges, threshold, &moving);
+                let earliest = origins
+                    .iter()
+                    .map(|origin| origin.start)
+                    .fold(f64::INFINITY, f64::min);
+                let shift = (seconds + self.snap_shift(&edges, threshold, &moving)).max(-earliest);
                 let rows = nearest_row(lanes, row_top(lanes, anchor.row) + pixels) - anchor.row;
                 let count = self.timeline().tracks.len() as i32;
                 let moves: Vec<ClipMove> = origins
@@ -5417,7 +5419,7 @@ impl Studio {
                             })?;
                         Some(ClipMove {
                             clip_id: origin.clip.clone(),
-                            start: f64::from((origin.start + shift).max(0.0)),
+                            start: (origin.start + shift).max(0.0),
                             track_id,
                         })
                     })
@@ -5455,24 +5457,22 @@ impl Studio {
             } => {
                 let (id, edge) = (clip.clone(), *edge);
                 let (start, duration, source_start) = (*start, *duration, *source_start);
-                let threshold = 8.0 * self.lanes.seconds_per_pixel;
-                let speed = self.clip(&id).map_or(1.0, |clip| clip.speed as f32);
+                let threshold = 8.0 * f64::from(self.lanes.seconds_per_pixel);
+                let speed = self.clip(&id).map_or(1.0, |clip| clip.speed);
                 // A plain trim stops at the neighbours, as the command will;
                 // a magnetic one moves them, so the lane is all its room.
                 let (floor, ceiling) = if self.prefs.magnetic {
-                    (0.0, f32::INFINITY)
+                    (0.0, f64::INFINITY)
                 } else {
                     self.timeline()
                         .room_around(&id)
-                        .map_or((0.0, f32::INFINITY), |(before, after)| {
-                            (before as f32, after as f32)
-                        })
+                        .map_or((0.0, f64::INFINITY), |(before, after)| (before, after))
                 };
                 if edge == Edge::Start {
                     // The head cannot pass the tail, and cannot pull material
                     // out of a file that has none before the in-point.
                     let wanted = self.snapped(start + seconds, threshold, &id);
-                    let limit = start + duration - MIN_DURATION;
+                    let limit = start + duration - f64::from(MIN_DURATION);
                     let at = wanted.clamp(
                         (start - source_start / speed.max(0.01))
                             .max(floor)
@@ -5481,9 +5481,9 @@ impl Studio {
                     );
                     let delta = at - start;
                     if let Some(clip) = self.echo_clip_mut(&id) {
-                        clip.start = f64::from(at);
-                        clip.duration = f64::from(duration - delta);
-                        clip.source_start = f64::from(source_start + delta * speed);
+                        clip.start = at;
+                        clip.duration = duration - delta;
+                        clip.source_start = source_start + delta * speed;
                     }
                     // Trim follow: the playhead on the new first frame.
                     if self.prefs.trim_follow {
@@ -5491,16 +5491,16 @@ impl Studio {
                     }
                 } else {
                     let wanted = self.snapped(start + duration + seconds, threshold, &id);
-                    let at = wanted.min(ceiling).max(start + MIN_DURATION);
+                    let at = wanted.min(ceiling).max(start + f64::from(MIN_DURATION));
                     if let Some(clip) = self.echo_clip_mut(&id) {
-                        clip.duration = f64::from(at - start);
+                        clip.duration = at - start;
                     }
                     // Trim follow: the playhead on the new last frame, one
                     // frame inside the edge - at the edge itself the clip
                     // has already ended and the monitor would show what
                     // comes after it.
                     if self.prefs.trim_follow {
-                        let frame = 1.0 / self.frame_rate().max(1.0);
+                        let frame = 1.0 / self.project().active().video.rate().max(1.0);
                         self.seek((at - frame).max(start));
                     }
                 }
@@ -5512,7 +5512,7 @@ impl Studio {
                 let id = clip.clone();
                 let original_duration = *original_duration;
                 if let Some(clip_ref) = self.clip(&id).cloned() {
-                    let wanted = (original_duration + seconds).max(0.0) as f64;
+                    let wanted = (original_duration + seconds).max(0.0);
                     if let Some(duration) = self.transition_duration(&clip_ref, wanted) {
                         if let Some(echo_clip) = self.echo_clip_mut(&id) {
                             if let Some(t) = echo_clip.transition_in.as_mut() {
@@ -5535,6 +5535,18 @@ impl Studio {
             | Gesture::Paint { .. } => {}
         }
         self.gesture = gesture;
+    }
+
+    /// The pointer was cancelled: discard its preview without writing history.
+    pub fn clip_cancelled(&mut self) {
+        if matches!(
+            self.gesture,
+            Gesture::Move { .. } | Gesture::Trim { .. } | Gesture::TransitionResize { .. }
+        ) {
+            self.gesture = Gesture::None;
+            self.echo = None;
+            self.request_preview();
+        }
     }
 
     /// The pointer let go: the whole gesture becomes one command.
@@ -5577,8 +5589,8 @@ impl Studio {
                 self.echo = None;
                 let Some(after) = after else { return };
                 let delta = match edge {
-                    Edge::Start => after.start - f64::from(start),
-                    Edge::End => after.duration - f64::from(duration),
+                    Edge::Start => after.start - start,
+                    Edge::End => after.duration - duration,
                 };
                 if delta.abs() > 1e-6 {
                     let id = clip.clone();
@@ -5598,7 +5610,7 @@ impl Studio {
                     // frame.
                     if self.prefs.trim_follow && edge == Edge::Start {
                         if let Some(start) = self.clip(&id).map(|clip| clip.start) {
-                            self.seek(start as f32);
+                            self.seek(start);
                         }
                     }
                 }
@@ -5615,7 +5627,7 @@ impl Studio {
                     .as_ref()
                     .map(|t| t.duration)
                     .unwrap_or(0.0);
-                if (new_duration - f64::from(original_duration)).abs() > 1e-4 {
+                if (new_duration - original_duration).abs() > 1e-4 {
                     self.set_clip_transition_duration(&clip, new_duration);
                 }
             }
@@ -6413,7 +6425,7 @@ impl Studio {
     /// order the overlay draws them in.
     fn stage_clips(&self) -> Vec<&Clip> {
         let timeline = self.timeline();
-        let playhead = f64::from(self.playhead);
+        let playhead = self.playhead;
         let showing: HashSet<&str> = timeline
             .tracks
             .iter()
@@ -8162,9 +8174,9 @@ impl Studio {
 
     /// Split at `at`: every selected clip the instant runs through, or every
     /// clip at all when nothing is selected.
-    pub fn split_at(&mut self, at: f32, only_selected: bool) {
+    pub fn split_at(&mut self, at: impl Into<f64>, only_selected: bool) {
         let selection = self.selection.clone();
-        let at = f64::from(at);
+        let at = at.into();
         let victims: Vec<String> = self
             .timeline()
             .clips
@@ -8194,7 +8206,7 @@ impl Studio {
     /// behind the cut only on a magnetic timeline, as any trim's does.
     /// https://github.com/jub0t/Concat/issues/400
     pub fn delete_to_playhead(&mut self, side: PlayheadSide) {
-        let at = f64::from(self.playhead);
+        let at = self.playhead;
         let edge = f64::from(MIN_DURATION);
         let under: Vec<String> = self
             .timeline()
@@ -8226,7 +8238,7 @@ impl Studio {
     /// A Delete Left ends with the playhead on the frame it was showing,
     /// which a magnetic cut has moved back to the clip's start.
     fn delete_clips_to_playhead(&mut self, ids: &[String], side: PlayheadSide) {
-        let at = f64::from(self.playhead);
+        let at = self.playhead;
         let ids: Vec<String> = ids
             .iter()
             .filter(|id| {
@@ -8254,7 +8266,7 @@ impl Studio {
                 .map(|clip| clip.start)
                 .fold(f64::INFINITY, f64::min);
             if start.is_finite() && start < at {
-                self.seek(start as f32);
+                self.seek(start);
             }
         }
     }
@@ -8271,8 +8283,7 @@ impl Studio {
             self.pause();
         }
         let (width, height) = self.output_size();
-        let Some((clips, settings)) = self.preview_clips(width, height, f64::from(self.playhead))
-        else {
+        let Some((clips, settings)) = self.preview_clips(width, height, self.playhead) else {
             return;
         };
         let Some(project_dir) = self
@@ -8283,7 +8294,7 @@ impl Studio {
             return;
         };
         let spec = concat_host::preview::FrameSpec {
-            time: f64::from(self.playhead),
+            time: self.playhead,
             width,
             height,
             moving: false,
@@ -8403,15 +8414,17 @@ impl Studio {
     /// frame nearest the press, unless it is within a frame of either end
     /// or the lane is locked.
     /// https://github.com/jub0t/Concat/issues/241
-    pub fn split_clip_at(&mut self, id: &str, seconds: f32) {
+    pub fn split_clip_at(&mut self, id: &str, seconds: impl Into<f64>) {
         let Some(clip) = self.clip(id).cloned() else {
             return;
         };
         if self.locked(&clip.track_id) {
             return;
         }
-        let fps = f64::from(self.frame_rate().max(1.0));
-        let at = (f64::from(seconds) * fps).round() / fps;
+        let video = self.project().active().video;
+        let frame =
+            crate::timeline_time::nearest_frame(seconds.into(), video.rate_num, video.rate_den);
+        let at = crate::timeline_time::frame_time(frame, video.rate_num, video.rate_den);
         let edge = f64::from(MIN_DURATION);
         if at <= clip.start + edge || at >= clip.start + clip.duration - edge {
             return;
@@ -8471,7 +8484,7 @@ impl Studio {
     /// media. The engine command splits the clip, inserts the hold, and
     /// ripples the rest of the lane.
     pub fn freeze_at_playhead(&mut self) {
-        let at = f64::from(self.playhead);
+        let at = self.playhead;
         let edge = f64::from(MIN_DURATION);
         let target = self
             .menu_target
@@ -8657,7 +8670,7 @@ impl Studio {
                     isize::try_from(row).unwrap_or(0) - isize::try_from(first_row).unwrap_or(0);
                 (anchor.start + anchor.duration, shift)
             }
-            None => (f64::from(self.playhead), 0),
+            None => (self.playhead, 0),
         };
         let plan = paste_plan(&held, base, shift, tracks.len(), &|row| {
             tracks.get(row).is_some_and(|id| self.locked(id))
@@ -8760,7 +8773,7 @@ impl Studio {
     /// a still the playhead is inside of, to freeze there; and one video
     /// or sound clip to reverse, while no reverse is running.
     fn transform_tools(&self) -> (bool, bool, bool) {
-        let at = f64::from(self.playhead);
+        let at = self.playhead;
         let edge = f64::from(MIN_DURATION);
         let sole = self.selection.len() == 1;
         let mut picture = false;
@@ -9687,6 +9700,12 @@ impl Studio {
     /// event of a scrub, a drag, a trim or a knob.
     pub fn publish_lanes(&self, app: &App, models: &Models) {
         let editor = app.global::<Editor>();
+        let origin = crate::timeline_time::origin(self.lanes.scroll_left);
+        self.lanes.time_origin.set(origin);
+        editor.set_time_origin(origin as i32);
+        editor.set_frame_phase(
+            (origin * self.project().active().video.rate()).rem_euclid(1.0) as f32,
+        );
         let project = self.project();
         sync(
             &models.tabs,
@@ -9734,13 +9753,18 @@ impl Studio {
                 .clips
                 .iter()
                 .filter(|clip| {
-                    crate::panes::timeline::TimelinePane::shows(
-                        span,
-                        clip.start as f32,
-                        clip.duration as f32,
-                    )
+                    crate::panes::timeline::TimelinePane::shows(span, clip.start, clip.duration)
                 })
                 .map(|clip| {
+                    let view = crate::timeline_time::visible_slice(clip.start, clip.duration, span);
+                    let [head, tail] = crate::timeline_time::fade_slice(
+                        view,
+                        clip.duration,
+                        clip.fade_in,
+                        clip.fade_out,
+                    );
+                    let relative = view.offset / clip.duration;
+                    let fraction = view.duration / clip.duration;
                     let wave =
                         if matches!(clip.kind, model::ClipKind::Audio | model::ClipKind::Video) {
                             self.wave(clip)
@@ -9752,8 +9776,8 @@ impl Studio {
                         name: clip.name.as_str().into(),
                         kind: kind_of(clip),
                         row: self.row_of(&clip.track_id),
-                        start: clip.start as f32,
-                        duration: clip.duration as f32,
+                        start: self.lanes.local(view.start),
+                        duration: view.duration as f32,
                         selected: self.selection.iter().any(|id| id == &clip.id),
                         transition_selected: self
                             .selected_transition()
@@ -9764,8 +9788,12 @@ impl Studio {
                             .as_ref()
                             .map(|transition| transition.duration as f32)
                             .unwrap_or(0.0),
-                        fade_in: clip.fade_in as f32,
-                        fade_out: clip.fade_out as f32,
+                        fade_in: head.0 as f32,
+                        fade_in_start: head.1,
+                        fade_in_end: head.2,
+                        fade_out: tail.0 as f32,
+                        fade_out_start: tail.1,
+                        fade_out_end: tail.2,
                         volume: clip.volume as f32,
                         text_body: clip
                             .text
@@ -9774,10 +9802,10 @@ impl Studio {
                             .unwrap_or_default()
                             .into(),
                         wave: wave.0,
-                        wave_from: wave.1,
-                        wave_span: wave.2,
+                        wave_from: ((wave.1 - relative) / fraction.max(f64::EPSILON)) as f32,
+                        wave_span: (wave.2 / fraction.max(f64::EPSILON)) as f32,
                         has_audio: self.clip_has_sound(clip),
-                        strip: self.strip_of(clip),
+                        strip: self.strip_of(clip, view.offset, view.duration),
                     }
                 })
                 .collect(),
@@ -9788,14 +9816,14 @@ impl Studio {
         // source or the preview axis has a perfectly good picture.
         let showing = crate::source::picture_name(
             timeline,
-            f64::from(self.preview_time()),
+            self.preview_time(),
             self.source
                 .as_ref()
                 .map(|source| (source.name.as_str(), source.kind)),
         );
         editor.set_has_picture(showing.is_some());
         editor.set_preview_clip_name(showing.unwrap_or_default().into());
-        editor.set_preview_duration(self.duration());
+        editor.set_preview_duration(self.duration() as f32);
         editor.set_playhead_free(!self.prefs.playhead_stops_at_end);
         editor.set_playing(self.playing);
         self.publish_frame(app);
@@ -9814,8 +9842,8 @@ impl Studio {
                 active: true,
                 kind: plan.kind,
                 label: plan.label.as_str().into(),
-                start: plan.start,
-                duration: plan.duration,
+                start: self.lanes.local(plan.start),
+                duration: plan.duration as f32,
                 row: plan.row,
             },
             None => DropData::default(),
@@ -9891,11 +9919,19 @@ impl Studio {
             .position(|timeline| timeline.id == project.active_timeline_id)
             .unwrap_or(0);
         editor.set_timeline_current_tab(active as i32);
-        editor.set_playhead(self.playhead);
-        sync(&models.key_marks, self.key_marks());
-        editor.set_scroll_left(self.lanes.scroll_left);
+        editor.set_playhead(self.playhead as f32);
+        editor.set_timeline_playhead(self.lanes.local(self.playhead));
+        sync(
+            &models.key_marks,
+            self.key_marks()
+                .into_iter()
+                .map(|at| self.lanes.local(at))
+                .collect(),
+        );
+        editor.set_scroll_left(self.lanes.local(self.lanes.scroll_left));
+        editor.set_absolute_scroll(self.lanes.scroll_left as f32);
         editor.set_seconds_per_pixel(self.lanes.seconds_per_pixel);
-        editor.set_duration_seconds(self.duration());
+        editor.set_duration_seconds(self.duration() as f32);
         editor.set_frame_rate(self.frame_rate());
         editor.set_tool(self.lanes.tool);
         editor.set_snap(self.lanes.snap);
@@ -10251,7 +10287,7 @@ impl Studio {
         if clip.duration <= 0.0 {
             return None;
         }
-        let local = f64::from(self.playhead) - clip.start;
+        let local = self.playhead - clip.start;
         (0.0..=clip.duration)
             .contains(&local)
             .then(|| (clip, local / clip.duration))
@@ -10653,11 +10689,12 @@ impl Studio {
     /// Moves the key at `from` to `to` and gives it `fraction` of its
     /// row's range, keeping its ease: a drag of a handle in the curve view.
     pub fn drag_key(&mut self, field: ClipField, param: &str, from: f32, to: f32, fraction: f32) {
+        let (from, to) = (f64::from(from), f64::from(to));
         let Some(clip) = self.sole_selection().and_then(|id| self.clip(&id)) else {
             return;
         };
         let clip_id = clip.id.clone();
-        let (from, to) = (f64::from(from), f64::from(to).clamp(0.0, 1.0));
+        let (from, to) = (from, to.clamp(0.0, 1.0));
         let fraction = f64::from(fraction).clamp(0.0, 1.0);
         let commands = if param.is_empty() {
             let Some(property) = Self::key_property_of(field) else {
@@ -10729,7 +10766,7 @@ impl Studio {
     /// The selected clip's keys as instants on the timeline, every property
     /// and Adjust knob together, one diamond per instant: what the ruler
     /// draws while exactly one clip is selected (#188).
-    pub fn key_marks(&self) -> Vec<f32> {
+    pub fn key_marks(&self) -> Vec<f64> {
         let Some(clip) = self.sole_selection().and_then(|id| self.clip(&id)) else {
             return Vec::new();
         };
@@ -10747,14 +10784,21 @@ impl Studio {
         ats.sort_by(f64::total_cmp);
         ats.dedup_by(|a, b| (*a - *b).abs() <= model::KEY_EPSILON);
         ats.iter()
-            .map(|at| (clip.start + at * clip.duration) as f32)
+            .map(|at| clip.start + at * clip.duration)
             .collect()
+    }
+
+    pub fn key_mark_time(&self, local: f32) -> f64 {
+        self.key_marks()
+            .into_iter()
+            .find(|&at| self.lanes.local(at) == local)
+            .unwrap_or_else(|| self.lanes.absolute(local))
     }
 
     /// Moves every key of the selected clip that sits at the instant
     /// `from` to the instant `to`, as one undo step: what a dragged ruler
     /// diamond does.
-    pub fn move_keys_at(&mut self, from: f32, to: f32) {
+    pub fn move_keys_at(&mut self, from: f64, to: f64) {
         let Some(clip) = self.sole_selection().and_then(|id| self.clip(&id)) else {
             return;
         };
@@ -10762,8 +10806,8 @@ impl Studio {
             return;
         }
         let clip_id = clip.id.clone();
-        let from_at = (f64::from(from) - clip.start) / clip.duration;
-        let to_at = ((f64::from(to) - clip.start) / clip.duration).clamp(0.0, 1.0);
+        let from_at = (from - clip.start) / clip.duration;
+        let to_at = ((to - clip.start) / clip.duration).clamp(0.0, 1.0);
         let mut commands = Vec::new();
         for property in model::KeyProperty::ALL {
             let Some(index) = clip.key_at(property, from_at) else {
@@ -10821,18 +10865,19 @@ impl Studio {
             return;
         };
         let (start, duration) = (clip.start, clip.duration);
-        self.seek((start + f64::from(at).clamp(0.0, 1.0) * duration) as f32);
+        self.seek(start + f64::from(at).clamp(0.0, 1.0) * duration);
     }
 
     /// Moves the key at `from` to `to` on a property, or on the Adjust
     /// knob `param` names: the same value and ease at the new place, as
     /// one undo step.
     pub fn move_key(&mut self, field: ClipField, param: &str, from: f32, to: f32) {
+        let (from, to) = (f64::from(from), f64::from(to));
         let Some(clip) = self.sole_selection().and_then(|id| self.clip(&id)) else {
             return;
         };
         let clip_id = clip.id.clone();
-        let (from, to) = (f64::from(from), f64::from(to).clamp(0.0, 1.0));
+        let (from, to) = (from, to.clamp(0.0, 1.0));
         let commands = if param.is_empty() {
             let Some(property) = Self::key_property_of(field) else {
                 return;
@@ -10984,7 +11029,7 @@ impl Studio {
             return;
         };
         let (start, duration) = (clip.start, clip.duration);
-        self.seek((start + target * duration) as f32);
+        self.seek(start + target * duration);
     }
 
     /// Takes every key off the selected clip: its properties and its
@@ -11131,7 +11176,7 @@ impl Studio {
         let Some(target) = (if delta < 0 { prev } else { next }) else {
             return;
         };
-        self.seek((start + target * duration) as f32);
+        self.seek(start + target * duration);
     }
 
     /// The audio tracks the Audio panel offers for the selection: one label
@@ -11536,7 +11581,7 @@ impl Studio {
 
     /// The source instant of `clip` under the playhead, held to the clip.
     fn source_at_playhead(&self, clip: &Clip) -> f64 {
-        let along = (f64::from(self.playhead) - clip.start).clamp(0.0, clip.duration);
+        let along = (self.playhead - clip.start).clamp(0.0, clip.duration);
         clip.source_start + along * clip.speed
     }
 
@@ -12175,7 +12220,7 @@ impl Studio {
             return Vec::new();
         };
         let locked = self.locked(&clip.track_id);
-        let playhead = f64::from(self.playhead);
+        let playhead = self.playhead;
         let straddled = clip.start < playhead && playhead < clip.start + clip.duration;
 
         let action =
@@ -12531,7 +12576,7 @@ impl Studio {
             checked: on,
         };
         let selected = self.selection.len();
-        let playhead = f64::from(self.playhead);
+        let playhead = self.playhead;
         let straddled = self.timeline().clips.iter().any(|clip| {
             clip.start + f64::from(MIN_DURATION) < playhead
                 && playhead < clip.start + clip.duration - f64::from(MIN_DURATION)
@@ -14397,3 +14442,7 @@ mod lifecycle_tests {
         crate::leave(0);
     }
 }
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "phase3_timeline_tests.rs"]
+mod phase3_timeline_tests;

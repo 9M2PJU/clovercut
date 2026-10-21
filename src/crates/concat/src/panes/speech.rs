@@ -532,7 +532,7 @@ impl SpeechPane {
             .as_ref()
             .and_then(|id| studio.clip(id))
             .map(|clip| clip.start)
-            .unwrap_or(f64::from(studio.playhead));
+            .unwrap_or(studio.playhead);
         // The read as the bar lays it out: the model loaded unless it
         // still is, the recording the voice comes from read in (Kokoro
         // has none), and the reading at the pace the last read with this

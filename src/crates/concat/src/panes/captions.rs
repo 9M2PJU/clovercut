@@ -521,7 +521,7 @@ impl CaptionsPane {
             return;
         }
         let look = self.collection_look(studio);
-        let mut at = f64::from(studio.playhead);
+        let mut at = studio.playhead;
         let base = collection_style(studio);
         let commands: Vec<Command> = lines
             .into_iter()

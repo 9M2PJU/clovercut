@@ -62,6 +62,10 @@ global Paint {
 component Ramps inherits Rectangle {
     in property <float> fade-in;
     in property <float> fade-out;
+    in property <float> fade-in-start: 1;
+    in property <float> fade-in-end: 0;
+    in property <float> fade-out-start: 0;
+    in property <float> fade-out-end: 1;
     in property <length> px-per-second;
     /// The wedges' height; they sit at the foot of this element.
     in property <length> ramp-h: root.height;
@@ -79,7 +83,7 @@ component Ramps inherits Rectangle {
             viewbox-height: 1;
             fit: fill;
             fill: Theme.fade-shade;
-            commands: "M 0 0 L 1 0 L 0 1 Z";
+            commands: "M 0 0 L 1 0 L 1 \{root.fade-in-end} L 0 \{root.fade-in-start} Z";
         }
         Path {
             width: parent.width;
@@ -89,7 +93,7 @@ component Ramps inherits Rectangle {
             fit: fill;
             stroke: Theme.fade-edge;
             stroke-width: 1px;
-            commands: "M 0 1 L 1 0";
+            commands: "M 0 \{root.fade-in-start} L 1 \{root.fade-in-end}";
         }
     }
 
@@ -106,7 +110,7 @@ component Ramps inherits Rectangle {
             viewbox-height: 1;
             fit: fill;
             fill: Theme.fade-shade;
-            commands: "M 0 0 L 1 0 L 1 1 Z";
+            commands: "M 0 0 L 1 0 L 1 \{root.fade-out-end} L 0 \{root.fade-out-start} Z";
         }
         Path {
             width: parent.width;
@@ -116,7 +120,7 @@ component Ramps inherits Rectangle {
             fit: fill;
             stroke: Theme.fade-edge;
             stroke-width: 1px;
-            commands: "M 0 0 L 1 1";
+            commands: "M 0 \{root.fade-out-start} L 1 \{root.fade-out-end}";
         }
     }
 }
@@ -146,6 +150,7 @@ component Clip inherits Rectangle {
     /// to scroll when it reaches their edge.
     callback pointer-at(x: length);
     callback released();
+    callback cancelled();
     /// A press and release that never travelled, on the body rather than
     /// an edge: a click, at this x in the clip. The playhead goes there.
     callback clicked(x: length);
@@ -412,6 +417,10 @@ component Clip inherits Rectangle {
             height: parent.height;
             fade-in: root.item.fade-in;
             fade-out: root.item.fade-out;
+            fade-in-start: root.item.fade-in-start;
+            fade-in-end: root.item.fade-in-end;
+            fade-out-start: root.item.fade-out-start;
+            fade-out-end: root.item.fade-out-end;
             px-per-second: root.px-per-second;
             ramp-h: root.fade-h;
         }
@@ -462,6 +471,10 @@ component Clip inherits Rectangle {
             height: parent.height;
             fade-in: root.item.fade-in;
             fade-out: root.item.fade-out;
+            fade-in-start: root.item.fade-in-start;
+            fade-in-end: root.item.fade-in-end;
+            fade-out-start: root.item.fade-out-start;
+            fade-out-end: root.item.fade-out-end;
             px-per-second: root.px-per-second;
         }
 
@@ -574,7 +587,7 @@ component Clip inherits Rectangle {
                 || event.kind == PointerEventKind.cancel) {
                 // Only a release ends it. Slint delivers `move` here too, so a
                 // plain `else` would end the gesture the moment it began.
-                root.released();
+                if (event.kind == PointerEventKind.cancel) { root.cancelled(); } else { root.released(); }
                 if (event.kind == PointerEventKind.up && !self.travelled && !self.on-edge
                     && root.tool == TimelineTool.select) {
                     root.clicked(self.mouse-x);
@@ -759,7 +772,7 @@ component Clip inherits Rectangle {
                 if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
                     root.pressed(false, 2);
                 } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
-                    root.released();
+                    if (event.kind == PointerEventKind.cancel) { root.cancelled(); } else { root.released(); }
                 }
             }
         }
@@ -833,7 +846,7 @@ component Clip inherits Rectangle {
                 } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
                     self.is-dragging = false;
                     root.left-handle-drag = false;
-                    root.released();
+                    if (event.kind == PointerEventKind.cancel) { root.cancelled(); } else { root.released(); }
                 }
             }
 
@@ -916,7 +929,7 @@ component Clip inherits Rectangle {
                 } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
                     self.is-dragging = false;
                     root.right-handle-drag = false;
-                    root.released();
+                    if (event.kind == PointerEventKind.cancel) { root.cancelled(); } else { root.released(); }
                 }
             }
 
@@ -1016,7 +1029,7 @@ component Clip inherits Rectangle {
                     } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
                         self.is-dragging = false;
                         root.trans-btn-drag = false;
-                        root.released();
+                        if (event.kind == PointerEventKind.cancel) { root.cancelled(); } else { root.released(); }
                     }
                 }
 
@@ -1044,6 +1057,8 @@ export component Lanes inherits Rectangle {
     in property <[float]> key-marks;
     in property <float> frame-rate: 30;
     /// Seconds at the left edge of the lanes.
+    in property <int> time-origin;
+    in property <float> frame-phase;
     in property <float> scroll-left;
     /// Hand tool: wheel and drag pan time instead of scrolling the stack.
     in property <bool> pan-mode: false;
@@ -1095,7 +1110,7 @@ export component Lanes inherits Rectangle {
         root.hover-x = x;
         root.hover-on = true;
         if (root.preview-axis) {
-            root.hovered(Math.max(0, root.seconds-at(x)));
+            root.hovered(Math.max(-root.time-origin, root.seconds-at(x)));
         }
     }
     /// A beat later, not at once: the pointer crossing from a clip to the
@@ -1114,6 +1129,7 @@ export component Lanes inherits Rectangle {
     callback clip-volume(id: string, gain: float);
     callback clip-dragged(seconds: float, pixels: length);
     callback clip-released();
+    callback clip-cancelled();
     /// Right-click on a clip. The caller fills the menu and bumps `menu-token`;
     /// where it opens is decided here, because only this side knows where the
     /// pointer was.
@@ -1166,6 +1182,13 @@ export component Lanes inherits Rectangle {
     /// how the drag is refused, and the cursor says so.
     in property <DropData> drop;
 
+    property <int> previous-origin;
+    changed time-origin => {
+        let shift = root.time-origin - root.previous-origin;
+        root.press-scroll -= shift;
+        root.finger-playhead -= shift;
+        root.previous-origin = root.time-origin;
+    }
     property <length> px-per-second: 1px / Math.max(root.seconds-per-pixel, 0.000001);
     property <length> lanes-h: Math.max(0px, root.height - root.ruler-height);
     /// x of a moment, in the lanes' own coordinates
@@ -1210,7 +1233,7 @@ export component Lanes inherits Rectangle {
         if (root.finger-axis == 1) {
             // The cut follows the finger: dragging it right brings earlier
             // material under the playhead.
-            root.scrubbed(Math.max(0,
+            root.scrubbed(Math.max(-root.time-origin,
                 root.finger-playhead - (x - root.finger-x) / root.px-per-second));
         } else if (root.finger-axis == 2) {
             root.track-scrolled(root.finger-last-y - y);
@@ -1255,10 +1278,10 @@ export component Lanes inherits Rectangle {
         interval: 16ms;
         running: root.at-edge;
         triggered => {
-            root.scrolled(Math.max(0, root.scroll-left
+            root.scrolled(Math.max(-root.time-origin, root.scroll-left
                 + (root.pointer-x < root.edge-zone ? -12 : 12) * root.seconds-per-pixel));
             if (root.scrubbing) {
-                root.scrubbed(Math.max(0, root.seconds-at(root.pointer-x)));
+                root.scrubbed(Math.max(-root.time-origin, root.seconds-at(root.pointer-x)));
             } else {
                 root.clip-dragged(root.drag-seconds + (root.scroll-left - root.press-scroll), root.drag-pixels);
             }
@@ -1323,7 +1346,7 @@ export component Lanes inherits Rectangle {
         scroll-event(event) => {
             // Hand tool: any wheel pans time, no modifier needed.
             if (root.pan-mode) {
-                root.scrolled(Math.max(0, root.scroll-left
+                root.scrolled(Math.max(-root.time-origin, root.scroll-left
                     - event.delta-y / root.px-per-second));
                 return EventResult.accept;
             }
@@ -1356,13 +1379,13 @@ export component Lanes inherits Rectangle {
             // stuttered while the ruler twitched underneath it. A diagonal
             // swipe now moves diagonally, the way it does on a page.
             if (event.modifiers.shift) {
-                root.scrolled(Math.max(0, root.scroll-left
+                root.scrolled(Math.max(-root.time-origin, root.scroll-left
                     - (event.delta-x != 0px ? event.delta-x : event.delta-y)
                         / root.px-per-second));
                 return EventResult.accept;
             }
             if (event.delta-x != 0px) {
-                root.scrolled(Math.max(0, root.scroll-left
+                root.scrolled(Math.max(-root.time-origin, root.scroll-left
                     - event.delta-x / root.px-per-second));
             }
             if (event.delta-y != 0px) {
@@ -1402,7 +1425,7 @@ export component Lanes inherits Rectangle {
             background: Theme.grid;
             // Nothing before the start of the cut: a centred view begins
             // half a screen before it, and that half is empty ground.
-            visible: root.tick > 0 && self.seconds >= 0
+            visible: root.tick > 0 && self.seconds >= -root.time-origin
                 && self.x >= 0px && self.x < parent.width;
         }
 
@@ -1445,7 +1468,7 @@ export component Lanes inherits Rectangle {
                         if (event.kind == PointerEventKind.up
                             && Math.abs(self.to-x - self.from-x) <= 4px
                             && Math.abs(self.to-y - self.from-y) <= 4px) {
-                            root.scrubbed(Math.max(0, root.seconds-at(self.from-x)));
+                            root.scrubbed(Math.max(-root.time-origin, root.seconds-at(self.from-x)));
                         }
                         root.band-selected(
                             root.seconds-at(Math.min(self.from-x, self.to-x)),
@@ -1458,7 +1481,7 @@ export component Lanes inherits Rectangle {
                         // A tap on an empty lane: the playhead goes there,
                         // and the empty band a press that never moved would
                         // have closed clears the selection.
-                        root.scrubbed(Math.max(0, root.seconds-at(self.from-x)));
+                        root.scrubbed(Math.max(-root.time-origin, root.seconds-at(self.from-x)));
                         root.band-selected(
                             root.seconds-at(self.from-x), root.seconds-at(self.from-x),
                             root.stack-y(self.from-y), root.stack-y(self.from-y),
@@ -1534,6 +1557,10 @@ export component Lanes inherits Rectangle {
                 root.clip-dragged(seconds + (root.scroll-left - root.press-scroll), pixels);
             }
             pointer-at(x) => { root.pointer-x = self.x + x; }
+            cancelled => {
+                root.clip-dragging = false;
+                root.clip-cancelled();
+            }
             released => {
                 root.clip-dragging = false;
                 root.clip-released();
@@ -1548,7 +1575,7 @@ export component Lanes inherits Rectangle {
             // phone editor.
             clicked(x) => {
                 if (!root.finger) {
-                    root.scrubbed(Math.max(0, root.seconds-at(self.x + x)));
+                    root.scrubbed(Math.max(-root.time-origin, root.seconds-at(self.x + x)));
                 }
             }
             hovered(x) => { root.hover-at(self.x + x); }
@@ -1687,7 +1714,7 @@ export component Lanes inherits Rectangle {
                 height: root.ruler-height;
                 background: Colors.transparent;
                 // And none before the cut starts; see the grid.
-                visible: root.tick > 0 && self.seconds >= 0 && self.x < parent.width;
+                visible: root.tick > 0 && self.seconds >= -root.time-origin && self.x < parent.width;
 
                 Rectangle {
                     x: 0;
@@ -1702,7 +1729,7 @@ export component Lanes inherits Rectangle {
                     y: 0;
                     width: parent.width - 7px;
                     height: parent.height - 7px;
-                    text: Fmt.frames-timecode(parent.seconds, root.frame-rate);
+                    text: Fmt.frames-timecode(root.time-origin + parent.seconds, root.frame-rate);
                     color: Theme.fg-dim;
                     font-size: Theme.fs-xs;
                     vertical-alignment: center;
@@ -1738,14 +1765,14 @@ export component Lanes inherits Rectangle {
                             root.finger-down(self.mouse-x, self.mouse-y, event.touch-finger-id);
                         } else if (event.kind == PointerEventKind.up
                             && root.finger-up(event.touch-finger-id)) {
-                            root.scrubbed(Math.max(0, root.seconds-at(self.mouse-x)));
+                            root.scrubbed(Math.max(-root.time-origin, root.seconds-at(self.mouse-x)));
                         }
                         return;
                     }
                     if (event.kind == PointerEventKind.down) {
                         root.scrubbing = true;
                         root.pointer-x = self.mouse-x;
-                        root.scrubbed(Math.max(0, root.seconds-at(self.mouse-x)));
+                        root.scrubbed(Math.max(-root.time-origin, root.seconds-at(self.mouse-x)));
                     } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
                         root.scrubbing = false;
                     }
@@ -1759,7 +1786,7 @@ export component Lanes inherits Rectangle {
                     }
                     if (self.pressed) {
                         root.pointer-x = self.mouse-x;
-                        root.scrubbed(Math.max(0, root.seconds-at(self.mouse-x)));
+                        root.scrubbed(Math.max(-root.time-origin, root.seconds-at(self.mouse-x)));
                     }
                 }
             }
@@ -1793,7 +1820,7 @@ export component Lanes inherits Rectangle {
                 moved => {
                     if (self.pressed) {
                         self.dragging = true;
-                        self.drag-to = Math.max(0,
+                        self.drag-to = Math.max(-root.time-origin,
                             root.seconds-at(root.at(mark) + self.mouse-x - self.pressed-x));
                     }
                 }
@@ -1855,7 +1882,7 @@ export component Lanes inherits Rectangle {
         // not as the dim hover line. Under the playhead, over the clips.
         // https://github.com/jub0t/Concat/issues/241
         if root.tool == TimelineTool.split && root.hover-on: Rectangle {
-            x: root.at(Math.round(root.seconds-at(root.hover-x) * root.frame-rate)
+            x: root.at((Math.round(root.seconds-at(root.hover-x) * root.frame-rate + root.frame-phase) - root.frame-phase)
                 / Math.max(1, root.frame-rate));
             y: 0;
             width: 1px;
@@ -1913,7 +1940,7 @@ export component Lanes inherits Rectangle {
                 }
                 if (event.kind == PointerEventKind.move && self.pressed) {
                     let delta = self.mouse-x - last-x;
-                    root.scrolled(Math.max(0.0, root.scroll-left - delta / root.px-per-second));
+                    root.scrolled(Math.max(-root.time-origin, root.scroll-left - delta / root.px-per-second));
                     last-x = self.mouse-x;
                 }
                 if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {

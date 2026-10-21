@@ -95,6 +95,9 @@ export component TimelinePane inherits Rectangle {
     in property <float> playhead;
     in property <[float]> key-marks;
     in property <float> frame-rate: 30;
+    in property <float> absolute-scroll;
+    in property <int> time-origin;
+    in property <float> frame-phase;
     in property <float> scroll-left;
     in property <float> seconds-per-pixel: 0.05;
     /// Where the cut ends, in seconds; see the bar under the lanes.
@@ -110,6 +113,7 @@ export component TimelinePane inherits Rectangle {
     callback clip-volume(id: string, gain: float);
     callback clip-dragged(seconds: float, pixels: length);
     callback clip-released();
+    callback clip-cancelled();
     in property <[MenuItemData]> menu-items;
     in property <length> menu-height;
     in property <int> menu-token;
@@ -426,6 +430,8 @@ export component TimelinePane inherits Rectangle {
                 tool: root.tool;
                 playhead: root.playhead;
                 frame-rate: root.frame-rate;
+                time-origin: root.time-origin;
+                frame-phase: root.frame-phase;
                 scroll-left: root.scroll-left;
                 seconds-per-pixel: root.seconds-per-pixel;
                 track-scroll: root.at;
@@ -443,6 +449,7 @@ export component TimelinePane inherits Rectangle {
                 clip-volume(id, gain) => { root.clip-volume(id, gain); }
                 clip-dragged(seconds, pixels) => { root.clip-dragged(seconds, pixels); }
                 clip-released => { root.clip-released(); }
+                clip-cancelled => { root.clip-cancelled(); }
                 menu-items: root.menu-items;
                 menu-height: root.menu-height;
                 menu-token: root.menu-token;
@@ -489,10 +496,10 @@ export component TimelinePane inherits Rectangle {
                 viewport: lanes.width;
                 content: Math.max(
                     (root.duration-seconds / root.seconds-per-pixel) * 1px + lanes.width / 4,
-                    (root.scroll-left / root.seconds-per-pixel) * 1px + lanes.width);
-                offset: (root.scroll-left / root.seconds-per-pixel) * 1px;
+                    (root.absolute-scroll / root.seconds-per-pixel) * 1px + lanes.width);
+                offset: (root.absolute-scroll / root.seconds-per-pixel) * 1px;
                 scrolled(offset) => {
-                    root.scrolled(Math.max(0, (offset / 1px) * root.seconds-per-pixel));
+                    root.scrolled((offset / 1px) * root.seconds-per-pixel - root.absolute-scroll + root.scroll-left);
                 }
             }
 

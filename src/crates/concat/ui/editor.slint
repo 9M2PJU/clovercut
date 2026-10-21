@@ -353,6 +353,11 @@ export global Editor {
     /// diamonds. Empty unless exactly one clip is selected.
     in-out property <[float]> key-marks;
     in-out property <float> frame-rate;
+    /// Timeline geometry and callbacks are relative to this integer origin.
+    in-out property <int> time-origin;
+    in-out property <float> frame-phase;
+    in-out property <float> timeline-playhead;
+    in-out property <float> absolute-scroll;
     in-out property <float> scroll-left;
     in-out property <float> seconds-per-pixel;
     /// Where the cut ends, in seconds: how far the lanes can scroll to.
@@ -435,6 +440,7 @@ export global Editor {
     callback clip-volume(id: string, gain: float);
     callback clip-dragged(seconds: float, pixels: length);
     callback clip-released();
+    callback clip-cancelled();
     in-out property <[MenuItemData]> menu-items;
     in-out property <length> menu-height;
     in-out property <int> menu-token;

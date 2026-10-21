@@ -357,7 +357,7 @@ impl ExportPane {
     /// keeps to, so this is what is written, give or take.
     pub fn size_bytes(&self, studio: &Studio) -> f32 {
         let video = self.target_kbps(studio) as f32 * 1000.0;
-        (video + AUDIO_BPS) * studio.duration().max(1.0) / 8.0
+        (video + AUDIO_BPS) * studio.duration().max(1.0) as f32 / 8.0
     }
 
     /// The codec the sheet has chosen - HEVC for an HDR file where H.264

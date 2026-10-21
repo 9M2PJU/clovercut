@@ -169,7 +169,7 @@ pub struct Coast {
     pub tracking: bool,
     /// The glide, when it was thrown, and the furthest it may go: the end
     /// of the cut, or where it started if that was already past it.
-    pub glide: Option<(Glide, Instant, f32)>,
+    pub glide: Option<(Glide, Instant, f64)>,
     epoch: Instant,
 }
 
