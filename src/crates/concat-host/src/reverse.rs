@@ -156,6 +156,7 @@ fn span_clip(request: &ReverseRequest, chain: &str) -> AudioClip {
         source_start: request.start,
         speed: 1.0,
         preserve_pitch: true,
+        retime: None,
         volume: 1.0,
         volume_curve: concat_core::animate::Track::new(Vec::new()),
         fade_in: 0.0,

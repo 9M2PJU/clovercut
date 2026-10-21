@@ -435,6 +435,7 @@ impl Transcriber {
                 start: Some(request.source_start),
                 duration: Some(request.window),
                 filters: Vec::new(),
+                retime: None,
                 rate: 16_000,
                 channels: 1,
                 format: SampleFormat::F32,

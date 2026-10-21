@@ -2567,6 +2567,10 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     // loop's end takes below, for the same reason - the engine's threads
     // are not waited on.
     if smoke {
+        if let Err(error) = concat_media::audio::require_tempo_filters() {
+            log::error!("smoke: {error}");
+            leave(1);
+        }
         // whisper's CPU kernels, which the x86_64 Windows and Linux bundles
         // carry as modules beside the program, one per CPU generation, for
         // ggml to choose from (#388). A bundle without them starts and

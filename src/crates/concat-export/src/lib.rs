@@ -1321,29 +1321,35 @@ fn track_slice(track: &AnimTrack, x0: f64, x1: f64) -> AnimTrack {
     AnimTrack::new(keys)
 }
 
-/// The engine's view of one audible clip - or several, when its speed
-/// changes over it. Sound can only change tempo in steps, so a curve is cut
-/// into pieces of constant rate, each at the mean of its stretch of the
-/// curve and starting where the curve says the source had got to.
+/// The engine's view of one audible clip. Pitch-preserving curves carry
+/// one tempo map so the codec and overlap filter stay alive throughout.
+/// Tape-speed curves use constant-rate pieces, each consuming exactly its
+/// stretch of the source clock.
 pub fn audio_pieces(clip: &ExportClip) -> Vec<AudioClip> {
     let chain = clip.filter_chain.clone();
     let track = volume_track(clip);
-    let Some(curve) = clip.retime() else {
+    let retime = clip.retime();
+    if retime.is_none() || clip.preserve_pitch {
         return vec![AudioClip {
             path: PathBuf::from(&clip.path),
             stream: clip.audio_stream.map(|index| index as usize),
             start: clip.start,
             duration: clip.duration,
             source_start: clip.source_start,
-            speed: audio::clamp_speed(clip.speed),
+            speed: audio::clamp_speed(retime.as_ref().map_or(clip.speed, |curve| curve.mean())),
             preserve_pitch: clip.preserve_pitch,
+            retime: retime.map(|curve| audio::TempoCurve {
+                curve,
+                duration: clip.duration,
+            }),
             volume: clip.volume,
             volume_curve: track,
             fade_in: clip.fade_in,
             fade_out: clip.fade_out,
             filter_chain: chain,
         }];
-    };
+    }
+    let curve = retime.expect("the non-constant tape-speed path");
     // Pieces a tenth of a second long, or eight at least: fine enough that
     // a tempo step is not heard, coarse enough that the graph stays small.
     let count = ((clip.duration / 0.1).ceil() as usize).clamp(8, 400);
@@ -1368,6 +1374,7 @@ pub fn audio_pieces(clip: &ExportClip) -> Vec<AudioClip> {
                 source_start,
                 speed: audio::clamp_speed(mean),
                 preserve_pitch: clip.preserve_pitch,
+                retime: None,
                 volume: clip.volume,
                 volume_curve: track_slice(&track, x0, x1),
                 fade_in: if clip.fade_in > 0.0 { fade_in } else { 0.0 },

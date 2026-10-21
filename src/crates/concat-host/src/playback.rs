@@ -119,6 +119,9 @@ pub struct ClipSpec {
     pub speed: f64,
     /// Whether a speed change keeps the pitch.
     pub preserve_pitch: bool,
+    /// Internal continuous tempo map from the flattened project.
+    #[serde(skip)]
+    pub retime: Option<concat_media::audio::TempoCurve>,
     /// FFmpeg audio filter chain, or empty.
     #[serde(default)]
     pub chain: String,
@@ -796,6 +799,21 @@ fn decode_key(spec: &ClipSpec) -> String {
     eat(&spec.speed.to_bits().to_le_bytes());
     eat(&[u8::from(spec.preserve_pitch)]);
     eat(spec.chain.as_bytes());
+    if let Some(retime) = &spec.retime {
+        eat(b"continuous-rubberband-v1");
+        eat(&retime.duration.to_bits().to_le_bytes());
+        for &(at, speed) in retime.curve.points() {
+            eat(&at.to_bits().to_le_bytes());
+            eat(&speed.to_bits().to_le_bytes());
+        }
+        if let Some(slopes) = retime.curve.slopes() {
+            eat(b"smooth");
+            for slope in slopes {
+                eat(&slope.to_bits().to_le_bytes());
+            }
+        }
+    }
+
     // Only when a stream is named, so every key from before streams were
     // named still finds its file.
     if let Some(stream) = spec.audio_stream {
@@ -832,8 +850,11 @@ fn decode(spec: &ClipSpec, project: &Path, key: &str) -> Result<Pcm, String> {
     // Speed first, then the clip's own filters - the same order the export
     // graph applies, because these are one definition, not two. The engine
     // owns what speed *means*; this function only decodes.
-    let mut filters: Vec<String> =
-        concat_media::audio::speed_filters(spec.speed, spec.preserve_pitch);
+    let mut filters: Vec<String> = if spec.retime.is_some() {
+        Vec::new()
+    } else {
+        concat_media::audio::speed_filters(spec.speed, spec.preserve_pitch)
+    };
     if !spec.chain.is_empty() {
         filters.push(spec.chain.clone());
     }
@@ -849,6 +870,7 @@ fn decode(spec: &ClipSpec, project: &Path, key: &str) -> Result<Pcm, String> {
             start: Some(spec.source_start),
             duration: Some(window),
             filters,
+            retime: spec.retime.clone(),
             rate: PCM_RATE,
             channels: 2,
             format: SampleFormat::I16,
@@ -1221,6 +1243,44 @@ mod tests {
     use super::{COAST, Shared, sweep_plan, wav_data_range};
     use std::sync::atomic::Ordering;
 
+    fn assert_clean_tone_tail(played: &[f32], reference: &[f32], clip: &concat_export::ExportClip) {
+        let rate = f64::from(super::PCM_RATE);
+        let curve = clip.retime().unwrap();
+        let begin = (2.0 * rate) as usize;
+        let end = ((clip.duration - 0.1) * rate) as usize;
+        let amplitude = |samples: &[f32], frequency: f64| {
+            let mut real = 0.0;
+            let mut imaginary = 0.0;
+            for (n, &sample) in samples.iter().enumerate() {
+                let angle = std::f64::consts::TAU * frequency * n as f64 / rate;
+                real += f64::from(sample) * angle.cos();
+                imaginary += f64::from(sample) * angle.sin();
+            }
+            2.0 * real.hypot(imaginary) / samples.len() as f64
+        };
+        // Pitch preservation may change phase. Test what is audible:
+        // no periodic loss of either tone's level, and no click impulses.
+        for at in (begin..end - 4800).step_by(4800) {
+            let t = at as f64 / rate;
+            let source =
+                clip.source_start + clip.duration * curve.consumed(t / clip.duration) - 2.0;
+            let source = (source * rate).round() as usize;
+            for frequency in [439.0, 997.0] {
+                let expected = amplitude(&reference[source..source + 4800], frequency);
+                let actual = amplitude(&played[at..at + 4800], frequency);
+                assert!(
+                    (actual - expected).abs() < expected * 0.1,
+                    "tone {frequency}Hz at {t}s: amplitude {actual}, expected {expected}"
+                );
+            }
+        }
+        let jump = played[begin..end]
+            .windows(2)
+            .map(|p| (p[1] - p[0]).abs())
+            .fold(0.0f32, f32::max);
+        assert!(jump < 0.065, "click impulse in normal-speed tail: {jump}");
+    }
+
     #[test]
     fn a_speed_ramp_returning_to_unity_keeps_the_original_samples() {
         use super::{ClipSpec, PCM_RATE, decode, decode_key};
@@ -1233,10 +1293,11 @@ mod tests {
                 path: path.to_string_lossy().into_owned(),
                 audio_stream: None,
                 start: 0.0,
-                duration: 10.0,
+                duration: 5.0,
                 source_start: 2.0,
                 speed: 1.0,
                 preserve_pitch: true,
+                retime: None,
                 volume: 1.0,
                 volume_curve: vec![],
                 fade_in: 0.0,
@@ -1247,6 +1308,9 @@ mod tests {
             "reference",
         )
         .unwrap();
+        let reference: Vec<f32> = (0..reference.frames)
+            .map(|n| reference.sample(n, 0))
+            .collect();
         for (preserve_pitch, returned_speed) in [
             (true, 1.0),
             (false, 1.0),
@@ -1258,12 +1322,17 @@ mod tests {
             clip.preserve_pitch = preserve_pitch;
             clip.speed_curve = vec![(0.0, 1.0), (0.15, 2.0), (0.3, returned_speed), (1.0, 1.0)];
             clip.speed_slopes = vec![0.0; 4];
-            let mut squared_error = 0.0;
-            let mut frames = 0;
-            for piece in audio_pieces(&clip)
-                .into_iter()
-                .filter(|piece| piece.start >= 2.0)
-            {
+            let pieces = audio_pieces(&clip);
+            if preserve_pitch {
+                assert_eq!(
+                    pieces.len(),
+                    1,
+                    "a pitch-preserving curve must keep one continuous filter"
+                );
+                assert!(pieces[0].retime.is_some());
+            }
+            let mut played = vec![0.0; (clip.duration * f64::from(PCM_RATE)) as usize];
+            for piece in pieces {
                 let spec = ClipSpec {
                     path: clip.path.clone(),
                     audio_stream: None,
@@ -1272,6 +1341,7 @@ mod tests {
                     source_start: piece.source_start,
                     speed: piece.speed,
                     preserve_pitch,
+                    retime: piece.retime.clone(),
                     volume: 1.0,
                     volume_curve: vec![],
                     fade_in: 0.0,
@@ -1279,29 +1349,131 @@ mod tests {
                     chain: String::new(),
                 };
                 let pcm = decode(&spec, dir.path(), &decode_key(&spec)).unwrap();
-                let count = (piece.duration * f64::from(PCM_RATE)).round() as u64;
-                let source = (piece.source_start * f64::from(PCM_RATE)).round() as u64;
-                assert!(
-                    pcm.frames + 2 >= count,
-                    "short audio block: {} of {count}, speed {}",
-                    pcm.frames,
-                    piece.speed
-                );
-                for frame in 0..count {
-                    let expected = reference.sample(source + frame - u64::from(PCM_RATE) * 2, 0);
-                    squared_error += f64::from((pcm.sample(frame, 0) - expected).powi(2));
+                let start = (piece.start * f64::from(PCM_RATE)).round() as usize;
+                let count = (piece.duration * f64::from(PCM_RATE)).round() as usize;
+                for frame in 0..count.min(played.len() - start) {
+                    played[start + frame] = pcm.sample(frame as u64, 0);
                 }
-                frames += count;
             }
-            let error = (squared_error / frames as f64).sqrt();
+            assert_clean_tone_tail(&played, &reference, &clip);
+        }
+    }
+
+    #[test]
+    fn a_continuous_tempo_curve_keeps_the_source_clock() {
+        use super::{ClipSpec, PCM_RATE, WavWriter, decode, decode_key};
+        use concat_export::{ClipKind, ExportClip, audio_pieces};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("clock.wav");
+        let mut file = std::fs::File::create(&path).unwrap();
+        let mut writer = WavWriter::start(&mut file).unwrap();
+        let bytes: Vec<u8> = (0..PCM_RATE * 8)
+            .flat_map(|frame| {
+                let t = f64::from(frame) / f64::from(PCM_RATE);
+                let sample = if (t as u32) % 2 == 1 {
+                    (10000.0 * (std::f64::consts::TAU * 440.0 * t).sin()) as i16
+                } else {
+                    0
+                };
+                sample.to_le_bytes().repeat(2)
+            })
+            .collect();
+        writer.write(&mut file, &bytes).unwrap();
+        writer.finish(&mut file).unwrap();
+        for speed in [2.0, 3.3, 0.25] {
+            let mut clip = ExportClip::blank(ClipKind::Audio, 0.0, 4.0, 0);
+            clip.path = path.to_string_lossy().into_owned();
+            clip.speed_curve = vec![(0.0, speed), (0.25, 1.0), (1.0, 1.0)];
+            clip.speed_slopes = vec![0.0; 3];
+            let piece = audio_pieces(&clip).remove(0);
+            let spec = ClipSpec {
+                path: clip.path.clone(),
+                audio_stream: None,
+                start: 0.0,
+                duration: 4.0,
+                source_start: 0.0,
+                speed: piece.speed,
+                preserve_pitch: true,
+                retime: piece.retime,
+                volume: 1.0,
+                volume_curve: vec![],
+                fade_in: 0.0,
+                fade_out: 0.0,
+                chain: String::new(),
+            };
+            let pcm = decode(&spec, dir.path(), &decode_key(&spec)).unwrap();
+            if speed == 2.0 {
+                let onset = (2200..2800)
+                    .step_by(5)
+                    .find(|ms| {
+                        let start = ms * 48;
+                        let power: f64 = (start..start + 480)
+                            .map(|n| f64::from(pcm.sample(n, 0)).powi(2))
+                            .sum();
+                        (power / 480.0).sqrt() > 0.1
+                    })
+                    .expect("the source's three-second tone must arrive");
+                assert!(
+                    (onset as i64 - 2500).abs() <= 50,
+                    "tone arrived at {onset} ms"
+                );
+            }
             assert!(
-                frames > u64::from(PCM_RATE),
-                "must check the sustained 1x tail"
+                (pcm.frames as f64 / f64::from(PCM_RATE) - 4.0).abs() < 0.15,
+                "speed {speed}: decoded {} frames",
+                pcm.frames
             );
-            assert!(
-                error < 0.01,
-                "1x tail RMS error {error}, preserve_pitch={preserve_pitch}"
-            );
+            let curve = clip.retime().unwrap();
+            for t in [1.65, 2.65, 3.65] {
+                let source = 4.0 * curve.consumed(t / 4.0);
+                let sounding = source.floor() as u32 % 2 == 1;
+                let start = ((t - 0.025) * f64::from(PCM_RATE)) as u64;
+                let power: f64 = (start..start + 2400)
+                    .map(|n| f64::from(pcm.sample(n, 0)).powi(2))
+                    .sum();
+                let rms = (power / 2400.0).sqrt();
+                assert!(
+                    if sounding { rms > 0.1 } else { rms < 0.02 },
+                    "speed {speed}, timeline {t}, source {source}: RMS {rms}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_flat_unity_curve_decodes_like_an_ordinary_clip() {
+        use super::{ClipSpec, decode, decode_key};
+        use concat_export::{ClipKind, ExportClip, audio_pieces};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("music.mp3");
+        std::fs::write(&path, include_bytes!("../tests/data/speed-ramp-tone.mp3")).unwrap();
+        let mut clip = ExportClip::blank(ClipKind::Audio, 0.0, 2.0, 0);
+        clip.path = path.to_string_lossy().into_owned();
+        clip.source_start = 1.0;
+        clip.speed_curve = vec![(0.0, 1.0), (1.0, 1.0)];
+        clip.speed_slopes = vec![0.0; 2];
+        let piece = audio_pieces(&clip).remove(0);
+        let mut spec = ClipSpec {
+            path: clip.path,
+            audio_stream: None,
+            start: 0.0,
+            duration: 2.0,
+            source_start: 1.0,
+            speed: piece.speed,
+            preserve_pitch: true,
+            retime: piece.retime,
+            volume: 1.0,
+            volume_curve: vec![],
+            fade_in: 0.0,
+            fade_out: 0.0,
+            chain: String::new(),
+        };
+        let curved = decode(&spec, dir.path(), &decode_key(&spec)).unwrap();
+        spec.retime = None;
+        let ordinary = decode(&spec, dir.path(), &decode_key(&spec)).unwrap();
+        assert_eq!(curved.frames, ordinary.frames);
+        for frame in 0..curved.frames {
+            assert_eq!(curved.sample(frame, 0), ordinary.sample(frame, 0));
         }
     }
 
@@ -1324,6 +1496,7 @@ mod tests {
         .unwrap()
         .collect_f32()
         .unwrap();
+        let reference: Vec<f32> = reference.chunks_exact(2).map(|p| p[0]).collect();
         let mut clip = ExportClip::blank(ClipKind::Audio, 0.0, 4.137, 0);
         clip.path = path.to_string_lossy().into_owned();
         clip.source_start = 2.0;
@@ -1341,31 +1514,8 @@ mod tests {
         .unwrap()
         .collect_f32()
         .unwrap();
-        let curve = clip.retime().unwrap();
-        let start = (2.0 * 48000.0) as usize;
-        let end = (3.9 * 48000.0) as usize;
-        // Allow a single small codec/resampler delay; periodic gaps or
-        // overlapping pieces cannot be corrected by one fixed alignment.
-        let error = (-100i64..=100)
-            .map(|lag| {
-                let mut squared = 0.0;
-                let mut count = 0;
-                for frame in (start..end).step_by(8) {
-                    let t = frame as f64 / 48000.0;
-                    let source = clip.duration * curve.consumed(t / clip.duration);
-                    let at = ((source * 48000.0).round() as i64 + lag) as usize;
-                    let difference = rendered[frame * 2] - reference[at * 2];
-                    squared += f64::from(difference * difference);
-                    count += 1;
-                }
-                (squared / count as f64).sqrt()
-            })
-            .min_by(f64::total_cmp)
-            .unwrap();
-        assert!(
-            error < 0.02,
-            "exported normal-speed tail RMS error: {error}"
-        );
+        let rendered: Vec<f32> = rendered.chunks_exact(2).map(|p| p[0]).collect();
+        assert_clean_tone_tail(&rendered, &reference, &clip);
     }
 
     #[test]

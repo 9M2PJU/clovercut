@@ -13218,6 +13218,7 @@ pub(crate) fn audio_specs(clips: &[concat_export::ExportClip]) -> Vec<ClipSpec> 
             fade_out: piece.fade_out,
             speed: piece.speed,
             preserve_pitch: piece.preserve_pitch,
+            retime: piece.retime,
             chain: piece.filter_chain,
         })
         .collect()

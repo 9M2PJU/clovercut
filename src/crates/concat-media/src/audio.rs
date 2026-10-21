@@ -39,6 +39,64 @@ pub fn clamp_speed(speed: f64) -> f64 {
     speed.clamp(*SPEED_RANGE.start(), *SPEED_RANGE.end())
 }
 
+/// A continuous pitch-preserving tempo map over a clip's timeline span.
+#[derive(Clone, Debug)]
+pub struct TempoCurve {
+    /// The source clock, including smooth slopes.
+    pub curve: concat_core::SpeedCurve,
+    /// Timeline seconds covered by the map.
+    pub duration: f64,
+}
+
+/// Checks the runtime audio filters required by continuous speed curves.
+/// Packaging smoke tests use this before accepting a bundle.
+pub fn require_tempo_filters() -> Result<()> {
+    ffi::init();
+    for name in ["rubberband", "asendcmd", "asetnsamples"] {
+        if ffmpeg::filter::find(name).is_none() {
+            return Err(Error::Missing {
+                what: "filter",
+                name: name.to_owned(),
+            });
+        }
+    }
+    Ok(())
+}
+
+/// A persistent tempo filter whose rate changes without restarting its
+/// overlap window. Source-clock commands change Rubber Band's time ratio
+/// without resetting its phase or integration origin.
+pub(crate) fn curve_filters(retime: &TempoCurve) -> Vec<String> {
+    let count = ((retime.duration / 0.05).ceil() as usize).clamp(8, 2000);
+    let pieces = retime.curve.pieces(count);
+    let mut commands = Vec::new();
+    let mut previous = format!("{:.6}", pieces[0].3);
+    for &(_, _, consumed, speed) in pieces.iter().skip(1) {
+        let rounded = format!("{speed:.6}");
+        if rounded == previous {
+            continue;
+        }
+        previous = rounded;
+        commands.push(format!(
+            "{:.9} rubberband@ramp tempo {speed:.9}",
+            consumed * retime.duration
+        ));
+    }
+    if commands.is_empty() {
+        return speed_filters(pieces[0].3, true);
+    }
+    vec![
+        format!("aresample={MIX_RATE}"),
+        "asetpts=PTS-STARTPTS".to_owned(),
+        "asetnsamples=n=48:p=0".to_owned(),
+        format!("asendcmd=c='{}'", commands.join(";")),
+        format!(
+            "rubberband@ramp=tempo={:.9}:pitch=1:channels=together",
+            pieces[0].3
+        ),
+    ]
+}
+
 /// One audible clip, in timeline terms.
 #[derive(Clone, Debug)]
 pub struct AudioClip {
@@ -57,6 +115,8 @@ pub struct AudioClip {
     pub speed: f64,
     /// True holds pitch while the rate changes; false is the tape effect.
     pub preserve_pitch: bool,
+    /// A continuous tempo map; absent for a constant rate or tape speed.
+    pub retime: Option<TempoCurve>,
     /// Linear gain, one being unity. The whole clip's, unless
     /// `volume_curve` says otherwise.
     pub volume: f64,
@@ -247,7 +307,11 @@ fn mix_graph_from(clips: &[AudioClip], leads: &[f64]) -> Result<String> {
             format!("[{index}:a]anull")
         };
 
-        for filter in speed_filters(speed, clip.preserve_pitch) {
+        let tempo = clip
+            .retime
+            .as_ref()
+            .map_or_else(|| speed_filters(speed, clip.preserve_pitch), curve_filters);
+        for filter in tempo {
             stage.push(',');
             stage.push_str(&filter);
         }
@@ -884,6 +948,7 @@ mod tests {
             source_start: 0.0,
             speed: 1.0,
             preserve_pitch: true,
+            retime: None,
             volume: 1.0,
             volume_curve: Track::default(),
             fade_in: 0.0,
@@ -1171,6 +1236,7 @@ mod tests {
             source_start,
             speed: 1.0,
             preserve_pitch: true,
+            retime: None,
             volume: 1.0,
             volume_curve: Track::default(),
             fade_in: 0.0,

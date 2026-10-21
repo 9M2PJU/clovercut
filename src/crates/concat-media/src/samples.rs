@@ -62,6 +62,8 @@ pub struct AudioOptions {
     /// FFmpeg audio filters to run the window through, in order, before
     /// resampling. Each is validated like a clip's chain.
     pub filters: Vec<String>,
+    /// A continuous pitch-preserving speed curve, applied before the filters.
+    pub retime: Option<crate::audio::TempoCurve>,
     /// Samples per second to come back at.
     pub rate: u32,
     /// One for mono, two for stereo.
@@ -80,6 +82,7 @@ impl Default for AudioOptions {
             start: None,
             duration: None,
             filters: Vec::new(),
+            retime: None,
             rate: 48_000,
             channels: 2,
             format: SampleFormat::I16,
@@ -107,6 +110,9 @@ fn audio_filter(options: &AudioOptions, origin: f64) -> String {
             parts.push(format!("atrim=duration={duration:.6}"));
         }
         (None, None) => {}
+    }
+    if let Some(retime) = &options.retime {
+        parts.extend(crate::audio::curve_filters(retime));
     }
     parts.extend(
         options
@@ -388,6 +394,7 @@ mod tests {
             start: Some(1.5),
             duration: Some(2.0),
             filters: vec!["atempo=2.000000".to_owned(), String::new()],
+            retime: None,
             rate: 16_000,
             channels: 1,
             format: SampleFormat::F32,
