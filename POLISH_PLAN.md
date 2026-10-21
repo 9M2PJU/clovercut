@@ -127,11 +127,11 @@ Additional dependencies:
 **Problems identified:** audio callback clock extrapolates up to 100 ms; background PCM decode and preview workers have independent lifecycles; proxies and original media use distinct request paths; real graphical playback regression is opt-in. These are verification gaps, not confirmed sync failures.
 
 **Tasks:**
-- [ ] 4.1 Run the existing graphical regression with isolated XDG directories and real audio output; record prerequisites and result.
-- [ ] 4.2 Measure flash/tone synchronization at start, after seeking, around cuts and after ten minutes of playback; include fractional rates, nonzero source timestamps, mute and silent projects.
-- [ ] 4.3 Exercise rapid play/pause/scrub/project changes and audio device loss/recovery; confirm old jobs cannot publish stale frames or audio plans.
-- [ ] 4.4 Compare preview and export for speed curves, reverse, transitions, generated captions, selected audio streams and proxy/full-quality switches.
-- [ ] 4.5 Fix each reproduced clock, invalidation or recovery issue separately, preserving Vulkan queue ownership.
+- [x] 4.1 Run the existing graphical regression with isolated XDG directories and real audio output; record prerequisites and result. Task 4.1 complete; see `docs/PLAYBACK_PHASE4.md`.
+- [x] 4.2 Measure flash/tone synchronization at start, after seeking, around cuts and after ten minutes of playback; include fractional rates, nonzero source timestamps, mute and silent projects. Task 4.2 complete; see `docs/PLAYBACK_PHASE4.md`.
+- [x] 4.3 Exercise rapid play/pause/scrub/project changes and audio device loss/recovery; confirm old jobs cannot publish stale frames or audio plans. Task 4.3 complete; see `docs/PLAYBACK_PHASE4.md`.
+- [x] 4.4 Compare preview and export for speed curves, reverse, transitions, generated captions, selected audio streams and proxy/full-quality switches. Task 4.4 complete; see `docs/PLAYBACK_PHASE4.md`.
+- [x] 4.5 Fix each reproduced clock, invalidation or recovery issue separately, preserving Vulkan queue ownership. Task 4.5 complete; see `docs/PLAYBACK_PHASE4.md`.
 
 **Files likely affected:** `C/concat-host/src/{playback,preview,proxy}.rs`, `C/concat/src/{source,host,lib,studio}.rs`, `src/panes/monitor.rs`, `C/concat-media/src/{audio,pool,prefetch,decode}.rs`, `C/concat-export/src/{flatten,resolve,lib}.rs`.
 
@@ -141,7 +141,7 @@ Additional dependencies:
 
 **Verification:** timestamped flash/tone fixture, captured audio/video where available, clock/frame logs and existing PCM/preview tests; compare decoded export rather than relying only on the playhead display.
 
-**Dependencies / status:** Phases 2–3; Not started.
+**Dependencies / status:** Phases 2–3 complete; Phase 4 Tasks 4.1–4.5 Complete. Defect D1 resolved and verified across all 6 project frame rates. Phase 4 satisfies all acceptance criteria within its documented verification scope. Phase 5 remains unauthorized. See `docs/PLAYBACK_PHASE4.md`.
 
 ## 5. UI/UX consistency and professional polish
 
@@ -250,4 +250,6 @@ For 7.3, measure cancellation latency inside synchronous audio mixing and muxing
 **2026-10-21 — Phase 3 final verification:** approved Option A implemented; reproduced T1–T5 corrected. The 524 focused tests, native pointer matrix, decoded cut exports, strict selected-package all-target Clippy, format and diff checks pass. Phase 3 is locally complete; stop before Phase 4. Exact working-tree identity and limits are recorded in `docs/TIMELINE_PHASE3.md`.
 
 
-**Handoff authorization — 2026-10-21:** Phase 3 is approved as complete within its documented local verification scope. Prepare documentation for Google Antigravity only; preserve all production changes and regression tests. No Phase 4 implementation, unrelated code changes, commit, push, reset or clean is authorized. See [AGENT_HANDOFF.md](docs/AGENT_HANDOFF.md) for the exact repository state, continuation instructions and proposed checkpoint procedure.
+**Handoff authorization — 2026-10-21:** Phase 3 is approved as complete within its documented local verification scope. Checkpoint `c115c2d8` committed on `polish/phase3-timeline-precision`.
+
+**2026-10-21 — Phase 4 Task 4.1 verification:** Branch `polish/phase4-playback-sync` created. Existing graphical playback regression `source::tests::new_project_library_and_timeline_playback` passed in isolated XDG directories with discrete Vulkan GPU (`AMD Radeon RX 6600 XT`) and verified CPAL ALSA stream initialization (exit 0, 0.61s). `playback-device-probe.rs` confirmed active 24 callbacks/s on ALSA/PipeWire default output. All 347 package tests, 169 UI unit tests, 5 Phase 3 graphical tests, and 2 Phase 2 durability/lifecycle tests passed. No production code modified; Task 4.1 complete. Details recorded in `docs/PLAYBACK_PHASE4.md`. Tasks 4.2–4.5 not started.

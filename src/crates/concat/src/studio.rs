@@ -14446,3 +14446,15 @@ mod lifecycle_tests {
 #[cfg(all(test, target_os = "linux"))]
 #[path = "phase3_timeline_tests.rs"]
 mod phase3_timeline_tests;
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "phase4_playback_sync_tests.rs"]
+mod phase4_playback_sync_tests;
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "phase4_playback_robustness_tests.rs"]
+mod phase4_playback_robustness_tests;
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "phase4_preview_export_parity_tests.rs"]
+mod phase4_preview_export_parity_tests;

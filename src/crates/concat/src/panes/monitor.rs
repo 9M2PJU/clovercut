@@ -77,6 +77,8 @@ pub struct MonitorPane {
     #[cfg(test)]
     pub(crate) observed_frames: Vec<(FrameSpec, f64, [u8; 4])>,
     #[cfg(test)]
+    pub(crate) observed_instants: Vec<std::time::Instant>,
+    #[cfg(test)]
     requested_clock: f64,
     /// The last frame drawn.
     pub image: slint::Image,
@@ -180,6 +182,7 @@ impl MonitorPane {
                                 self.requested_clock,
                                 bytes[offset..offset + 4].try_into().unwrap(),
                             ));
+                            self.observed_instants.push(std::time::Instant::now());
                         }
                         let buffer =
                             slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(
@@ -211,6 +214,13 @@ impl MonitorPane {
             MonitorMsg::Opened => self.failed = false,
             MonitorMsg::Closed => self.image = slint::Image::default(),
         }
+    }
+
+    /// Clears observed test frames and instants to bound memory during long runs.
+    #[cfg(test)]
+    pub(crate) fn clear_observed(&mut self) {
+        self.observed_frames.clear();
+        self.observed_instants.clear();
     }
 
     /// The quality tier for the project's active timeline: 0 full, 1

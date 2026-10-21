@@ -44,7 +44,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex, mpsc};
 
 use concat_core::animate::{Ease, Key, Track};
@@ -62,6 +62,21 @@ const MEMORY_CACHE_CAP: usize = 64;
 /// minute, so this keeps hours of decoded material before anything is
 /// evicted.
 const DISK_CACHE_BUDGET: u64 = 2 * 1024 * 1024 * 1024;
+
+/// Diagnostic record of an audio output callback buffer.
+#[derive(Clone, Copy, Debug)]
+pub struct CallbackMetric {
+    /// Monotonic instant when the callback processed this buffer.
+    pub instant: std::time::Instant,
+    /// Timeline position at the start of the buffer (seconds).
+    pub start_pos: f64,
+    /// Timeline position at the end of the buffer (seconds).
+    pub end_pos: f64,
+    /// Peak amplitude observed across channels in this buffer.
+    pub peak: f32,
+    /// Number of sample frames in this buffer.
+    pub frames: usize,
+}
 
 /// Concurrent FFmpeg decode processes. Two keeps a dual-span edit prompt
 /// without letting a scrubbed trim fan out a dozen full-file decodes.
@@ -412,6 +427,12 @@ pub struct Playback {
     /// The set most recently sent to the callback, for re-seeding a rebuilt
     /// stream. The supervisor reads it; `resync` writes it.
     last_active: Arc<Mutex<Vec<ActiveClip>>>,
+    /// Recent callback telemetry for synchronization and latency measurements.
+    callback_log: Arc<Mutex<VecDeque<CallbackMetric>>>,
+    /// Injected stream failure flag for fault-injection testing.
+    stream_failed: Arc<AtomicBool>,
+    /// Lifetime stream build/rebuild count for supervisor recovery testing.
+    rebuild_count: Arc<AtomicUsize>,
     /// Whether this holds the fine timer; see [`fine_timer`].
     fine: AtomicBool,
 }
@@ -442,14 +463,31 @@ impl Playback {
         let (tx, rx) = mpsc::channel::<Msg>();
         let shared = Arc::new(Shared::new());
         let last_active: Arc<Mutex<Vec<ActiveClip>>> = Arc::new(Mutex::new(Vec::new()));
+        let callback_log: Arc<Mutex<VecDeque<CallbackMetric>>> =
+            Arc::new(Mutex::new(VecDeque::new()));
+        let stream_failed = Arc::new(AtomicBool::new(false));
+        let rebuild_count = Arc::new(AtomicUsize::new(0));
 
         {
             let shared = Arc::clone(&shared);
             let events = Arc::clone(&events);
             let last_active = Arc::clone(&last_active);
+            let callback_log = Arc::clone(&callback_log);
+            let stream_failed = Arc::clone(&stream_failed);
+            let rebuild_count = Arc::clone(&rebuild_count);
             std::thread::Builder::new()
                 .name("audio-output".into())
-                .spawn(move || supervise_stream(rx, shared, events, last_active))
+                .spawn(move || {
+                    supervise_stream(
+                        rx,
+                        shared,
+                        events,
+                        last_active,
+                        callback_log,
+                        stream_failed,
+                        rebuild_count,
+                    )
+                })
                 .map_err(|error| format!("could not spawn the audio thread: {error}"))?;
         }
 
@@ -487,6 +525,9 @@ impl Playback {
                 available: Condvar::new(),
             }),
             last_active,
+            callback_log,
+            stream_failed,
+            rebuild_count,
             fine: AtomicBool::new(false),
         });
 
@@ -562,6 +603,30 @@ impl Playback {
     /// touched: the picture plays on in time either way.
     pub fn set_muted(&self, muted: bool) {
         self.shared.muted.store(muted, Ordering::Relaxed);
+    }
+
+    /// Drains recent audio output callback records for latency/synchronization analysis.
+    pub fn take_callback_metrics(&self) -> Vec<CallbackMetric> {
+        locked(&self.callback_log).drain(..).collect()
+    }
+
+    /// Telemetry for clock drift analysis: returns `(epoch, origin_micros, position_micros)`.
+    pub fn clock_diagnostics(&self) -> (std::time::Instant, i64, u64) {
+        (
+            self.shared.epoch,
+            self.shared.origin_micros.load(Ordering::Relaxed),
+            self.shared.position_micros.load(Ordering::Relaxed),
+        )
+    }
+
+    /// For recovery testing: triggers a stream failure report to the supervisor.
+    pub fn inject_stream_error(&self) {
+        self.stream_failed.store(true, Ordering::Relaxed);
+    }
+
+    /// Number of times the supervisor has built or rebuilt the audio stream.
+    pub fn rebuild_count(&self) -> usize {
+        self.rebuild_count.load(Ordering::Relaxed)
     }
 
     /// Replaces the audible clip set.
@@ -964,6 +1029,9 @@ fn supervise_stream(
     shared: Arc<Shared>,
     events: Arc<dyn PlaybackEvents>,
     last_active: Arc<Mutex<Vec<ActiveClip>>>,
+    callback_log: Arc<Mutex<VecDeque<CallbackMetric>>>,
+    stream_failed: Arc<AtomicBool>,
+    rebuild_count: Arc<AtomicUsize>,
 ) {
     use cpal::traits::{DeviceTrait, HostTrait};
 
@@ -981,13 +1049,16 @@ fn supervise_stream(
             .ok_or_else(|| "no audio output device".to_owned())
             .and_then(|device| {
                 let name = device.name().unwrap_or_default();
-                build_stream(&device, &rx, &shared, &events, &last_active).map(|s| (s, name))
+                build_stream(&device, &rx, &shared, &events, &last_active, &callback_log)
+                    .map(|s| (s, name))
             });
 
         match built {
             Ok((stream, device_name)) => {
                 backoff = std::time::Duration::from_secs(1);
                 reported_missing = false;
+                rebuild_count.fetch_add(1, Ordering::Relaxed);
+                stream_failed.store(false, Ordering::Relaxed);
 
                 // Watch for the two reasons to rebuild: the stream reported
                 // an error, or the default device is no longer the one the
@@ -996,8 +1067,8 @@ fn supervise_stream(
                 let failed = stream.failed;
                 let _stream = stream.stream;
                 loop {
-                    std::thread::sleep(std::time::Duration::from_millis(1000));
-                    if failed.load(Ordering::Relaxed) {
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                    if failed.load(Ordering::Relaxed) || stream_failed.load(Ordering::Relaxed) {
                         report(
                             events.as_ref(),
                             "audio stream failed; rebuilding".to_owned(),
@@ -1067,6 +1138,7 @@ fn build_stream(
     shared: &Arc<Shared>,
     events: &Arc<dyn PlaybackEvents>,
     last_active: &Arc<Mutex<Vec<ActiveClip>>>,
+    callback_log: &Arc<Mutex<VecDeque<CallbackMetric>>>,
 ) -> Result<BuiltStream, String> {
     use cpal::traits::DeviceTrait;
 
@@ -1077,15 +1149,33 @@ fn build_stream(
     let config: cpal::StreamConfig = config.into();
 
     match sample_format {
-        cpal::SampleFormat::F32 => {
-            stream_for::<f32>(device, &config, rx, shared, events, last_active)
-        }
-        cpal::SampleFormat::I16 => {
-            stream_for::<i16>(device, &config, rx, shared, events, last_active)
-        }
-        cpal::SampleFormat::U16 => {
-            stream_for::<u16>(device, &config, rx, shared, events, last_active)
-        }
+        cpal::SampleFormat::F32 => stream_for::<f32>(
+            device,
+            &config,
+            rx,
+            shared,
+            events,
+            last_active,
+            callback_log,
+        ),
+        cpal::SampleFormat::I16 => stream_for::<i16>(
+            device,
+            &config,
+            rx,
+            shared,
+            events,
+            last_active,
+            callback_log,
+        ),
+        cpal::SampleFormat::U16 => stream_for::<u16>(
+            device,
+            &config,
+            rx,
+            shared,
+            events,
+            last_active,
+            callback_log,
+        ),
         other => Err(format!("unsupported sample format {other:?}")),
     }
 }
@@ -1097,6 +1187,7 @@ fn stream_for<T>(
     shared: &Arc<Shared>,
     events: &Arc<dyn PlaybackEvents>,
     last_active: &Arc<Mutex<Vec<ActiveClip>>>,
+    callback_log: &Arc<Mutex<VecDeque<CallbackMetric>>>,
 ) -> Result<BuiltStream, String>
 where
     T: cpal::SizedSample + cpal::FromSample<f32>,
@@ -1115,6 +1206,7 @@ where
     let failed = Arc::new(AtomicBool::new(false));
     let rx = Arc::clone(rx);
     let shared = Arc::clone(shared);
+    let callback_log = Arc::clone(callback_log);
 
     let stream = device
         .build_output_stream(
@@ -1153,6 +1245,7 @@ where
                     return;
                 }
 
+                let start_pos = position;
                 let silent = shared.muted.load(Ordering::Relaxed);
                 let (mut loudest_left, mut loudest_right) = (0.0f32, 0.0f32);
                 for frame in data.chunks_mut(channels) {
@@ -1215,7 +1308,24 @@ where
                     }
                 }
 
-                shared.stamp(position);
+                if let Ok(mut log) = callback_log.try_lock() {
+                    log.push_back(CallbackMetric {
+                        instant: std::time::Instant::now(),
+                        start_pos,
+                        end_pos: position,
+                        peak: loudest_left.max(loudest_right),
+                        frames: data.len() / channels,
+                    });
+                    if log.len() > 4096 {
+                        log.drain(0..2048);
+                    }
+                }
+
+                // Land the shared clock at start_pos (the timeline position of the
+                // audio buffer currently being delivered to the device). Stamping
+                // the buffer-end (position) would advance the software playback
+                // clock ahead of the audible stream by a full buffer duration.
+                shared.stamp(start_pos);
             },
             {
                 let events = Arc::clone(events);
