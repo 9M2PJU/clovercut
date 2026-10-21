@@ -2822,7 +2822,7 @@ mod tests {
     fn save_then_release(slot: &RefCell<Option<Session>>) -> Result<(), String> {
         let mut slot = slot.borrow_mut();
         let result = match slot.as_mut() {
-            Some(session) => session.save(None),
+            Some(session) => session.save(None).map(|_| ()),
             None => Ok(()),
         };
         if result.is_ok() {

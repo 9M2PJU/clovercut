@@ -480,8 +480,14 @@ pub struct Picture {
 }
 
 /// The empty reply, an object so every reply is one.
-#[derive(Clone, Copy, PartialEq, Debug, Default, Serialize, Deserialize)]
-pub struct Done {}
+#[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Done {
+    /// Replacement committed; directory durability was not confirmed. The
+    /// operation succeeded and close is allowed. Absent on ordinary success.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub save_warning: Option<String>,
+}
 
 /// One effect package, as a caller building a chain needs it.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]

@@ -182,7 +182,7 @@ mod tests {
     fn a_reply_carries_the_id_and_an_error_its_code_twice() {
         let ok = Message::Reply {
             id: Some(json!(1)),
-            response: Response::Result(Reply::Done(Done {})),
+            response: Response::Result(Reply::Done(Done::default())),
         };
         assert_eq!(
             ok.to_value(),

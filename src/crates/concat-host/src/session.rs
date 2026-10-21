@@ -79,18 +79,24 @@ impl Session {
         let editor = match projects::read_document(path) {
             Ok(Some(document)) => match Editor::from_document(&document) {
                 Some(editor) => editor,
-                // The settings-only manifest `create` writes: a project
-                // closed before its first edit reopens empty, it is not
-                // corrupt.
-                None if projects::is_settings_only(&document) => {
-                    Editor::with_video(settings.video())
-                }
                 None if concat_project::document_version(&document)
                     > concat_project::DOCUMENT_VERSION =>
                 {
                     return Err(format!(
                         "{path} was saved by a newer Clovercut than this one: update to open it"
                     ));
+                }
+                // The settings-only fallback is for supported documents only:
+                // a future build may store its edit under fields we do not know.
+                None if projects::is_settings_only(&document) => {
+                    // Seed only the missing timeline, then use the usual reader
+                    // so unknown manifest fields survive the first save too.
+                    let mut seeded = document;
+                    seeded["timelines"] =
+                        serde_json::to_value(Project::with_video(settings.video()).timelines)
+                            .map_err(|error| format!("could not initialize {path}: {error}"))?;
+                    Editor::from_document(&seeded)
+                        .ok_or_else(|| format!("{path} holds a document this build cannot read"))?
                 }
                 None => {
                     return Err(format!("{path} holds a document this build cannot read"));
@@ -290,7 +296,7 @@ impl Session {
     }
 
     /// Writes the session's document to its project folder.
-    pub fn save(&mut self, name: Option<&str>) -> Result<(), String> {
+    pub fn save(&mut self, name: Option<&str>) -> Result<projects::Saved, String> {
         let (path, document) = self.prepare_save(name);
         projects::save(&path, &document)
     }
@@ -375,6 +381,93 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(&scratch);
+    }
+
+    #[test]
+    fn a_newer_settings_manifest_cannot_be_opened_and_saved_as_an_empty_edit() {
+        let scratch = tempfile::tempdir().expect("disposable project parent");
+        let info = projects::create(
+            scratch.path().to_str().unwrap(),
+            "Future",
+            1920,
+            1080,
+            30,
+            1,
+        )
+        .expect("creates a disposable project");
+        let mut document = projects::read_document(&info.path).unwrap().unwrap();
+        document["version"] = serde_json::json!(concat_project::DOCUMENT_VERSION + 1);
+        document["futureEdits"] = serde_json::json!({"clips": [{"id": "recoverable"}]});
+        let manifest = projects::manifest_path(std::path::Path::new(&info.path));
+        let before = serde_json::to_vec_pretty(&document).unwrap();
+        std::fs::write(&manifest, &before).unwrap();
+
+        match Session::open_info(&info) {
+            Err(error) => assert!(error.contains("newer Clovercut"), "{error}"),
+            Ok(mut session) => {
+                session
+                    .save(None)
+                    .expect("demonstrates the unsafe resave only in this disposable project");
+                let after = projects::read_document(&info.path).unwrap().unwrap();
+                panic!(
+                    "a future manifest opened as empty and could be overwritten: version={}, futureEdits={:?}",
+                    after["version"],
+                    after.get("futureEdits")
+                );
+            }
+        }
+        assert_eq!(
+            std::fs::read(&manifest).unwrap(),
+            before,
+            "refusal preserves the original bytes"
+        );
+    }
+
+    #[test]
+    fn unknown_settings_manifest_fields_survive_the_first_and_later_saves() {
+        for version in [None, Some(concat_project::DOCUMENT_VERSION)] {
+            let scratch = tempfile::tempdir().expect("disposable project parent");
+            let info = projects::create(
+                scratch.path().to_str().unwrap(),
+                "Metadata",
+                1280,
+                720,
+                25,
+                1,
+            )
+            .unwrap();
+            let mut document = projects::read_document(&info.path).unwrap().unwrap();
+            if let Some(version) = version {
+                document["version"] = serde_json::json!(version);
+            }
+            let retained = serde_json::json!({"nested": [1, {"keep": "original"}], "flag": true});
+            document["pluginMetadata"] = retained.clone();
+            let manifest = projects::manifest_path(std::path::Path::new(&info.path));
+            let before = serde_json::to_vec_pretty(&document).unwrap();
+            std::fs::write(&manifest, &before).unwrap();
+            let mut session = Session::open_info(&info).unwrap();
+            assert!(!session.can_undo(), "opening must not invent an edit");
+            assert_eq!(session.project().active().tracks.len(), 4);
+            assert_eq!(session.video().width, 1280);
+            assert_eq!(session.video().rate_num, 25);
+            assert_eq!(
+                std::fs::read(&manifest).unwrap(),
+                before,
+                "opening is read-only"
+            );
+            session.save(None).unwrap();
+            assert_eq!(
+                projects::read_document(&info.path).unwrap().unwrap()["pluginMetadata"],
+                retained,
+                "unknown settings metadata must survive the first save"
+            );
+            let mut reopened = Session::open_info(&info).unwrap();
+            reopened.save(None).unwrap();
+            assert_eq!(
+                projects::read_document(&info.path).unwrap().unwrap()["pluginMetadata"],
+                retained
+            );
+        }
     }
 
     #[test]

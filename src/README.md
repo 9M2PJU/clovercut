@@ -1,7 +1,9 @@
 # Clovercut engine
 
 The Rust engine inherited from Concat. Crate and API names retain the `concat`
-prefix for compatibility. Clovercut maintains Linux builds and AppImage releases.
+prefix for compatibility. Clovercut release workflows build Linux x86_64/aarch64 AppImages and Windows
+x86_64 installer/portable packages. Native target qualification is separate from
+source and workflow support.
 See the [project README](../README.md) for current features and setup.
 
 Platform-specific sections below document inherited code, not maintained
@@ -13,15 +15,18 @@ Clovercut release targets.
 |---|---|---|
 | `concat-core` | Time, arena, frames, timeline model. The vocabulary every other crate speaks. | **none** (std only) |
 | `concat-media` | Getting pixels and samples in and out of files. Links FFmpeg (libav*), and is the only crate that knows it exists. | `concat-core`, ffmpeg-the-third |
-| `concat-project` | The edit itself: document model, operations as commands, undo, concat.json IO. | serde, serde_json |
-| `concat-render` | Turning a timeline plus a timestamp into one finished frame. | `concat-core`, wgpu (optional) |
-| `concat-effects` | Effect packages: manifests, WGSL shaders for pictures and FFmpeg chain templates for sound, the catalogue. Each built-in effect is a folder under `packages/`. | `concat-project`, serde, toml |
-| `concat-export` | Timeline to file: flatten, the frame-by-frame render loop, the paused monitor's true frame. | `concat-core`, `concat-media`, `concat-render`, `concat-project`, `concat-effects` |
+| `concat-project` | The edit itself: document model, operations as commands, undo, concat.json IO. | `concat-core`, serde, serde_json |
+| `concat-render` | Turning a timeline plus a timestamp into one finished frame. | `concat-core`, wgpu (always built) |
+| `concat-effects` | Effect packages: manifests, WGSL shaders for pictures and FFmpeg chain templates for sound, the catalogue. Each built-in effect is a folder under `packages/`. | `concat-core`, `concat-project`, serde, toml, naga |
+| `concat-export` | Timeline to file: flatten, the frame-by-frame render loop, the paused monitor's true frame. | `concat-core`, `concat-media`, `concat-render`, `concat-project`, `concat-effects`, `concat-vision` |
 | `concat-api` | The Concat API: JSON requests in, responses and events out. Projects, edits, media, the catalogue, templates, exports as jobs, frames. | `concat-host`, `concat-export`, `concat-effects`, `concat-project` |
 | `concat-server` | The API on a socket: JSON-RPC lines over TCP or a Unix socket, and gRPC behind the `grpc` feature. One dispatcher, many callers. | `concat-api`; tonic and tokio with `grpc` |
 | `concat-cli` | A binary to drive the above: `probe`, `render`, `api` (the API over stdin and stdout) and `serve` (the API on a socket). | `concat-server`, `concat-api`, the engine crates |
 | `concat-host` | What the window needs that is not the edit: sessions, project folders, previews, playback, templates, job slots. | `concat-media`, `concat-project`, `concat-export`, cpal |
-| `concat-speech` | Transcription (whisper.cpp, in-process) and text to speech (Kokoro via sherpa-onnx). | `concat-host`, `concat-media`, whisper-rs, sherpa-onnx |
+| `concat-speech` | Transcription (whisper.cpp, in-process) and text to speech (Kokoro via sherpa-onnx). | `concat-host`, `concat-media`, whisper-rs, sherpa-onnx; optional ONNX/tokenizers for Chatterbox |
+| `concat-vision` | Cutout inference and cached masks; inference is optional. | `concat-core`, `concat-project`, optional ONNX Runtime |
+| `concat-text` | Font discovery, shaping and title rasterization. | fontdb, rustybuzz, tiny-skia |
+| `concat-mcp` | MCP adapter over the common API/server. | `concat-api`, `concat-server` |
 | `concat` | The editor window: every pane, dialog and primitive, in Slint. The app a user launches. | slint, `concat-host`, `concat-speech` |
 | `concat-android` | The Android activity: the entry point that hosts the window on a phone. | `concat`, slint |
 
@@ -52,12 +57,12 @@ cargo run -p concat-cli -- api '{"method":"catalogue.list","kind":"filter"}'
 cargo run -p concat-cli -- api < edits.jsonl   # one JSON-RPC call per line; see below
 cargo run -p concat-cli -- serve               # the same API on 127.0.0.1:7420
 cargo run -p concat-cli --features grpc -- serve --grpc 127.0.0.1:7421
-cargo run -p concat                    # the editor window, debug
-cargo run --profile quick -p concat    # optimised, rebuilds in seconds: for trying changes
-cargo build --profile app -p concat    # the shipping binary: fat LTO, panic=abort, stripped
+cargo run -p concat --bin clovercut    # the editor window, debug
+cargo run --profile quick -p concat --bin clovercut # optimised, rebuilds in seconds: for trying changes
+cargo build --profile app -p concat --bin clovercut # generic shipping profile; see overrides below
 ```
 
-Nothing is spawned at run time: FFmpeg is linked, whisper.cpp and sherpa-onnx
+Media decoding and encoding use linked FFmpeg; whisper.cpp and sherpa-onnx
 are compiled in. A build needs the FFmpeg 7+ development libraries (headers
 and import libraries) - `brew install ffmpeg` on macOS, a BtbN `shared` build
 unpacked and pointed at with `FFMPEG_DIR` on Windows and on Linux
@@ -66,16 +71,19 @@ toolchain for whisper.cpp. The window draws with Slint's Skia renderer on
 every platform, from prebuilt Skia binaries fetched at build time.
 On Linux, Skia needs the fontconfig and freetype headers at build time (see
 `.github/workflows/build-app.yml` for the package list).
+The generic `app` profile uses fat LTO, `panic=abort` and stripped symbols.
+Linux packaging overrides LTO and UI optimization/codegen settings to bound
+build memory; see the workflow for the actual package configuration.
 
 On Nix, the flake at the repository root builds the window with every native
-dependency pinned: `nix build` (then `./result/bin/concat`), `nix run`, or
+dependency pinned: `nix build` (then `./result/bin/clovercut`), `nix run`, or
 `nix develop` for a shell with the toolchain and libraries in it. Linux
 x86_64 and aarch64.
 
 ### Phones
 
-The whole engine and the window build for Android (arm64) and iOS
-(arm64). Two native libraries come from source for a phone, because no
+Inherited scripts describe Android (arm64) and iOS (arm64) builds. These
+are not current Clovercut release targets and were not qualified by the audit. Two native libraries come from source for a phone, because no
 prebuilt covers them: FFmpeg, which `scripts/ffmpeg-mobile.sh` cross-builds
 as static archives with the platform's hardware codecs turned on -
 MediaCodec on Android, VideoToolbox on iOS - and whisper.cpp, which its
@@ -102,8 +110,8 @@ cargo build --release -p concat --target aarch64-apple-ios
 scripts/ios-app.sh aarch64-apple-ios release                    # Concat.app
 ```
 
-`.github/workflows/mobile.yml` runs exactly this on every pull request
-and on a release tag, and keeps the FFmpeg builds cached. The window is one library: `concat` on the
+There is no current `.github/workflows/mobile.yml` validating these commands.
+The window is one library: `concat` on the
 desktop and on iOS runs it from `main.rs`, `concat-android` from the
 activity's `android_main`, and `crates/concat/src/platform.rs` is where
 the three differ - how the backend is chosen, how files are picked, and
@@ -161,8 +169,12 @@ envelope carrying the same JSON, with the token as `authorization: Bearer
 
 ## Conventions
 
-- **Time is exact.** All timestamps are `concat_core::time::Rational` seconds, never `f64`.
-  Frame-accurate editing and floating point do not mix.
+- **Time has explicit boundaries.** Core frame/timeline calculations use
+  `concat_core::time::Rational`; persisted project and export clip ranges use
+  `f64`, while Slint gestures and the displayed playhead use `f32`. Video
+  resolution rounds to the frame grid; audio rounds to the 48 kHz sample grid.
+  Preserve and test each conversion and rounding policy. See
+  [the Phase 1 audit](../docs/ARCHITECTURE_AUDIT.md) for measured limits.
 - **Graphs use handles, not pointers.** `concat_core::arena` explains why.
 - **Shallow generics.** Concrete types until three call sites demand otherwise.
 - **Threads, not async.** The render path is CPU-bound; `async` buys nothing here.

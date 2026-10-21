@@ -185,22 +185,37 @@ pub fn ticket() -> Ticket {
 static NEXT_TICKET: AtomicU64 = AtomicU64::new(1);
 
 /// What an ordered save did.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Saved {
-    /// The document is on disk.
+    /// Replacement succeeded. On Linux its parent-directory sync also
+    /// succeeded; other platforms retain their existing file-sync contract.
     Written,
+    /// Replacement succeeded, but Linux directory durability was not confirmed.
+    /// The current manifest is saved and must not be rolled back. Closing is safe
+    /// under the approved policy, with this warning shown to the caller.
+    CommittedButUnconfirmed(String),
     /// A snapshot minted after this one was already written, so this older
     /// document was left alone rather than put back on disk. Nothing went
     /// wrong: the project is saved, to the newer document.
     Superseded,
 }
 
+impl Saved {
+    /// A visible warning; never treat this as a pre-commit save failure.
+    pub fn warning(&self) -> Option<&str> {
+        match self {
+            Self::CommittedButUnconfirmed(warning) => Some(warning),
+            Self::Written | Self::Superseded => None,
+        }
+    }
+}
+
 /// One project's writes: the lock that runs them one at a time, and the
 /// highest ticket already on disk.
 struct Writes {
-    /// Held for a whole write - the temporary file, its flush and the
-    /// rename - so two workers never write one manifest at once.
-    writing: Mutex<()>,
+    /// Held through replacement and directory sync. The value retains any
+    /// warning about the latest committed ticket for superseded callers.
+    writing: Mutex<Option<String>>,
     /// The highest ticket whose document reached the manifest. Read and
     /// written under `writing`, so the check that skips an older snapshot
     /// and the write that follows it cannot be split by another writer.
@@ -230,7 +245,7 @@ fn write_state(key: &Path) -> Arc<Writes> {
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     Arc::clone(all.entry(key.to_path_buf()).or_insert_with(|| {
         Arc::new(Writes {
-            writing: Mutex::new(()),
+            writing: Mutex::new(None),
             written: AtomicU64::new(0),
         })
     }))
@@ -248,8 +263,8 @@ fn write_state(key: &Path) -> Arc<Writes> {
 /// template - is in call order already. A caller that captures a document on
 /// one thread and writes it on another (the window's autosave) mints the
 /// ticket where it captures the document and calls [`save_ordered`] instead.
-pub fn save(path: &str, document: &serde_json::Value) -> Result<(), String> {
-    save_ordered(path, document, ticket()).map(|_| ())
+pub fn save(path: &str, document: &serde_json::Value) -> Result<Saved, String> {
+    save_ordered(path, document, ticket())
 }
 
 /// Writes a document captured at `ticket`, in this process's write order.
@@ -258,7 +273,11 @@ pub fn save(path: &str, document: &serde_json::Value) -> Result<(), String> {
 /// [`Saved`] - so a worker that finishes late cannot put an older document
 /// back over a newer one, whatever order the two are scheduled in. A write
 /// that fails is always a failure: a document that should have been written
-/// and could not returns the error, never [`Saved::Superseded`].
+/// and could not returns the error, never [`Saved::Superseded`]. After a
+/// successful rename, directory-sync failure is instead an explicit
+/// [`Saved::CommittedButUnconfirmed`]: the ticket is committed, close may
+/// proceed, and callers must show its warning. A superseded caller also
+/// receives any outstanding warning for the latest committed ticket.
 ///
 /// The temporary file is this call's own (`create_new`), so two saves -
 /// including ones in different processes on the same folder - never write one
@@ -274,6 +293,17 @@ pub fn save_ordered(
     document: &serde_json::Value,
     ticket: Ticket,
 ) -> Result<Saved, String> {
+    save_ordered_with_sync(path, document, ticket, sync_directory)
+}
+
+// The injectable operation runs only AFTER replacement and ticket publication.
+// No environment switches or process-wide fault hooks enter production saving.
+fn save_ordered_with_sync(
+    path: &str,
+    document: &serde_json::Value,
+    ticket: Ticket,
+    sync: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<Saved, String> {
     let root = PathBuf::from(path);
     std::fs::create_dir_all(&root)
         .map_err(|error| format!("could not create {}: {error}", root.display()))?;
@@ -282,19 +312,60 @@ pub fn save_ordered(
     // Held across the write: the check below and the write it decides are
     // one step, so two saves cannot both decide to write and have the older
     // one land second.
-    let _writing = state
+    let mut warning = state
         .writing
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     if ticket.0 < state.written.load(Ordering::Acquire) {
-        return Ok(Saved::Superseded);
+        return Ok(match warning.as_ref() {
+            Some(message) => Saved::CommittedButUnconfirmed(message.clone()),
+            None => Saved::Superseded,
+        });
     }
 
     let encoded = serde_json::to_vec_pretty(document)
         .map_err(|error| format!("could not encode the project: {error}"))?;
     write_manifest(&root, &encoded)?;
+    // Rename is the commit point, regardless of any later sync failure.
     state.written.store(ticket.0, Ordering::Release);
-    Ok(Saved::Written)
+    *warning = Some(durability_warning(&root, "directory sync did not complete"));
+    match sync(&root) {
+        Ok(()) => {
+            *warning = None;
+            Ok(Saved::Written)
+        }
+        Err(error) => {
+            let message = durability_warning(&root, &error);
+            log::warn!("{message}");
+            *warning = Some(message.clone());
+            Ok(Saved::CommittedButUnconfirmed(message))
+        }
+    }
+}
+
+fn durability_warning(root: &Path, error: &str) -> String {
+    format!(
+        "Project saved, but durability could not be confirmed for {}: {error}. \
+         The saved project is readable; a power loss could lose this update. \
+         You can close, or save again to retry confirmation.",
+        root.display()
+    )
+}
+
+#[cfg(target_os = "linux")]
+fn sync_directory(root: &Path) -> Result<(), String> {
+    let directory = std::fs::File::open(root)
+        .map_err(|error| format!("could not open the project directory for sync: {error}"))?;
+    directory
+        .sync_all()
+        .map_err(|error| format!("could not sync the project directory: {error}"))
+}
+
+// Preserve the existing file-sync + rename contract on Windows and other targets.
+// Written on those targets does not claim parent-directory durability.
+#[cfg(not(target_os = "linux"))]
+fn sync_directory(_root: &Path) -> Result<(), String> {
+    Ok(())
 }
 
 /// The temporary file a save writes: flushed and renamed into place on the
@@ -863,5 +934,94 @@ mod tests {
 
         let _ = std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o755));
         let _ = std::fs::remove_dir_all(&root);
+    }
+}
+
+#[cfg(test)]
+mod durability_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn post_commit_failure_keeps_new_bytes_and_order_until_confirmed_retry() {
+        for operation in ["directory open", "directory sync"] {
+            let scratch = tempfile::tempdir().unwrap();
+            let root = scratch.path().to_str().unwrap();
+            let old = ticket();
+            let new = ticket();
+            let document = json!({"test": "new", "opaque": [1, 2]});
+            let saved = save_ordered_with_sync(root, &document, new, |directory| {
+                assert_eq!(
+                    read_document(directory.to_str().unwrap()).unwrap(),
+                    Some(document.clone())
+                );
+                Err(format!("injected {operation} failure"))
+            })
+            .unwrap();
+            let warning = saved.warning().expect("committed but unconfirmed");
+            assert!(warning.contains(operation));
+            assert!(warning.contains("Project saved"));
+            assert!(warning.contains(root));
+            assert_eq!(read_document(root).unwrap(), Some(document.clone()));
+            assert_eq!(std::fs::read_dir(scratch.path()).unwrap().count(), 1);
+            // A stale callback must neither overwrite the committed document nor
+            // announce fully confirmed success while its warning is outstanding.
+            let stale = save_ordered_with_sync(root, &json!({"test": "stale"}), old, |_| {
+                panic!("stale sync")
+            })
+            .unwrap();
+            assert_eq!(stale, saved);
+            assert_eq!(read_document(root).unwrap(), Some(document.clone()));
+            assert_eq!(
+                save_ordered_with_sync(root, &document, ticket(), |_| Ok(())).unwrap(),
+                Saved::Written
+            );
+            assert_eq!(
+                save_ordered(root, &json!({"test": "stale"}), old).unwrap(),
+                Saved::Superseded
+            );
+            assert_eq!(read_document(root).unwrap(), Some(document));
+        }
+    }
+
+    #[test]
+    fn pre_commit_replace_failure_never_syncs_or_advances_the_ticket() {
+        let scratch = tempfile::tempdir().unwrap();
+        let root = scratch.path().to_str().unwrap();
+        let old = ticket();
+        let new = ticket();
+        let manifest = manifest_path(scratch.path());
+        std::fs::create_dir(&manifest).unwrap();
+        std::fs::write(manifest.join("preserve"), b"recoverable fixture").unwrap();
+        let failed = save_ordered_with_sync(root, &json!({"test": "new"}), new, |_| {
+            panic!("sync after failed commit")
+        });
+        assert!(failed.unwrap_err().contains("could not replace"));
+        assert_eq!(
+            std::fs::read(manifest.join("preserve")).unwrap(),
+            b"recoverable fixture"
+        );
+        assert_eq!(std::fs::read_dir(scratch.path()).unwrap().count(), 1);
+        std::fs::remove_file(manifest.join("preserve")).unwrap();
+        std::fs::remove_dir(&manifest).unwrap();
+        assert_eq!(
+            save_ordered(root, &json!({"test": "old retry"}), old).unwrap(),
+            Saved::Written
+        );
+        assert_eq!(
+            read_document(root).unwrap(),
+            Some(json!({"test": "old retry"}))
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_directory_sync_succeeds_on_the_disposable_fixture() {
+        let scratch = tempfile::tempdir().unwrap();
+        assert_eq!(
+            save(scratch.path().to_str().unwrap(), &json!({"fixture": true})).unwrap(),
+            Saved::Written
+        );
+        sync_directory(scratch.path()).unwrap();
     }
 }

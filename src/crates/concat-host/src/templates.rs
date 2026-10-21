@@ -274,7 +274,7 @@ pub fn instantiate(
     location: &str,
     name: &str,
     fills: Vec<SlotFill>,
-) -> Result<projects::ProjectInfo, String> {
+) -> Result<(projects::ProjectInfo, projects::Saved), String> {
     let bundle = PathBuf::from(template);
     let manifest = bundle.join(MANIFEST);
     let bytes = std::fs::read(&manifest)
@@ -348,7 +348,7 @@ pub fn instantiate(
         rate_num: info.rate_num,
         rate_den: info.rate_den,
     };
-    projects::save(&project.path, &editor.to_document(&settings))?;
+    let saved = projects::save(&project.path, &editor.to_document(&settings))?;
 
     // After the save, so the cached poster reads as fresh.
     if bundle.join(POSTER).is_file() {
@@ -357,7 +357,7 @@ pub fn instantiate(
         let _ = std::fs::copy(bundle.join(POSTER), cache.join("preview.jpg"));
     }
 
-    Ok(project)
+    Ok((project, saved))
 }
 
 fn copy_assets(from: &Path, to: &Path) -> Result<(), String> {
@@ -544,7 +544,8 @@ mod tests {
             "From bundle",
             vec![fill("m1", "/mine/clip.mp4", 6.0)],
         )
-        .expect("instantiates");
+        .expect("instantiates")
+        .0;
 
         let opened = projects::read_document(&made.path)
             .expect("reads back")
@@ -593,7 +594,8 @@ mod tests {
                 fill("m2", "/mine/b.mp4", 9.0),
             ],
         )
-        .expect("instantiates");
+        .expect("instantiates")
+        .0;
         assert_eq!((project.width, project.height), (1920, 1080));
 
         let document = projects::read_document(&project.path)

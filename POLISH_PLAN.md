@@ -1,0 +1,241 @@
+# Clovercut polish plan
+
+Created: 2026-10-21. Inspected revision: `82a498be342d02bba0429ec428eacc8c8b0e6f91`.
+
+## Scope, evidence, and control
+
+Phase 1 audit authorized by the user on 2026-10-21 and resumed after a session interruption. Phase 1 changed documentation only. Phase 2 tasks 2.1–2.4 were explicitly authorized on 2026-10-21, with independent verification and a durability design approval gate. Phase 3 and subsequent implementation remain unauthorized. The repository was clean before the initial planning document. See [the architecture audit](docs/ARCHITECTURE_AUDIT.md) for the current baseline; the initial-inspection statements below describe the planning stage only.
+
+Review coverage: repository inventory, all 16 crate boundaries and manifests, crate entry-point documentation, representative implementation paths for persistence, timeline commands, preview, playback, rendering and export, UI organization, existing test locations, native dependency configuration, release/build scripts, workflows, and project documentation. The inventory excludes Git, vendor downloads, build output and Python caches; it includes 1,172 files, 202 Rust files and 78 Slint files, including local dependency patches. Assets, bundled fonts/models, effect packages and inherited mobile code were inventoried rather than individually executed or exhaustively reviewed. No claim of a line-by-line audit or runtime qualification is made.
+
+Evidence labels:
+- **Observed:** directly supported by checked-in code or configuration.
+- **Verification gap:** behavior needs measured execution; this is not a confirmed defect.
+- **Confirmed limitation:** explicitly present in implementation or its documentation.
+
+Initial planning did not run builds, application launches, exports or tests, and did not confirm a runtime bug. Phase 1 execution results are now recorded in `docs/ARCHITECTURE_AUDIT.md`. The presence of a test alone remains coverage evidence rather than proof of success. Do not turn a suspected defect into a fix without a failing reproduction or an explicit design decision.
+
+Priorities: P0 = edit loss/crash/corruption; P1 = editing or playback correctness/release blocker; P2 = consistency or measured efficiency; P3 = optional refinement. P0 denotes impact if reproduced, not proof a defect exists. Risk describes implementation risk: high for persistence, timing, GPU and rendering semantics; medium for interaction/state changes; low for documentation and isolated visual fixes.
+
+Tasks initially started **Not started**. Use **Investigating**, **Blocked** (with reason), **Ready for review**, and **Complete** as work progresses. Every completion entry must record revision, reproduction/fixture, verification command or manual procedure, actual result and remaining limitations. Update this document in the same change as the work it tracks. Never mark skipped device/network/graphical tests as passing. New findings must get an evidence reference, priority and phase before implementation.
+
+## Repository architecture and findings
+
+Paths below are repository-relative. Crate paths abbreviated as `C/<name>` mean `src/crates/<name>`.
+
+| Area | Observed ownership / finding | Implication |
+|---|---|---|
+| Core | `C/concat-core`: rational time, frame rate, arena, frame and timeline primitives | Preserve dependency direction and exact engine frame calculations. |
+| Edit | `C/concat-project`: document migration, commands, placement, speed, model, snapshot undo | Project clip times are `f64`; they are not rational throughout the application. |
+| Host | `C/concat-host`: Session, autosave, jobs, monitor, playback, proxies, downloads, crash logs | Cross-thread state and lifecycle need end-to-end verification. |
+| Media | `C/concat-media`: FFmpeg decode/encode, audio filtergraph, reader pool and prefetch | Native libraries and hardware availability affect reproducibility. |
+| Rendering | `C/concat-render`, `concat-export`, `concat-effects`, `concat-text`, `concat-vision` | Preview, generated captions, effects, speed mapping and export have multiple interacting paths. |
+| UI | `C/concat`: Slint views, panes, Studio controller and callback wiring | `src/studio.rs` is 13,855 lines and `src/lib.rs` 2,977; ownership concentration complicates changes. Size alone is not a runtime defect. |
+| Automation | `concat-api`, `concat-server`, `concat-cli`, `concat-mcp` | Commands and exported behavior must agree between UI and automation. |
+| Optional/platform | `concat-speech`, `concat-android`, mobile scripts and local Slint/Whisper patches | Track model/device prerequisites and inherited targets separately from release claims. |
+| Time boundary | `concat/src/studio.rs` uses `f32` gesture times; `concat-project/src/model.rs:1862` uses `f64`; `concat-export/src/resolve.rs:595` rounds to the frame grid | Precision and rounding require boundary tests, especially long and fractional-rate timelines. Phase 1 reproduced a transport-floor/preview-nearest arithmetic mismatch; visible editing impact remains unverified (audit T1). |
+| Persistence | `concat-host/src/projects.rs` uses ordered save tickets, unique temporary files, file sync and atomic rename; `session.rs` refuses unreadable/newer documents | Preserve existing safety. `projects.rs` explicitly does not sync the parent directory: confirmed power-loss durability limitation. |
+| Playback | `concat-host/src/playback.rs`: 48 kHz PCM, two decode workers, 64-entry in-memory cache, 2 GiB disk budget, callback clock with 100 ms coast | Measure device recovery, clock handoff and total resource use; entry limits alone do not specify a memory-byte ceiling. |
+| GPU | `concat-host/src/preview.rs::off_thread` avoids sharing the raw Vulkan queue across threads; `concat-render/Cargo.toml` says the compositor is always GPU-backed | Preserve queue safety. Phase 1 corrected the obsolete CPU-fallback documentation: software GPU adapters are the production fallback, and the CPU reference is test-only. |
+| Export | `concat-export/src/lib.rs:1226–1261` stages output and renames only on success; host uses `SingleFlight` | Do not replace existing transactional protections; exercise error and cancellation paths. |
+| Coverage | Host export integration suite includes `every_edit_still_exports`, fractional consolidation, speed curves, reverse and HDR; GPU parity tests exist | Extend gaps rather than duplicate already-covered cases. |
+| Graphical testing | `concat/src/source.rs::tests::new_project_library_and_timeline_playback` is explicitly ignored unless invoked with a graphical session, FFmpeg and audio | Ordinary workspace tests do not establish that real GUI playback works. |
+| CI/docs | `.github/workflows/ci.yml` runs formatting, locales/models, Clippy, nextest, docs and gRPC checks on Linux with required GPU; `src/README.md` executable/platform/time descriptions were corrected in Phase 1 to match manifests and current workflows | Establish actual baseline and supported-target matrix; avoid treating inherited comments as current policy. |
+
+## Dependencies and gates
+
+Primary sequence: **1 → 2 → 3 → 4 → 5 → 6 → 7 → 8**. Each phase ends with a reviewable result and verification record. Phase 1 audit authorization was received on 2026-10-21; subsequent phase authorization must be explicit.
+
+Additional dependencies:
+- Phase 1 owns baseline, fixtures, target scope and evidence used by every later phase.
+- Phase 2 persistence and lifecycle protections gate any edits touching saved projects or worker shutdown.
+- Phase 3 timing rules gate Phase 4 clock comparisons and Phase 7 frame/duration assertions.
+- Phase 4 preview/export parity fixtures feed Phase 7; Phase 5 must preserve Phase 3 keyboard/gesture semantics.
+- Phase 6 optimization must retain Phase 3/4 correctness and be rerun through Phase 7 export checks.
+- Export probes may be used earlier as verification without starting Phase 7 implementation.
+- Phase 8 consolidates earlier evidence; regression tests accompany relevant fixes rather than being deferred until the end.
+
+## 1. Codebase audit and architecture analysis
+
+**Problems identified:** concentrated controller/wiring ownership; time representations differ from the rational-only convention in `src/README.md`; GPU fallback and platform documentation disagreed with implementation/current root README and were corrected during the audit. Local execution and differences from CI are recorded in the audit report.
+
+**Tasks:**
+- [x] 1.1 Record toolchain/native-library versions and clean baseline; map supported release targets from README, workflows and packaging. Separate inherited platforms.
+- [x] 1.2 Trace import → command → session → save → reopen, and edit → flatten → preview/playback/export. Record state ownership, threads, invalidation, shutdown and error propagation.
+- [x] 1.3 Map timing conversions and rounding policies, including source timestamps, audio samples and frame indices. List existing tests against each boundary.
+- [x] 1.4 Run the established baseline checks in an appropriate environment; record actual failures, skips and prerequisites, without changing application code.
+- [x] 1.5 Turn reproducible findings into small tasks in later phases; document current architecture and correct stale technical documentation where verified. Propose extractions only around demonstrated coupling.
+
+**Files likely affected:** `POLISH_PLAN.md`, `src/README.md`, architecture documentation under `docs/`; inspect all `C/*/Cargo.toml`, entry points, `studio.rs`, `lib.rs`, `.github/workflows/*`, `src/.cargo/config.toml`, `src/patches/README.md`, `flake.nix`, release scripts.
+
+**Priority / risk:** P1; low for audit/docs, high if architectural redesign is later proposed (requires a separate scoped task).
+
+**Acceptance criteria:** supported-target and dependency maps reflect checked-in behavior; baseline report names exact commands/results; every claimed bug has a reproduction; all later tasks have traceable evidence. No speculative refactor is bundled into audit completion.
+
+**Verification:** compare architecture notes against manifests/call sites; reproduce CI commands listed in Phase 8 where prerequisites allow; record unavailable hardware/model/platform checks.
+
+**Completion status:** Complete within the local audit scope; see `docs/ARCHITECTURE_AUDIT.md` for exact commands, actual results, skips, environment restrictions, timing reproductions and priorities. Native Windows/ARM/mobile/package qualification and physical fault testing remain unverified. Completion of this audit does not waive those checks or authorize Phase 2.
+
+## 2. Critical bugs and application stability
+
+**Problems identified:** confirmed parent-directory sync limitation after autosave rename; tolerant document loading can discard invalid entries by design (`concat-project/src/doc.rs`), so recovery expectations need explicit verification; shipping profile uses `panic = "abort"` (`src/Cargo.toml`). Existing save ordering, unreadable-document refusal and crash logging must be preserved.
+
+**Tasks:**
+- [x] 2.1 Verify failed/out-of-order saves, corrupt/newer documents and reopen behavior using disposable projects; distinguish accepted tolerant loading from unintended edit loss.
+- [x] 2.2 Decide/document durability guarantees; if stronger power-loss guarantees are required, isolate parent-directory syncing and test platform errors before changing save semantics.
+- [x] 2.3 Exercise project switching and close during autosave, decode, model work and export; record worker ownership, stale callbacks and shutdown failures.
+- [x] 2.4 Reproduce each confirmed crash/error with a minimal fixture; fix one failure path at a time and add a focused regression. Verify user-visible save failure and recovery behavior.
+
+**2.1 evidence:** S2 future-version settings-only overwrite and S3 first-save metadata loss were reproduced before correction and passed focused regressions afterward. Four disposable persistence tests passed, including partial-write failure and recovery-candidate preservation; 341 host/project/API regressions passed (one unrelated live-network test ignored), strict Clippy and formatting passed. No ticket/atomic-replacement code, format or dependencies changed. Exact commands, results and limitations: `docs/STABILITY_PHASE2.md`.
+
+**2.2 decision:** A retains the current contract; B attempts directory sync with a visible committed-but-unconfirmed warning and permits close (recommended); C requires confirmation and blocks ordinary close if unavailable. Successful rename must advance ordering even if subsequent sync fails. Native Btrfs protocol probes succeeded, including injected post-rename failure and permission behavior; the initially proposed implementation was withheld until approval. The user subsequently explicitly approved B. Linux directory sync, explicit committed-but-unconfirmed outcomes, preserved ordering and visible close-permitted warnings are implemented and independently verified. Windows retains the previous contract. Tasks 2.3 and 2.4 were completed afterward; final verification is recorded below.
+
+**Files likely affected:** `C/concat-host/src/{projects,session,jobs,lock,crash}.rs`, `C/concat-project/src/{doc,editor}.rs`, `C/concat/src/{host,lib,studio}.rs`, relevant panes.
+
+**Priority / risk:** P0 for reproduced edit loss/crashes; high for persistence/lifecycle changes.
+
+**Acceptance criteria:** newer/corrupt documents are not overwritten by empty edits; newer snapshots cannot be replaced by stale saves; failed saves retain the last readable document; affected jobs can close/cancel without stale mutation or a crash; remaining durability guarantees are explicit.
+
+**Verification:** existing persistence tests plus fault injection in temporary folders; compare saved/reopened document semantics; controlled process interruption tests (power-loss durability cannot be claimed from ordinary unit tests).
+
+**Dependencies / status:** Phase 1 complete; Phase 2 authorized. Task 2.1 Complete (341 relevant regressions passed, plus focused before/after tests; S2/S3 fixed). Task 2.2 Complete — approved Option B implemented; 345 package tests and the explicit GUI warning regression passed, Clippy/format passed. Task 2.3 Complete — controlled native lifecycle overlap, refused switch and shutdown passed; 2.4 Complete — visible failure/retry, preservation of later edits and actual process interruption passed. Final checks: 346 host/project/API tests, 166 UI tests and 2 explicit graphical tests passed; 1 unrelated package test and 3 default UI tests ignored (2 UI tests executed explicitly). Strict Clippy for affected packages, formatting and diff checks passed. Phase 2 satisfies its local acceptance criteria within the documented platform/hardware/model qualification limits. No Phase 2 approval decision remains; Phase 3 is not started and requires authorization. Full evidence: `docs/STABILITY_PHASE2.md`.
+
+## 3. Timeline precision and editing interactions
+
+**Problems identified:** observed `f32` UI → `f64` document → rational/frame-grid conversion; gesture logic is concentrated in `studio.rs`; lane locks/heights belong to view state (`panes/timeline.rs`), while commands live in the project crate. Phase 1 reproduced the arithmetic mismatch described in audit T1; actual gesture/transport impact across these boundaries still needs focused reproduction.
+
+**Tasks:**
+- [ ] 3.1 Reproduce pixel/time/frame conversion at several zoom levels and long timeline positions for 24, 25, 30, 60, 24000/1001 and 30000/1001 fps.
+- [ ] 3.2 Verify split, trim, snapping and move at exact cuts and half-frame boundaries; record intended rounding before changing it.
+- [ ] 3.3 Verify multi-selection, track locks, ripple/placement behavior and source bounds with mixed clip types.
+- [ ] 3.4 Check drag cancellation and undo/redo grouping; each completed gesture must produce its intended history step and restore identical clip data.
+- [ ] 3.5 Fix only reproduced conversion/interaction defects in independent changes; reuse existing command/snap tests.
+- [ ] 3.6 Reproduce the audit’s transport-floor/preview-nearest mismatch through real playback and frame publication, starting at 24 fps frame 50 and the six-rate probe cases. Define the intended rounding rule before changing it. Arithmetic mismatch is confirmed; visible impact is unverified (audit T1).
+
+**Files likely affected:** `C/concat/src/studio.rs`, `src/panes/timeline.rs`, `ui/timeline/{lanes,model,tray,track-header}.slint`, `C/concat-project/src/{placement,commands/clips,editor,model}.rs`, `C/concat-core/src/time.rs`, `C/concat-export/src/resolve.rs` if rounding policy requires it.
+
+**Priority / risk:** P1; high for timing/placement, medium for UI gestures.
+
+**Acceptance criteria:** expected frame index is exact for every declared frame-aligned operation; repeated edits introduce no cumulative frame drift; locked tracks obey specified behavior; cancelled gestures preserve document state; undo/redo restores the original edit.
+
+**Verification:** deterministic command tests with explicit frame indices; GUI gesture checks across zoom/scroll settings; save/reopen comparisons; compare resulting export cut frames.
+
+**Dependencies / status:** Phases 1–2; Not started.
+
+## 4. Playback, preview, and audio synchronization
+
+**Problems identified:** audio callback clock extrapolates up to 100 ms; background PCM decode and preview workers have independent lifecycles; proxies and original media use distinct request paths; real graphical playback regression is opt-in. These are verification gaps, not confirmed sync failures.
+
+**Tasks:**
+- [ ] 4.1 Run the existing graphical regression with isolated XDG directories and real audio output; record prerequisites and result.
+- [ ] 4.2 Measure flash/tone synchronization at start, after seeking, around cuts and after ten minutes of playback; include fractional rates, nonzero source timestamps, mute and silent projects.
+- [ ] 4.3 Exercise rapid play/pause/scrub/project changes and audio device loss/recovery; confirm old jobs cannot publish stale frames or audio plans.
+- [ ] 4.4 Compare preview and export for speed curves, reverse, transitions, generated captions, selected audio streams and proxy/full-quality switches.
+- [ ] 4.5 Fix each reproduced clock, invalidation or recovery issue separately, preserving Vulkan queue ownership.
+
+**Files likely affected:** `C/concat-host/src/{playback,preview,proxy}.rs`, `C/concat/src/{source,host,lib,studio}.rs`, `src/panes/monitor.rs`, `C/concat-media/src/{audio,pool,prefetch,decode}.rs`, `C/concat-export/src/{flatten,resolve,lib}.rs`.
+
+**Priority / risk:** P1; high for clocks, queues and asynchronous state.
+
+**Acceptance criteria:** target measured A/V offset ≤ one project frame after steady-state playback resumes, with no cumulative drift beyond that over ten minutes; seek completion displays the requested frame; no stale project output; device failure is surfaced and recovery is defined. Record output latency and measurement error separately; revise proposed thresholds explicitly if hardware prevents a meaningful comparison.
+
+**Verification:** timestamped flash/tone fixture, captured audio/video where available, clock/frame logs and existing PCM/preview tests; compare decoded export rather than relying only on the playhead display.
+
+**Dependencies / status:** Phases 2–3; Not started.
+
+## 5. UI/UX consistency and professional polish
+
+**Problems identified:** shared Slint primitives/themes coexist with separate inspector, workspace, dialog and phone views; root README describes recent inspector/caption refinements. Visual inconsistency has not been established by a live walkthrough. Phase 1 corrected verified obsolete technical commands/platform descriptions; this does not establish live visual consistency.
+
+**Tasks:**
+- [ ] 5.1 Capture a baseline walkthrough of import, edit, caption styling, relink, save failure and export using a disposable representative project.
+- [ ] 5.2 Inventory observed spacing, labels, units, focus, disabled/error/loading states and keyboard inconsistencies against existing primitives and themes.
+- [ ] 5.3 Correct one component family at a time; check dark/light themes, scaling, narrow windows and long localized labels.
+- [ ] 5.4 Verify inspector controls, shortcuts and selection feedback preserve editing semantics; document only confirmed user-facing behavior.
+- [ ] 5.5 Observe effect-card thumbnails and loading/error states in a fresh-cache interactive session. Phase 1 reproduced 37 missing-card image diagnostics in each of two successful first-publish smoke runs; persistent missing thumbnails are not yet established (audit U1).
+
+**Files likely affected:** `C/concat/ui/{primitives,theme,inspector,workspace,dialogs}/*`, `ui/editor.slint`, `C/concat/src/{keymap,i18n,format}.rs`, `locales/*.json`, `docs/KEYBOARD_SHORTCUTS.md`, relevant panes.
+
+**Priority / risk:** P2; medium for focus/shortcuts, low for isolated spacing/copy.
+
+**Acceptance criteria:** no clipped essential controls in the tested window/scaling matrix; consistent units and states in reviewed flows; visible usable keyboard focus; locale inventory checks pass; no regression in Phase 3 interactions. Record exact sizes/scales/locales exercised.
+
+**Verification:** before/after screenshots and manual keyboard walkthrough; existing formatting/keymap tests; `python3 scripts/locales.py --check`.
+
+**Dependencies / status:** Phases 3–4 for interaction/preview surfaces; Not started.
+
+## 6. Performance and memory optimization
+
+**Problems identified:** source-frame byte-budgeted LRU, waveform/caption virtualization, GPU shrink behavior and snapshot sharing already exist. PCM cache is entry-capped; combined CPU/GPU/PCM resource use has not been measured. `src/Cargo.toml` documents full-window Skia redraw and UI-thread title painting.
+
+**Tasks:**
+- [ ] 6.1 Record reference machine, build profile, media and project sizes; measure cold/warm startup, seek latency, frame time, dropped frames, RSS and GPU memory where observable.
+- [ ] 6.2 Profile long audio, caption-heavy and layered 4K projects; separate decode, text layout/paint, UI publishing and composition costs.
+- [ ] 6.3 Measure memory plateau across repeated seek/play/project-switch cycles, cache eviction and 200 undo steps; inspect PCM byte use and worker lifetimes.
+- [ ] 6.4 Optimize only measured bottlenecks, one at a time; add bounds or eviction changes only where evidence justifies them.
+- [ ] 6.5 Rerun timing, playback and preview/export parity checks after each optimization.
+
+**Files likely affected:** `C/concat-media/src/{pool,prefetch,feed}.rs`, `C/concat-host/src/{playback,preview,memory}.rs`, `C/concat/src/{studio,lib}.rs`, `C/concat-text/src/lib.rs`, `C/concat-render/src/{metrics,gpu}.rs`, `C/concat-project/src/editor.rs` if profiling implicates snapshots.
+
+**Priority / risk:** P2, raised to P1 for reproduced freezes/OOM; medium/high depending on concurrency/cache changes.
+
+**Acceptance criteria:** Phase 1/6 baseline defines workload-specific numeric budgets before optimization; each change improves its target beyond measurement noise without correctness regressions; memory plateaus after warm-up and old-project resources are released within documented lifecycle bounds. Do not promise hardware-independent real-time 4K playback.
+
+**Verification:** repeatable optimized-build profiling, at least three comparable baseline/changed runs, resource traces, cache metrics and prior correctness fixtures.
+
+**Dependencies / status:** Phases 1–5; Not started.
+
+## 7. Export and rendering reliability
+
+**Problems identified:** staged files and final rename already protect output; host prevents concurrent exports in its slot; The obsolete CPU-fallback documentation was corrected in Phase 1; software GPU qualification remains a separate check. Native encoder availability, cancellation at each stage and GUI/export equivalence require execution. Existing export integration coverage is substantial.
+
+**Tasks:**
+- [ ] 7.1 Run existing export cases and inventory coverage before adding fixtures; define supported codec/container/bit-depth combinations from actual encoder capabilities.
+- [ ] 7.2 Verify dimensions, frame count, rate, cut positions, audio sample alignment, color range/HDR metadata and final frame with decoded output.
+- [ ] 7.3 Inject cancellation/failure in video, audio and mux stages; verify destination preservation, temporary cleanup, slot release and successful retry.
+- [ ] 7.4 Test missing sources, unwritable output, existing destination and disk-full behavior in disposable locations; exercise adapter/device failure where feasible.
+- [ ] 7.5 Verify GUI/API export agreement for captions, effects, LUTs, reverse, speed curves, proxies and fractional starts; fix independent reproduced failures separately.
+- [ ] 7.6 Reproduce independent exports to the same destination or same-stem destinations in a disposable folder. Current staging names share a stem and SingleFlight is scoped to an exporter; define isolation/ownership only after an actual collision reproduction (audit E1).
+
+For 7.3, measure cancellation latency inside synchronous audio mixing and muxing as well as video-frame polling (audit E2).
+
+**Files likely affected:** `C/concat-export/src/{lib,resolve,flatten,chains}.rs`, `C/concat-media/src/{encode,audio}.rs`, `C/concat-host/src/{export,jobs}.rs`, `C/concat-host/tests/export.rs`, `C/concat/src/panes/export.rs`, `ui/dialogs/export.slint`, renderer GPU tests and affected documentation.
+
+**Priority / risk:** P1; high for frame/audio/render semantics and destination integrity.
+
+**Acceptance criteria:** declared supported cases decode successfully with expected frame count/rate/dimensions and measured sync; existing destination survives failed/cancelled export; owned temporary files are removed and retry works; user-visible failure is actionable. Unsupported hardware/codecs are reported explicitly, never counted as verified fallback success.
+
+**Verification:** existing host export suite, GPU/reference comparisons, independent FFmpeg/ffprobe inspection if installed, decoded-frame/audio assertions and controlled fault injection. Document tools and tolerances per fixture.
+
+**Dependencies / status:** Phases 2–4 and Phase 6 regression results; Not started.
+
+## 8. Integration testing and final quality assurance
+
+**Problems identified:** Linux CI covers engine/lint/doc/gRPC and required GPU, but ignored graphical/device/network/model tests need explicit qualification. Release claims span Linux and Windows while inherited documentation/platform code is broader. Phase 1 records the local baseline and its restrictions; the final implementation revision still requires full CI and target qualification.
+
+**Tasks:**
+- [ ] 8.1 Run the full CI-equivalent checks on the final revision, preserving commands, versions, timings and failures.
+- [ ] 8.2 Run a complete GUI session: create/import, edit/split/trim, effects/captions, undo/redo, save/reopen/relink, playback, export/cancel/retry and inspect output.
+- [ ] 8.3 Exercise packaged Linux AppImages on declared architectures and Windows installer/portable builds on real target environments; mark unavailable targets unverified.
+- [ ] 8.4 Explicitly schedule graphical/audio/device/model/network tests with their prerequisites; check fresh offline startup and optional libraries disabled by default.
+- [ ] 8.5 Recheck fixes and performance budgets; list unresolved issues by severity, release limitations and final evidence. Update this plan and release documentation to match actual results.
+
+**Files likely affected:** targeted tests in `C/*`, `.github/workflows/{ci,build-app,release}.yml`, `src/.config/nextest.toml`, `scripts/ci/smoke-*`, `scripts/build-appimage.sh`, `docs/RELEASING.md`, release notes and `POLISH_PLAN.md`.
+
+**Priority / risk:** P1; medium for harness/packaging changes, high for release qualification gaps.
+
+**Acceptance criteria:** every in-scope fix has passing regression evidence; no unresolved reproduced P0/P1 issue is silently waived; supported package matrix is recorded; required tests pass and skips are visible; no unrelated application modifications remain. Release approval remains separate from technical verification.
+
+**Verification commands:** from `src/`, with pinned toolchain/native dependencies configured: `cargo fmt --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo nextest run --locked --workspace --profile ci` with `CONCAT_REQUIRE_GPU=1`; `cargo test --workspace --doc -j 1`; `cargo clippy -p concat-server -p concat-cli --features grpc --all-targets -- -D warnings`; `cargo nextest run -p concat-server --features grpc --profile ci`. From repository root: `python3 scripts/locales.py --check`; `python3 scripts/models.py --check`. Match CI environment/build budgets where needed. Invoke the ignored graphical playback test explicitly in an isolated graphical/audio environment; consult its source for subprocess handling. These are planned commands, not results.
+
+**Dependencies / status:** all prior phases; Not started.
+
+## Change and verification log
+
+| Date | Scope | Result | Authorization |
+|---|---|---|---|
+| 2026-10-21 | Initial repository inspection and planning | Plan created from source/configuration evidence; no app changes or runtime checks at that stage | Planning requested |
+| 2026-10-21 | Phase 1 technical audit | Architecture/workflow/timing maps; local baseline results and limitations; verified documentation corrections; later-phase tasks T1/E1/E2/U1 | Explicit Phase 1 request; Phase 2 not started |
+| 2026-10-21 | Phase 2 task 2.1 and S1 investigation | S2/S3 fixed with independent before/after regressions; 341 relevant tests passed; durability alternatives/probes documented | Phase 2 authorized; stopped at explicit S1 design approval gate before 2.3/2.4; Phase 3 not started |
+
+| 2026-10-21 | Phase 2 final recovery and completion | Approved Option B and tasks 2.3/2.4 complete; 514 final passing tests, strict selected-package Clippy, format and diff checks passed | Stop before Phase 3; platform/hardware/model qualification limits retained |

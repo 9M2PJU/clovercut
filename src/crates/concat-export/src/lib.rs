@@ -15,10 +15,10 @@
 //! way, and so the doctrine holds: the host adds a destination and reports
 //! progress, nothing more.
 //!
-//! Picture is composited frame by frame - on the GPU when the `gpu` feature
-//! is on and the machine has one, with the CPU compositor as the
-//! always-correct fallback. Sound is planned by the engine as one FFmpeg
-//! filtergraph and mixed in a single pass.
+//! Picture is composited frame by frame through the always-built wgpu
+//! compositor. A software GPU adapter can provide a fallback; the CPU
+//! reference compositor exists only in concat-render's tests. Sound is
+//! planned as one FFmpeg filtergraph and mixed in a single pass.
 
 pub mod chains;
 pub mod flatten;

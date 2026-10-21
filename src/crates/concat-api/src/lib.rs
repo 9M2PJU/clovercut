@@ -440,8 +440,12 @@ impl Api {
             } => view(self.create(&location, &name, video.unwrap_or_default())?),
             Request::ProjectOpen { path } => view(self.open(&path)?),
             Request::ProjectClose { path, save } => {
-                self.close(&path, save)?;
-                Ok(Reply::Done(Done {}))
+                let saved = self.close(&path, save)?;
+                Ok(Reply::Done(Done {
+                    save_warning: saved
+                        .as_ref()
+                        .and_then(|saved| saved.warning().map(str::to_owned)),
+                }))
             }
             Request::ProjectList => Ok(Reply::Projects(self.recents())),
             Request::ProjectGet { path } => view(self.session(&path)?.view()),
@@ -449,8 +453,10 @@ impl Api {
                 Ok(Reply::Document(self.session(&path)?.document()))
             }
             Request::ProjectSave { path, name } => {
-                self.save(&path, name.as_deref())?;
-                Ok(Reply::Done(Done {}))
+                let saved = self.save(&path, name.as_deref())?;
+                Ok(Reply::Done(Done {
+                    save_warning: saved.warning().map(str::to_owned),
+                }))
             }
             Request::ProjectSetVideo { path, video } => {
                 view(self.session_mut(&path)?.set_video(video).map_err(refused)?)
@@ -469,14 +475,24 @@ impl Api {
                 location,
                 name,
                 fills,
-            } => view(self.instantiate(&template, &location, &name, fills)?),
+            } => {
+                let (created, saved) = self.instantiate(&template, &location, &name, fills)?;
+                if let Some(warning) = saved.warning() {
+                    let mut value = serde_json::to_value(created)
+                        .map_err(|error| ApiError::failed(error.to_string()))?;
+                    value["saveWarning"] = warning.into();
+                    Ok(Reply::Document(value))
+                } else {
+                    view(created)
+                }
+            }
             Request::TemplateSave { path, name } => {
                 Ok(Reply::Template(self.save_template(&path, &name)?))
             }
             Request::ExportRun { path, spec } => Ok(Reply::Started(self.export(&path, &spec)?)),
             Request::ExportCancel { job } => {
                 self.cancel(&job)?;
-                Ok(Reply::Done(Done {}))
+                Ok(Reply::Done(Done::default()))
             }
             Request::ExportStatus { job } => Ok(Reply::Job(self.job_status(&job)?)),
             Request::PreviewFrame {
@@ -576,10 +592,12 @@ impl Api {
     }
 
     /// [`Request::ProjectClose`].
-    pub fn close(&mut self, path: &str, save: bool) -> Result<(), ApiError> {
-        if save {
-            self.save(path, None)?;
-        }
+    pub fn close(&mut self, path: &str, save: bool) -> Result<Option<projects::Saved>, ApiError> {
+        let saved = if save {
+            Some(self.save(path, None)?)
+        } else {
+            None
+        };
         let closed = self
             .sessions
             .remove(&key_of(path))
@@ -588,7 +606,7 @@ impl Api {
         if closed.is_ok() {
             self.open.release(path);
         }
-        closed
+        closed.map(|()| saved)
     }
 
     /// [`Request::ProjectList`].
@@ -597,7 +615,7 @@ impl Api {
     }
 
     /// [`Request::ProjectSave`].
-    pub fn save(&mut self, path: &str, name: Option<&str>) -> Result<(), ApiError> {
+    pub fn save(&mut self, path: &str, name: Option<&str>) -> Result<projects::Saved, ApiError> {
         self.session_mut(path)?.save(name).map_err(ApiError::failed)
     }
 
@@ -619,7 +637,7 @@ impl Api {
         location: &str,
         name: &str,
         fills: Vec<Fill>,
-    ) -> Result<EditorView, ApiError> {
+    ) -> Result<(EditorView, projects::Saved), ApiError> {
         self.writable(location)?;
         // Every file is probed before anything is made, so a bad path
         // refuses the whole request rather than leaving a folder behind.
@@ -634,9 +652,9 @@ impl Api {
                 })
             })
             .collect::<Result<Vec<SlotFill>, ApiError>>()?;
-        let info =
+        let (info, saved) =
             templates::instantiate(template, location, name, fills).map_err(ApiError::failed)?;
-        self.adopt(info)
+        self.adopt(info).map(|view| (view, saved))
     }
 
     /// [`Request::TemplateSave`].
@@ -1298,7 +1316,8 @@ mod tests {
 
     #[test]
     fn a_response_is_a_result_or_an_error_object() {
-        let worked = serde_json::to_value(Response::Result(Reply::Done(Done {}))).expect("json");
+        let worked =
+            serde_json::to_value(Response::Result(Reply::Done(Done::default()))).expect("json");
         assert_eq!(worked, json!({ "result": {} }));
         let refused =
             serde_json::to_value(Response::Error(ApiError::new(ErrorCode::Refused, "no")))
@@ -1777,6 +1796,72 @@ mod tests {
             refused.message.contains("another Concat process"),
             "{}",
             refused.message
+        );
+    }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod durability_tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    struct Permissions(std::path::PathBuf);
+    impl Drop for Permissions {
+        fn drop(&mut self) {
+            std::fs::set_permissions(&self.0, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+    }
+
+    #[test]
+    fn committed_warning_is_visible_in_save_and_close_replies() {
+        let scratch = tempfile::tempdir().unwrap();
+        let dirs = AppDirs {
+            config: scratch.path().join("config"),
+            data: scratch.path().join("data"),
+        };
+        let mut api = Api::with_dirs(dirs, Arc::new(|_| {}));
+        let info = projects::create(
+            scratch.path().to_str().unwrap(),
+            "Warning",
+            1280,
+            720,
+            25,
+            1,
+        )
+        .unwrap();
+        api.open(&info.path).unwrap();
+        api.apply(&info.path, Command::AddTrack { bottom: false })
+            .unwrap();
+        let restore = Permissions(info.path.clone().into());
+        std::fs::set_permissions(&restore.0, std::fs::Permissions::from_mode(0o300)).unwrap();
+        for request in [
+            Request::ProjectSave {
+                path: info.path.clone(),
+                name: None,
+            },
+            Request::ProjectClose {
+                path: info.path.clone(),
+                save: true,
+            },
+        ] {
+            let Response::Result(Reply::Done(done)) = api.dispatch(request) else {
+                panic!("committed save must succeed")
+            };
+            let warning = done
+                .save_warning
+                .expect("warning is sent to the API caller");
+            assert!(warning.contains("Project saved"));
+            assert!(warning.contains("could not open"));
+            assert!(warning.contains(&info.path));
+        }
+        assert!(api.session(&info.path).is_err(), "close is allowed");
+        drop(restore);
+        let reopened = Session::open_info(&info).unwrap();
+        assert_eq!(reopened.project().active().tracks.len(), 5);
+        assert_eq!(
+            serde_json::to_value(Done::default()).unwrap(),
+            serde_json::json!({}),
+            "ordinary replies retain their shape"
         );
     }
 }

@@ -318,7 +318,7 @@ fn connection<S: Socket>(mut stream: S, door: Door, id: u64, peer: Peer, pending
     };
     outbox.send(Message::Reply {
         id: call,
-        response: Response::Result(Reply::Done(Done {})),
+        response: Response::Result(Reply::Done(Done::default())),
     });
 
     // Events reach this caller from here on: the outbox is shared with the

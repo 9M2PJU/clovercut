@@ -2973,15 +2973,24 @@ impl Studio {
         self.dirty = false;
         spawn_in_project(
             move || projects::save_ordered(&path, &document, ticket),
-            move |studio, _, _, result| match result {
-                Ok(_) if announce => studio.notify(&t("studio.projectSaved"), false),
-                Ok(_) => {}
-                Err(error) => {
-                    studio.dirty = true;
-                    studio.notify(&tf("studio.couldNotSave", &[&error]), true);
-                }
-            },
+            move |studio, _, _, result| studio.saved(result, announce),
         );
+    }
+
+    fn saved(&mut self, result: Result<projects::Saved, String>, announce: bool) {
+        match result {
+            Ok(saved) => {
+                if let Some(warning) = saved.warning() {
+                    self.notify(warning, true);
+                } else if announce {
+                    self.notify(&t("studio.projectSaved"), false);
+                }
+            }
+            Err(error) => {
+                self.dirty = true;
+                self.notify(&tf("studio.couldNotSave", &[&error]), true);
+            }
+        }
     }
 
     /// The audible clip set, handed to playback whenever the edit changes.
@@ -9070,6 +9079,10 @@ impl Studio {
     /// [`Studio::close_project`] without the notice: the project saved, then
     /// let go, or left open when the save fails.
     fn save_and_release(&mut self) -> Result<(), String> {
+        self.save_and_release_notifying(crate::platform::report_save_warning)
+    }
+
+    fn save_and_release_notifying(&mut self, mut warn: impl FnMut(&str)) -> Result<(), String> {
         log::info!("project: closing {}", self.project_name);
         // Words still being typed land in the save, not on the floor.
         self.flush_commit();
@@ -9080,9 +9093,19 @@ impl Studio {
         if let Some(session) = self.session.as_mut() {
             let (path, document) = session.prepare_save(None);
             let ticket = projects::ticket();
-            if let Err(error) = projects::save_ordered(&path, &document, ticket) {
-                log::warn!("project: could not be saved, not closing: {error}");
-                return Err(error);
+            match projects::save_ordered(&path, &document, ticket) {
+                Err(error) => {
+                    log::warn!("project: could not be saved, not closing: {error}");
+                    return Err(error);
+                }
+                Ok(saved) => {
+                    if let Some(warning) = saved.warning() {
+                        self.notify(warning, true);
+                        // A toast would vanish when quitting. Acknowledge the
+                        // warning before teardown; this is not a refusal to close.
+                        warn(warning);
+                    }
+                }
             }
         }
         self.release_project();
@@ -13851,5 +13874,526 @@ mod tests {
                 "one undo puts {id} back"
             );
         }
+    }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod save_durability_ui_tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    #[ignore = "requires an isolated graphical/audio session"]
+    fn committed_warning_preserves_edits_and_allows_close() {
+        const CHILD: &str = "CLOVERCUT_DURABILITY_UI_CHILD";
+        if std::env::var_os(CHILD).is_none() {
+            let root = std::env::temp_dir()
+                .join(format!("clovercut-durability-ui-{}", std::process::id()));
+            std::fs::create_dir(&root).unwrap();
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["studio::save_durability_ui_tests::committed_warning_preserves_edits_and_allows_close", "--exact", "--ignored", "--nocapture", "--test-threads=1"])
+                .env(CHILD, "1").env("TMPDIR", &root)
+                .env("XDG_CONFIG_HOME", root.join("config"))
+                .env("XDG_DATA_HOME", root.join("data"))
+                .env("XDG_CACHE_HOME", root.join("cache"))
+                .env("XDG_STATE_HOME", root.join("state"))
+                .output().unwrap();
+            std::fs::remove_dir_all(&root).unwrap();
+            assert!(
+                output.status.success(),
+                "{}\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert!(String::from_utf8_lossy(&output.stdout).contains("durability UI: ok"));
+            return;
+        }
+        let gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+        let mut studio = Studio::new(crate::host::Host::start(gpu).unwrap());
+        let app = crate::ui::App::new().unwrap();
+        let models = Models::new();
+        let info = projects::create(
+            std::env::temp_dir().to_str().unwrap(),
+            "Disposable warning",
+            64,
+            36,
+            10,
+            1,
+        )
+        .unwrap();
+        studio.open_project(info.clone()).unwrap();
+        studio.apply(Command::AddTrack { bottom: false });
+        assert_eq!(
+            studio.session.as_mut().unwrap().save(None),
+            Ok(projects::Saved::Written)
+        );
+        let manifest = projects::manifest_path(std::path::Path::new(&info.path));
+        let baseline = std::fs::read(&manifest).unwrap();
+        let backup = std::path::Path::new(&info.path).join("disposable-baseline.json");
+        let recovery =
+            std::path::Path::new(&info.path).join("concat.json.saving.disposable-recovery");
+        std::fs::write(&recovery, b"preserve uncommitted recovery fixture").unwrap();
+        studio.apply(Command::AddTrack { bottom: false });
+        std::fs::rename(&manifest, &backup).unwrap();
+        std::fs::create_dir(&manifest).unwrap();
+        let failed = studio.close_project();
+        assert!(failed.unwrap_err().contains("could not replace"));
+        assert!(
+            studio.session.is_some(),
+            "pre-commit failure blocks release"
+        );
+        assert_eq!(studio.timeline().tracks.len(), 6);
+        assert_eq!(
+            studio.host.open_projects.holder(&info.path),
+            Some(concat_api::Holder::Window)
+        );
+        assert!(studio.toast.failed);
+        studio.publish(&app, &models);
+        assert!(app.get_toast().failed);
+        assert!(app.get_toast().message.contains("could not replace"));
+        std::fs::remove_dir(&manifest).unwrap();
+        std::fs::rename(&backup, &manifest).unwrap();
+        assert_eq!(std::fs::read(&manifest).unwrap(), baseline);
+        let retry = studio.session.as_mut().unwrap().save(None);
+        assert_eq!(retry, Ok(projects::Saved::Written));
+        studio.saved(retry, true);
+        assert!(!studio.toast.failed);
+        assert_eq!(
+            concat_host::Session::open_info(&info)
+                .unwrap()
+                .project()
+                .active()
+                .tracks
+                .len(),
+            6
+        );
+        assert_eq!(
+            std::fs::read(&recovery).unwrap(),
+            b"preserve uncommitted recovery fixture"
+        );
+        std::fs::set_permissions(&info.path, std::fs::Permissions::from_mode(0o300)).unwrap();
+        let result = studio.session.as_mut().unwrap().save(None);
+        std::fs::set_permissions(&info.path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        assert!(result.as_ref().unwrap().warning().is_some());
+        // A later edit made while the worker runs must remain dirty.
+        studio.apply(Command::AddTrack { bottom: false });
+        assert_eq!(studio.timeline().tracks.len(), 7);
+        assert!(studio.dirty);
+        studio.saved(result, false);
+        assert!(studio.dirty);
+        assert!(studio.toast.failed);
+        assert!(studio.toast.message.contains("Project saved"));
+        studio.publish(&app, &models);
+        assert!(
+            app.get_toast()
+                .message
+                .contains("durability could not be confirmed")
+        );
+        let confirmed = studio.session.as_mut().unwrap().save(None);
+        assert_eq!(confirmed, Ok(projects::Saved::Written));
+        studio.saved(confirmed, true);
+        assert!(!studio.toast.failed);
+        // Acknowledgment is observed by the test instead of showing a native
+        // modal dialog. Production uses the same path with the native reporter.
+        std::fs::set_permissions(&info.path, std::fs::Permissions::from_mode(0o300)).unwrap();
+        let mut warnings = Vec::new();
+        let closed = studio.save_and_release_notifying(|message| warnings.push(message.to_owned()));
+        std::fs::set_permissions(&info.path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        assert!(closed.is_ok());
+        assert!(studio.session.is_none());
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("Project saved"));
+        assert_eq!(
+            concat_host::Session::open_info(&info)
+                .unwrap()
+                .project()
+                .active()
+                .tracks
+                .len(),
+            7
+        );
+        println!("durability UI: ok");
+        crate::leave(0);
+    }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod lifecycle_tests {
+    use super::*;
+    use slint::ComponentHandle;
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+        mpsc,
+    };
+    use std::time::{Duration, Instant};
+
+    // The signal is emitted when the event-loop delivery drops the result,
+    // whether it applied it or rejected it as belonging to an old project.
+    struct Delivered(mpsc::Sender<()>);
+    impl Drop for Delivered {
+        fn drop(&mut self) {
+            let _ = self.0.send(());
+        }
+    }
+
+    #[test]
+    #[ignore = "requires an isolated graphical/audio session, FFmpeg and GPU"]
+    fn switch_and_shutdown_with_running_work() {
+        const CHILD: &str = "CLOVERCUT_LIFECYCLE_CHILD";
+        if std::env::var_os(CHILD).is_none() {
+            let root =
+                std::env::temp_dir().join(format!("clovercut-lifecycle-{}", std::process::id()));
+            std::fs::create_dir(&root).unwrap();
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "studio::lifecycle_tests::switch_and_shutdown_with_running_work",
+                    "--exact",
+                    "--ignored",
+                    "--nocapture",
+                    "--test-threads=1",
+                ])
+                .env(CHILD, "1")
+                .env("TMPDIR", &root)
+                .env("XDG_CONFIG_HOME", root.join("config"))
+                .env("XDG_DATA_HOME", root.join("data"))
+                .env("XDG_CACHE_HOME", root.join("cache"))
+                .env("XDG_STATE_HOME", root.join("state"))
+                .output()
+                .unwrap();
+            print!("{}", String::from_utf8_lossy(&output.stdout));
+            let success = output.status.success()
+                && String::from_utf8_lossy(&output.stdout).contains("lifecycle: ok");
+            if success {
+                for name in ["Project A", "Project B"] {
+                    let info = projects::open(root.join(name).to_str().unwrap()).unwrap();
+                    assert_eq!(
+                        concat_host::Session::open_info(&info)
+                            .unwrap()
+                            .project()
+                            .active()
+                            .tracks
+                            .len(),
+                        5
+                    );
+                }
+                assert_eq!(
+                    std::fs::read(root.join("protected.mp4")).unwrap(),
+                    b"existing disposable destination"
+                );
+                assert!(!std::fs::read_dir(&root).unwrap().any(|entry| {
+                    entry
+                        .unwrap()
+                        .file_name()
+                        .to_string_lossy()
+                        .contains(".concat-")
+                }));
+            }
+            std::fs::remove_dir_all(&root).unwrap();
+            assert!(
+                success,
+                "{}\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
+        let root = std::env::temp_dir();
+        let video = root.join("source.mkv");
+        assert!(
+            std::process::Command::new("ffmpeg")
+                .args([
+                    "-v",
+                    "error",
+                    "-y",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    "testsrc2=size=64x36:rate=10:duration=3",
+                    "-c:v",
+                    "ffv1"
+                ])
+                .arg(&video)
+                .status()
+                .unwrap()
+                .success()
+        );
+        let gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+        let mut studio = Studio::new(crate::host::Host::start(gpu).unwrap());
+        let app = crate::ui::App::new().unwrap();
+        let a = projects::create(root.to_str().unwrap(), "Project A", 64, 36, 10, 1).unwrap();
+        let b = projects::create(root.to_str().unwrap(), "Project B", 64, 36, 10, 1).unwrap();
+        studio.open_project(a.clone()).unwrap();
+        let item = concat_host::media::probe(video.to_str().unwrap())
+            .unwrap()
+            .to_new_media();
+        let id = studio.apply(Command::AddMedia { item }).unwrap();
+        studio.apply(Command::AddClip {
+            media_id: id,
+            track_id: studio.timeline().tracks[0].id.clone(),
+            start: 0.0,
+            ripple: false,
+        });
+        studio.play_toggle();
+        assert!(studio.playing);
+        let (path, document) = studio.session.as_mut().unwrap().prepare_save(None);
+        let old_ticket = projects::ticket();
+        let (dropped_tx, dropped_rx) = mpsc::channel();
+        let applied = Arc::new(AtomicBool::new(false));
+        let mut releases = Vec::new();
+        let mut ready_receivers = Vec::new();
+        // A queued autosave, real decoded frame and model-style background result
+        // all become available only after the project epoch has changed.
+        for index in 0..3 {
+            let (release, wait) = mpsc::channel();
+            let (ready, started) = mpsc::channel();
+            releases.push(release);
+            ready_receivers.push(started);
+            let dropped = dropped_tx.clone();
+            let applied = Arc::clone(&applied);
+            let path = path.clone();
+            let document = document.clone();
+            let video = video.clone();
+            crate::host::spawn_in_project(
+                move || {
+                    if index == 1 {
+                        use concat_media::FrameSource;
+                        let mut decoder = concat_media::Decoder::open(
+                            video,
+                            &concat_media::DecodeOptions::default(),
+                        )
+                        .unwrap();
+                        assert!(decoder.next_frame().unwrap().is_some());
+                        ready.send(()).unwrap();
+                        wait.recv_timeout(Duration::from_secs(30)).unwrap();
+                    } else {
+                        ready.send(()).unwrap();
+                        wait.recv_timeout(Duration::from_secs(30)).unwrap();
+                        if index == 0 {
+                            assert_eq!(
+                                projects::save_ordered(&path, &document, old_ticket).unwrap(),
+                                projects::Saved::Superseded
+                            );
+                        }
+                    }
+                    Delivered(dropped)
+                },
+                move |studio, _, _, _result| {
+                    applied.store(true, Ordering::Release);
+                    studio.project_name = "STALE PROJECT RESULT".into();
+                },
+            );
+        }
+        for ready in ready_receivers {
+            ready.recv_timeout(Duration::from_secs(30)).unwrap();
+        }
+        let analysis = Arc::clone(&studio.host.stabilizers);
+        let request = concat_host::stabilize::StabilizeRequest {
+            project: a.path.clone().into(),
+            media_path: video.to_string_lossy().into_owned(),
+            media_size: Some((64, 36)),
+            ranges: vec![(0.0, 3.0)],
+        };
+        let (analysis_ready, analysis_started) = mpsc::channel();
+        let (analysis_release, analysis_wait) = mpsc::channel();
+        let analysis_thread = std::thread::spawn(move || {
+            let mut first = true;
+            analysis.analyse(&request, &mut |_| {
+                if first {
+                    first = false;
+                    analysis_ready.send(()).unwrap();
+                    analysis_wait.recv_timeout(Duration::from_secs(30)).unwrap();
+                }
+            })
+        });
+        analysis_started
+            .recv_timeout(Duration::from_secs(30))
+            .unwrap();
+        assert!(studio.host.stabilizers.is_busy());
+        let output = root.join("protected.mp4");
+        std::fs::write(&output, b"existing disposable destination").unwrap();
+        let request = concat_host::export::request(
+            studio.session.as_ref().unwrap(),
+            &concat_host::export::ExportSpec {
+                output: output.to_string_lossy().into_owned(),
+                crf: 28,
+                preset: "ultrafast".into(),
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        let job = studio.host.exporter.begin().unwrap();
+        let compositor = studio.host.monitor.off_thread();
+        let (render_ready, render_started) = mpsc::channel();
+        let export_thread = std::thread::spawn(move || {
+            let mut first = true;
+            concat_host::export::run_on(&request, compositor, job.cancel_flag(), |_| {
+                if first {
+                    first = false;
+                    render_ready.send(()).unwrap();
+                    let until = Instant::now() + Duration::from_secs(30);
+                    while !job.cancelled() && Instant::now() < until {
+                        std::thread::sleep(Duration::from_millis(5));
+                    }
+                    assert!(job.cancelled(), "shutdown must cancel the actual renderer");
+                }
+            })
+        });
+        render_started
+            .recv_timeout(Duration::from_secs(30))
+            .unwrap();
+        // This edit is newer than the blocked autosave.
+        studio.apply(Command::AddTrack { bottom: false });
+        let epoch = crate::host::project_epoch();
+        // A reproducible pre-commit failure must refuse the switch without
+        // cancelling the current project's jobs or releasing its claim.
+        let manifest = projects::manifest_path(std::path::Path::new(&a.path));
+        let backup = root.join("disposable-manifest-backup.json");
+        std::fs::rename(&manifest, &backup).unwrap();
+        std::fs::create_dir(&manifest).unwrap();
+        assert!(studio.open_project(b.clone()).is_err());
+        assert_eq!(crate::host::project_epoch(), epoch);
+        assert_eq!(studio.session.as_ref().unwrap().path(), a.path);
+        assert!(studio.host.stabilizers.is_busy());
+        assert!(studio.host.exporter.is_busy());
+        assert_eq!(
+            studio.host.open_projects.holder(&a.path),
+            Some(concat_api::Holder::Window)
+        );
+        assert_eq!(studio.host.open_projects.holder(&b.path), None);
+        std::fs::remove_dir(&manifest).unwrap();
+        std::fs::rename(&backup, &manifest).unwrap();
+        studio.open_project(b.clone()).unwrap();
+        assert!(crate::host::project_epoch() > epoch);
+        assert!(!studio.playing);
+        assert!(!studio.host.playback.is_playing());
+        assert_eq!(studio.host.open_projects.holder(&a.path), None);
+        assert_eq!(
+            studio.host.open_projects.holder(&b.path),
+            Some(concat_api::Holder::Window)
+        );
+        assert!(
+            studio.host.exporter.is_busy(),
+            "project switching does not cancel independent export"
+        );
+        assert!(studio.source.is_none());
+        for release in releases {
+            release.send(()).unwrap();
+        }
+        analysis_release.send(()).unwrap();
+        assert!(
+            analysis_thread
+                .join()
+                .unwrap()
+                .unwrap_err()
+                .contains("cancelled")
+        );
+        assert!(!studio.host.stabilizers.is_busy());
+        let shell = std::rc::Rc::new(crate::host::Shell {
+            app: app.as_weak(),
+            studio: std::cell::RefCell::new(studio),
+            models: Models::new(),
+        });
+        crate::host::Shell::install(shell.clone());
+        let timer = slint::Timer::default();
+        let discarded = std::rc::Rc::new(std::cell::Cell::new(0));
+        let count = discarded.clone();
+        let until = Instant::now() + Duration::from_secs(10);
+        timer.start(
+            slint::TimerMode::Repeated,
+            Duration::from_millis(10),
+            move || {
+                count.set(count.get() + dropped_rx.try_iter().count());
+                assert!(
+                    Instant::now() < until,
+                    "old callback delivery did not finish"
+                );
+                if count.get() == 3 {
+                    slint::quit_event_loop().unwrap();
+                }
+            },
+        );
+        app.run().unwrap();
+        timer.stop();
+        assert_eq!(discarded.get(), 3);
+        assert!(
+            !applied.load(Ordering::Acquire),
+            "stale callbacks must not mutate project B"
+        );
+        // Repeat the overlap for shutdown: an old B autosave and a native
+        // decoder/background worker are all running BEFORE close starts.
+        let (old_path, old_document) = shell
+            .studio
+            .borrow_mut()
+            .session
+            .as_mut()
+            .unwrap()
+            .prepare_save(None);
+        let old_ticket = projects::ticket();
+        let (save_release, save_wait) = mpsc::channel();
+        let (save_done, saved) = mpsc::channel();
+        let (save_ready, save_started) = mpsc::channel();
+        crate::host::spawn_detached(move || {
+            save_ready.send(()).unwrap();
+            save_wait.recv_timeout(Duration::from_secs(30)).unwrap();
+            save_done
+                .send(projects::save_ordered(&old_path, &old_document, old_ticket))
+                .unwrap();
+        });
+        save_started.recv_timeout(Duration::from_secs(10)).unwrap();
+        let (ready, started) = mpsc::channel();
+        crate::host::spawn_detached(move || {
+            use concat_media::FrameSource;
+            let mut decoder =
+                concat_media::Decoder::open(video, &concat_media::DecodeOptions::default())
+                    .unwrap();
+            assert!(decoder.next_frame().unwrap().is_some());
+            ready.send(()).unwrap();
+            loop {
+                std::thread::park();
+            }
+        });
+        started.recv_timeout(Duration::from_secs(10)).unwrap();
+        let (ready, started) = mpsc::channel();
+        crate::host::spawn_detached(move || {
+            ready.send(()).unwrap();
+            loop {
+                std::thread::park();
+            }
+        });
+        started.recv_timeout(Duration::from_secs(10)).unwrap();
+        {
+            let mut studio = shell.studio.borrow_mut();
+            assert_eq!(studio.project_name, "Project B");
+            studio.apply(Command::AddTrack { bottom: false });
+            studio.close_project().unwrap();
+            assert!(studio.session.is_none());
+            assert!(!studio.autosave.running());
+            assert_eq!(studio.host.open_projects.holder(&b.path), None);
+        }
+        save_release.send(()).unwrap();
+        assert_eq!(
+            saved
+                .recv_timeout(Duration::from_secs(10))
+                .unwrap()
+                .unwrap(),
+            projects::Saved::Superseded
+        );
+        let start = Instant::now();
+        crate::stop_exports();
+        let result = export_thread.join().unwrap();
+        assert!(result.unwrap_err().to_lowercase().contains("cancel"));
+        assert!(start.elapsed() < Duration::from_secs(10));
+        assert!(!shell.studio.borrow().host.exporter.is_busy());
+        assert_eq!(
+            std::fs::read(&output).unwrap(),
+            b"existing disposable destination"
+        );
+        // A fresh slot can be claimed after cancellation; no poisoned/busy job.
+        drop(shell.studio.borrow().host.exporter.begin().unwrap());
+        // Production immediate exit must work while the native decoder and
+        // background worker above are still alive. Parent verifies the files.
+        println!("lifecycle: ok; export shutdown {:?}", start.elapsed());
+        crate::leave(0);
     }
 }

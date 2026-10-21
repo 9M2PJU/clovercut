@@ -577,6 +577,20 @@ pub fn report_startup_failure(error: &str) {
     let _ = error;
 }
 
+/// A committed save may close, but its warning must remain visible even
+/// when the window is about to disappear. This dialog only acknowledges it.
+pub fn report_save_warning(message: &str) {
+    #[cfg(target_os = "linux")]
+    rfd::MessageDialog::new()
+        .set_level(rfd::MessageLevel::Warning)
+        .set_title("Clovercut — project saved with a warning")
+        .set_description(message)
+        .set_buttons(rfd::MessageButtons::Ok)
+        .show();
+    #[cfg(not(target_os = "linux"))]
+    let _ = message;
+}
+
 /// Whether the strip should draw its own window buttons: everywhere the
 /// platform's decorations were taken off, which is everywhere but macOS,
 /// where the traffic lights stay the window's.
