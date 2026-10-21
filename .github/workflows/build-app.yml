@@ -128,13 +128,29 @@ jobs:
         workspaces: src
         key: ${{ matrix.target }}
         env-vars: CARGO CC CFLAGS CXX CMAKE RUST GGML ORT
+    - name: Memory headroom for the generated Linux UI
+      run: |
+        set -euo pipefail
+        # Keep the runner alive while rustc processes Slint's large module.
+        # A single Cargo job does not bound one compiler process's memory.
+        sudo fallocate -l 8G /swapfile-clovercut
+        sudo chmod 600 /swapfile-clovercut
+        sudo mkswap /swapfile-clovercut
+        sudo swapon /swapfile-clovercut
+        free -h
     - name: Build
-      timeout-minutes: 90
+      timeout-minutes: 120
       shell: bash
       working-directory: src
       run: |
         set -o pipefail
-        cargo build --locked --profile app -p concat --bin clovercut --target ${{ matrix.target }} 2>&1 | tee build.log
+        # The engine stays at opt-level 3. Optimising the generated UI and
+        # fat-linking the whole dependency graph exhausts hosted Linux runners.
+        /usr/bin/time -v cargo build --locked --profile app -p concat --bin clovercut \
+          --target ${{ matrix.target }} \
+          --config 'profile.app.lto=false' \
+          --config 'profile.app.package.concat.opt-level=0' \
+          --config 'profile.app.package.concat.codegen-units=16' 2>&1 | tee build.log
     - name: Build log to the summary (failure only)
       if: failure()
       shell: bash
