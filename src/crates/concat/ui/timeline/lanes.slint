@@ -1928,12 +1928,6 @@ export component Lanes inherits Rectangle {
             moved => {
                 if (self.pressed) {
                     self.dragging = true;
-                    self.drag-to = Math.max(0,
-                        root.seconds-at(root.at(mark) + self.mouse-x - self.pressed-x));
-                }
-            moved => {
-                if (self.pressed) {
-                    self.dragging = true;
                     self.drag-to = Math.max(-root.time-origin,
                         root.seconds-at(root.at(mark) + self.mouse-x - self.pressed-x));
                 }
@@ -1945,10 +1939,6 @@ export component Lanes inherits Rectangle {
                     } else if (event.kind == PointerEventKind.up) {
                         root.scrubbed(mark);
                         root.key-mark-opened();
-                    }
-                    self.dragging = false;
-                }
-            }
                     }
                     self.dragging = false;
                 }
