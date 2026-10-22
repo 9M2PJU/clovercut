@@ -32,7 +32,7 @@ rm -rf "$app"
 mkdir -p "$app/Frameworks"
 cp "$binary" "$app/Concat"
 cp -R "$framework/$slice/SherpaOnnxC.framework" "$app/Frameworks/"
-cp "$root/assets/icons/concat_logo_512.png" "$app/AppIcon.png" 2>/dev/null || true
+cp "$root/assets/icons/clovercut_512.png" "$app/AppIcon.png" 2>/dev/null || true
 
 # The binary was linked against the dylib by the name the linker saw in
 # vendor/; in the bundle it lives in Frameworks/ under the framework's
