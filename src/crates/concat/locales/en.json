@@ -824,7 +824,6 @@
   "studio.savedTemplate": "Saved template “{0}”",
   "studio.savingFrame": "Saving the frame…",
   "studio.selectClipTimelineFirst": "Select a clip on the timeline first",
-  "studio.selectClipToCut": "More than one clip is under the playhead: select the one to cut",
   "studio.selectTwoAdjacentClips": "Select two clips that meet on the same track, then pick a transition",
   "studio.selectVideoImageClip": "Select a video or image clip on the timeline first",
   "studio.selectVideoImageText": "Select a video, image or text clip on the timeline first",

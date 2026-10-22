@@ -6,7 +6,7 @@ import { Theme } from "../theme/theme.slint";
 import { Glyph, Icon } from "../icons.slint";
 import { IconButton } from "../primitives/panel.slint";
 import { ThinScrollbar } from "../primitives/scrollbar.slint";
-import { TrackData, TrackSize } from "model.slint";
+import { DropData, TrackData, TrackSize } from "model.slint";
 
 // The lane switches, in a fixed column beside the lanes.
 //
@@ -327,6 +327,8 @@ export component TrackHeaders inherits Rectangle {
     /// than measured here: the pane already works it out to clamp the offset,
     /// and two answers to one question is one answer too many.
     in property <length> overflow;
+    in property <DropData> drop;
+    property <length> new-track-h: root.drop.active && root.drop.new-track ? 60px : 0px;
 
     /// The bar was dragged, or the column wheeled. Absolute, and already
     /// inside 0..overflow.
@@ -356,9 +358,32 @@ export component TrackHeaders inherits Rectangle {
             return EventResult.accept;
         }
 
+        if root.drop.active && root.drop.new-track: Rectangle {
+            x: 0;
+            y: root.ruler-height;
+            width: parent.width;
+            height: root.new-track-h - 2px;
+            background: Theme.lane.brighter(0.04);
+            border-width: 1.5px;
+            border-color: Theme.accent.with-alpha(0.8);
+            border-radius: Theme.r-sm;
+
+            HorizontalLayout {
+                padding-left: 12px;
+                alignment: start;
+                Text {
+                    text: "+ Nova Pista";
+                    color: Theme.accent;
+                    font-size: 11px;
+                    font-weight: 600;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
         for track[index] in root.tracks: Header {
             x: 0;
-            y: root.ruler-height + track.top - root.track-scroll;
+            y: root.ruler-height + root.new-track-h + track.top - root.track-scroll;
             width: parent.width;
             height: track.height;
             // Clipped to the stack rather than allowed to ride over the ruler,

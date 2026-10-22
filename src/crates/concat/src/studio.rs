@@ -604,6 +604,7 @@ pub struct DropPlan {
     pub start: f64,
     pub duration: f64,
     pub row: i32,
+    pub new_track: bool,
 }
 
 /// Every model the window is handed, kept for its lifetime rather than
@@ -3935,6 +3936,7 @@ impl Studio {
                     }
                     .max(f64::from(MIN_DURATION)),
                     row: 0,
+                    new_track: false,
                 })
             }
             // A title: the preset's id rides where a file's media id would,
@@ -3957,6 +3959,7 @@ impl Studio {
                         .fold(0.0_f64, f64::max)
                         .max(f64::from(MIN_DURATION)),
                     row: 0,
+                    new_track: false,
                 })
             }
             "text" => Some(DropPlan {
@@ -3966,6 +3969,7 @@ impl Studio {
                 start: 0.0,
                 duration: f64::from(LAYER_DURATION),
                 row: 0,
+                new_track: false,
             }),
             // A figure from the Stickers page: the shape's name rides
             // where a file's media id would, and the label is what the
@@ -3977,6 +3981,7 @@ impl Studio {
                 start: 0.0,
                 duration: f64::from(LAYER_DURATION),
                 row: 0,
+                new_track: false,
             }),
             // A sound from the Audio page: not in the bin yet, so its card
             // rides in `media` behind `sound:`, and the drop imports it.
@@ -3989,6 +3994,7 @@ impl Studio {
                     start: 0.0,
                     duration: 3.0,
                     row: 0,
+                    new_track: false,
                 })
             }
             "sound" => {
@@ -4000,6 +4006,7 @@ impl Studio {
                     start: 0.0,
                     duration: duration.max(f64::from(MIN_DURATION)),
                     row: 0,
+                    new_track: false,
                 })
             }
             // A look dragged from the Filters page: a layer over a span.
@@ -4011,6 +4018,7 @@ impl Studio {
                 start: 0.0,
                 duration: f64::from(LAYER_DURATION),
                 row: 0,
+                new_track: false,
             }),
             "transition" | "audio-effect" => Some(DropPlan {
                 kind: if sort == "audio-effect" {
@@ -4023,6 +4031,7 @@ impl Studio {
                 start: 0.0,
                 duration: 0.5,
                 row: 0,
+                new_track: false,
             }),
             "effect-layer" => Some(DropPlan {
                 kind: ClipKind::Filter,
@@ -4031,6 +4040,7 @@ impl Studio {
                 start: 0.0,
                 duration: f64::from(LAYER_DURATION),
                 row: 0,
+                new_track: false,
             }),
             "filter" => Some(DropPlan {
                 kind: ClipKind::Filter,
@@ -4039,56 +4049,71 @@ impl Studio {
                 start: 0.0,
                 duration: f64::from(LAYER_DURATION),
                 row: 0,
+                new_track: false,
             }),
             _ => None,
         }
     }
 
-    /// A drag over the lanes: the pointer names the moment and the lane.
-    pub fn plan(&self, payload: &str, seconds: impl Into<f64>, row: i32) -> Option<DropPlan> {
+    /// A drag over the lanes: the pointer names the moment, the lane and the vertical position.
+    pub fn plan(
+        &self,
+        payload: &str,
+        seconds: impl Into<f64>,
+        row: i32,
+        y: f32,
+    ) -> Option<DropPlan> {
         let seconds = seconds.into();
         let mut plan = self.incoming(payload)?;
         let lanes = self.timeline().tracks.len() as i32;
         if lanes == 0 {
             return None;
         }
-        plan.row = row.clamp(0, lanes - 1);
-        if self
-            .row_track(plan.row)
-            .is_none_or(|track| self.locked(&track.id))
-        {
-            return None;
-        }
-        let track_id = &self.row_track(plan.row)?.id;
-        if plan.media.starts_with("transition:") {
-            let clip = self.timeline().transition_drop_target(
-                track_id,
-                seconds,
-                (16.0 * f64::from(self.lanes.seconds_per_pixel)).max(0.25),
-            )?;
-            plan.start = clip.start;
-            plan.duration = self.transition_duration(clip, 0.5)?;
+
+        let is_target_effect = plan.media.starts_with("transition:")
+            || plan.media.starts_with("audio-effect:")
+            || ["effect:", "clip-filter:", "lut:"]
+                .iter()
+                .any(|p| plan.media.starts_with(p));
+
+        if is_target_effect {
+            plan.row = row.clamp(0, lanes - 1);
+            let track_id = &self.row_track(plan.row)?.id;
+            if self.locked(track_id) {
+                return None;
+            }
+            if plan.media.starts_with("transition:") {
+                let clip = self.timeline().transition_drop_target(
+                    track_id,
+                    seconds,
+                    (16.0 * f64::from(self.lanes.seconds_per_pixel)).max(0.25),
+                )?;
+                plan.start = clip.start;
+                plan.duration = self.transition_duration(clip, 0.5)?;
+                return Some(plan);
+            }
+            if ["effect:", "clip-filter:", "lut:"]
+                .iter()
+                .any(|prefix| plan.media.starts_with(prefix))
+            {
+                let clip = self
+                    .timeline()
+                    .visual_effect_drop_target(track_id, seconds)?;
+                plan.start = clip.start;
+                plan.duration = clip.duration;
+                return Some(plan);
+            }
+            if plan.media.starts_with("audio-effect:") {
+                let clip = self
+                    .timeline()
+                    .audio_effect_drop_target(track_id, seconds)?;
+                plan.start = clip.start;
+                plan.duration = clip.duration;
+                return Some(plan);
+            }
             return Some(plan);
         }
-        if ["effect:", "clip-filter:", "lut:"]
-            .iter()
-            .any(|prefix| plan.media.starts_with(prefix))
-        {
-            let clip = self
-                .timeline()
-                .visual_effect_drop_target(track_id, seconds)?;
-            plan.start = clip.start;
-            plan.duration = clip.duration;
-            return Some(plan);
-        }
-        if plan.media.starts_with("audio-effect:") {
-            let clip = self
-                .timeline()
-                .audio_effect_drop_target(track_id, seconds)?;
-            plan.start = clip.start;
-            plan.duration = clip.duration;
-            return Some(plan);
-        }
+
         plan.start = self
             .snapped(
                 seconds.max(0.0),
@@ -4096,6 +4121,48 @@ impl Studio {
                 "",
             )
             .max(0.0);
+
+        let (target_row, is_new_track) = if self.drop.as_ref().is_some_and(|d| d.new_track) {
+            if y < 60.0 {
+                (0, true)
+            } else {
+                let adj_row = row_at(&self.lane_heights(), y - 60.0).clamp(0, lanes - 1);
+                let track_id = self.row_track(adj_row).map(|t| &t.id);
+                let overlaps = track_id.is_some_and(|tid| {
+                    self.timeline().clips.iter().any(|c| {
+                        c.track_id == *tid
+                            && c.start < plan.start + plan.duration
+                            && c.start + c.duration > plan.start
+                    })
+                });
+                (adj_row, overlaps)
+            }
+        } else {
+            let in_top = row == 0 && y < 35.0;
+            let target = row.clamp(0, lanes - 1);
+            let track_id = self.row_track(target).map(|t| &t.id);
+            let overlaps = track_id.is_some_and(|tid| {
+                self.timeline().clips.iter().any(|c| {
+                    c.track_id == *tid
+                        && c.start < plan.start + plan.duration
+                        && c.start + c.duration > plan.start
+                })
+            });
+            (target, in_top || overlaps)
+        };
+
+        plan.row = target_row;
+        plan.new_track = is_new_track;
+
+        if !plan.new_track {
+            if self
+                .row_track(plan.row)
+                .is_none_or(|track| self.locked(&track.id))
+            {
+                return None;
+            }
+        }
+
         Some(plan)
     }
 
@@ -4176,14 +4243,15 @@ impl Studio {
             return;
         }
 
-        // If the target track already has a clip overlapping with this placement,
-        // automatically mint a new track on top so the new element layers over it.
-        let overlaps = self.timeline().clips.iter().any(|c| {
-            c.track_id == track_id
-                && c.start < plan.start + plan.duration
-                && c.start + c.duration > plan.start
-        });
-        if overlaps {
+        // If the drop plan requested a new track, or the target track already has
+        // an overlapping clip, mint a new track on top so the element layers over it.
+        let will_make_new_track = plan.new_track
+            || self.timeline().clips.iter().any(|c| {
+                c.track_id == track_id
+                    && c.start < plan.start + plan.duration
+                    && c.start + c.duration > plan.start
+            });
+        if will_make_new_track {
             if let Some(new_track) = self.apply(Command::AddTrack { bottom: false }) {
                 track_id = new_track;
             }
@@ -4235,14 +4303,14 @@ impl Studio {
                 media_ids,
                 track_id: Some(track_id),
                 start: plan.start,
-                ripple: !overlaps && self.prefs.magnetic,
+                ripple: !will_make_new_track && self.prefs.magnetic,
             })
         } else {
             self.apply(Command::AddClip {
                 media_id: plan.media.clone(),
                 track_id,
                 start: plan.start,
-                ripple: !overlaps && self.prefs.magnetic,
+                ripple: !will_make_new_track && self.prefs.magnetic,
             })
         };
         if let Some(id) = created {
@@ -5666,6 +5734,7 @@ impl Studio {
                 // https://github.com/jub0t/Concat/issues/247
                 if moved_any(&moves, |id| self.clip(id)) {
                     self.apply(Command::MoveClips { moves });
+                    self.prune_empty_tracks();
                 }
             }
             Gesture::Trim {
@@ -8270,7 +8339,8 @@ impl Studio {
     // ── edits from menus and the tray ──
 
     /// Split at `at`: every selected clip the instant runs through, or every
-    /// clip at all when nothing is selected or when the selection is elsewhere.
+    /// clip on the selected clip's track if selection is elsewhere, or all clips
+    /// under playhead if nothing is selected.
     pub fn split_at(&mut self, at: impl Into<f64>, only_selected: bool) {
         let selection = self.selection.clone();
         let at = at.into();
@@ -8291,9 +8361,23 @@ impl Studio {
             .filter(|id| selection.contains(id))
             .cloned()
             .collect();
+        let selected_tracks: Vec<String> = selection
+            .iter()
+            .filter_map(|id| self.clip(id).map(|c| c.track_id.clone()))
+            .collect();
+        let same_track_under: Vec<String> = under
+            .iter()
+            .filter(|id| {
+                self.clip(id)
+                    .is_some_and(|c| selected_tracks.contains(&c.track_id))
+            })
+            .cloned()
+            .collect();
 
         let victims = if only_selected && !selected_under.is_empty() {
             selected_under
+        } else if !same_track_under.is_empty() {
+            same_track_under
         } else {
             under
         };
@@ -8312,7 +8396,8 @@ impl Studio {
     /// Delete Left / Delete Right, CapCut's Q and W: the selected clips the
     /// playhead runs through lose everything before it, or everything
     /// after it, as one undo step. With nothing selected (or when the selection
-    /// is on clips elsewhere on the timeline), the clip under the playhead is cut.
+    /// is on clips elsewhere on the timeline), only the clip on the selected clip's
+    /// track (or primary) under the playhead is cut.
     /// https://github.com/jub0t/Concat/issues/400
     pub fn delete_to_playhead(&mut self, side: PlayheadSide) {
         let at = self.playhead;
@@ -8333,8 +8418,24 @@ impl Studio {
             .filter(|id| self.selection.contains(id))
             .cloned()
             .collect();
+        let selected_tracks: Vec<String> = self
+            .selection
+            .iter()
+            .filter_map(|id| self.clip(id).map(|c| c.track_id.clone()))
+            .collect();
+        let same_track_under: Vec<String> = under
+            .iter()
+            .filter(|id| {
+                self.clip(id)
+                    .is_some_and(|c| selected_tracks.contains(&c.track_id))
+            })
+            .cloned()
+            .collect();
+
         let targets: Vec<String> = if !selected_under.is_empty() {
             selected_under
+        } else if !same_track_under.is_empty() {
+            same_track_under
         } else if under.len() > 1 {
             let track_order: Vec<&str> = self
                 .timeline()
@@ -8383,6 +8484,7 @@ impl Studio {
         };
         self.flush_commit();
         self.apply(command);
+        self.prune_empty_tracks();
         if side == PlayheadSide::Left {
             let start = ids
                 .iter()
@@ -8392,6 +8494,25 @@ impl Studio {
             if start.is_finite() && start < at {
                 self.seek(start);
             }
+        }
+    }
+
+    /// Removes any tracks that contain zero clips, preserving at least one track.
+    pub fn prune_empty_tracks(&mut self) {
+        if self.timeline().tracks.len() <= 1 {
+            return;
+        }
+        let empty_track_ids: Vec<String> = self
+            .timeline()
+            .tracks
+            .iter()
+            .filter(|track| !self.timeline().clips.iter().any(|c| c.track_id == track.id))
+            .map(|t| t.id.clone())
+            .collect();
+
+        let max_to_remove = self.timeline().tracks.len().saturating_sub(1);
+        for track_id in empty_track_ids.into_iter().take(max_to_remove) {
+            self.apply(Command::RemoveTrack { track_id });
         }
     }
 
@@ -8599,6 +8720,7 @@ impl Studio {
                 clip_ids: doomed,
                 ripple,
             });
+            self.prune_empty_tracks();
         }
         self.selection.clear();
     }
@@ -9970,6 +10092,7 @@ impl Studio {
                 start: self.lanes.local(plan.start),
                 duration: plan.duration as f32,
                 row: plan.row,
+                new_track: plan.new_track,
             },
             None => DropData::default(),
         });
@@ -13346,6 +13469,7 @@ impl Studio {
                         clip_ids: vec![id.to_owned()],
                         ripple,
                     });
+                    self.prune_empty_tracks();
                 }
                 self.menu_target = None;
             }

@@ -2,7 +2,7 @@
 
 The Rust engine inherited from Concat. Crate and API names retain the `concat`
 prefix for compatibility. Clovercut release workflows build Linux x86_64/aarch64 AppImages and Windows
-x86_64 installer/portable packages. Native target qualification is separate from
+x86_64 installer/portable packages, plus an Android ARM64 APK target for 0.1.0. Native target qualification is separate from
 source and workflow support.
 See the [project README](../README.md) for current features and setup.
 

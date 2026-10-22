@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/tulcoturo/clovercut"><img src="https://img.shields.io/badge/Project-Clovercut-16b86a" alt="Clovercut project" /></a>
-  <a href="https://github.com/tulcoturo/clovercut/releases"><img src="https://img.shields.io/badge/Release-0.0.2-00bcd4" alt="Release 0.0.2" /></a>
+  <a href="https://github.com/tulcoturo/clovercut/releases"><img src="https://img.shields.io/badge/Version-0.1.0-00bcd4" alt="Source version 0.1.0" /></a>
   <a href="https://github.com/tulcoturo/clovercut/issues"><img src="https://img.shields.io/badge/Feedback-Issues-blue" alt="Report bugs and suggest improvements" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-16b86a" alt="License: AGPL-3.0-or-later" /></a>
   <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-blueviolet" alt="Linux and Windows" />
@@ -28,6 +28,20 @@ Built with a high-performance **Rust** engine and a responsive **Slint** interfa
 <p align="center"><em>Clovercut's 3-panel desktop workspace: Media bin & Content libraries (left), GPU Monitor (center), Contextual Inspector (right), and full-width precision multi-track timeline (bottom).</em></p>
 
 ---
+
+## Current Version: 0.1.0
+
+The current source version is **0.1.0**. The latest published binary release is **0.0.2**; see [Releases](https://github.com/tulcoturo/clovercut/releases) for available downloads. Version 0.1.0 packages are being prepared for Linux, Windows, and Android ARM64; workflow support does not imply that every package has been built or tested on a device.
+
+Highlights in the current source include:
+
+- Refreshed desktop layout, Clovercut branding, and export dialog.
+- Continuous pitch-preserving audio speed curves, local Whisper captions, and live audio meters.
+- SVG still import, WebM alpha transparency, 3D LUTs, and color wheels.
+- Editing improvements for playhead cuts, centered transitions, and inspector controls during playback.
+- Drag-and-drop previews for new overlay tracks and removal of empty tracks after moving or deleting clips.
+
+See the [0.1.0 release notes](docs/releases/0.1.0.md) for the release overview.
 
 ## Why Clovercut? Core Standout Features
 
@@ -63,7 +77,7 @@ Built with a high-performance **Rust** engine and a responsive **Slint** interfa
 ### 5. Private, Local-First Architecture
 - **Zero Cloud Locks:** No subscriptions, no sign-ins, no watermarks, and no resolution throttles.
 - **GPU Hardware Acceleration:** Real-time decoding and compositing powered by Vulkan (Linux) and Direct3D 12 (Windows), with automatic software fallback (`clovercut --software`) if graphics drivers misbehave.
-- **Corruption-Proof Project Durability:** Atomic directory saves, unique snapshot tickets, and automatic crash recovery so your edits are never lost.
+- **Project Recovery:** Atomic directory saves, snapshots, and automatic crash recovery help protect your edits.
 
 <p align="center">
   <img src="assets/screenshots/export-dialog.png" alt="Clovercut Centered Export Modal" width="900" />
@@ -83,7 +97,7 @@ Built with a high-performance **Rust** engine and a responsive **Slint** interfa
 
 ## Downloads & Installation
 
-Clovercut **0.0.2** binaries are packaged for **Linux** and **Windows (x64)**.
+The latest published release is **0.0.2**, with **Linux** and **Windows (x64)** packages. The commands below refer to that release. For 0.1.0, download packages only when they appear on the release page.
 
 ### Linux
 Download the portable AppImage from [Releases](https://github.com/tulcoturo/clovercut/releases):
@@ -99,6 +113,9 @@ chmod +x Clovercut-0.0.2-x86_64.AppImage
 - **Installer:** Download `Clovercut-0.0.2-windows-x86_64-setup.exe` and follow the guided setup.
 - **Portable:** Download `Clovercut-0.0.2-windows-x86_64-portable.zip`, extract to any directory, and run `clovercut.exe`.
 
+### Android ARM64 (0.1.0 packaging target)
+The 0.1.0 workflow includes `Clovercut-0.1.0-android-arm64.apk`. Check the release assets for availability; Android device testing is separate from desktop validation.
+
 ### Safe Graphics Mode
 If a GPU driver issue causes window corruption or crashes on startup:
 ```bash
@@ -111,7 +128,7 @@ This forces software rasterization for the current run without permanently disab
 ## Building from Source
 
 ### Prerequisites
-- **Rust 1.93.1+** (see [`src/rust-toolchain.toml`](src/rust-toolchain.toml)), with `rustfmt` and `clippy`.
+- **Rust 1.93.1** (see [`src/rust-toolchain.toml`](src/rust-toolchain.toml)), with `rustfmt` and `clippy`.
 - **FFmpeg 7+** development libraries (`libavcodec`, `libavformat`, `libavfilter`, `libswscale`, `libswresample`).
 - **CMake**, a C++ compiler (`gcc`/`clang`), and `libclang`.
 - **Linux system dependencies:** `fontconfig`, `freetype`, `alsa-lib`, `gtk3`, `libxkbcommon`.
@@ -125,11 +142,14 @@ cd clovercut
 
 # Build and run the quick iteration profile (recommended)
 cd src
-cargo run --profile quick -p concat --bin clovercut
+cargo run --profile quick -p concat --bin clovercut -j1
 ```
+
+Use one Cargo job (`-j1`) on machines with limited RAM, and run one build at a time. The first build compiles native and Rust dependencies and can take substantially longer than later rebuilds. Configure FFmpeg, ONNX Runtime, and sherpa-onnx for your system as described in the [engine build documentation](src/README.md#build-and-run).
 
 ### Verification & Testing
 ```bash
+# From the repository root
 # Format check
 cargo fmt --manifest-path src/Cargo.toml --all --check
 
@@ -137,7 +157,7 @@ cargo fmt --manifest-path src/Cargo.toml --all --check
 python3 scripts/locales.py --check
 
 # Core tests
-cargo test -p concat-core -p concat-media -p concat-host
+cargo test --manifest-path src/Cargo.toml -p concat-core -p concat-media -p concat-host -j1
 ```
 
 ---

@@ -1190,15 +1190,16 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
                                       seconds: f32,
                                       y: f32| {
         let row = state.row_at(y);
-        state.drop = state.plan(payload.as_str(), state.lanes.absolute(seconds), row);
+        state.drop = state.plan(payload.as_str(), state.lanes.absolute(seconds), row, y);
     }));
     editor.on_dropped(on_window!(|state,
                                   payload: SharedString,
                                   seconds: f32,
                                   y: f32| {
-        state.drop = None;
         let row = state.row_at(y);
-        if let Some(plan) = state.plan(payload.as_str(), state.lanes.absolute(seconds), row) {
+        let plan = state.plan(payload.as_str(), state.lanes.absolute(seconds), row, y);
+        state.drop = None;
+        if let Some(plan) = plan {
             state.place(&plan);
         }
     }));

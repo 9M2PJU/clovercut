@@ -824,7 +824,6 @@
   "studio.savedTemplate": "บันทึกเทมเพลต “{0}” แล้ว",
   "studio.savingFrame": "กำลังบันทึกเฟรม…",
   "studio.selectClipTimelineFirst": "เลือกคลิปบนไทม์ไลน์ก่อน",
-  "studio.selectClipToCut": "มีคลิปมากกว่าหนึ่งคลิปอยู่ใต้หัวเล่น: เลือกคลิปที่จะตัด",
   "studio.selectTwoAdjacentClips": "เลือกสองคลิปที่ต่อกันบนแทร็กเดียวกัน แล้วเลือกทรานซิชัน",
   "studio.selectVideoImageClip": "เลือกคลิปวิดีโอหรือภาพบนไทม์ไลน์ก่อน",
   "studio.selectVideoImageText": "เลือกคลิปวิดีโอ ภาพ หรือข้อความบนไทม์ไลน์ก่อน",

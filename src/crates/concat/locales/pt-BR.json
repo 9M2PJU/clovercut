@@ -824,7 +824,6 @@
   "studio.savedTemplate": "Modelo “{0}” salvo",
   "studio.savingFrame": "Salvando o quadro…",
   "studio.selectClipTimelineFirst": "Selecione primeiro um clipe na linha do tempo",
-  "studio.selectClipToCut": "Há mais de um clipe sob o cursor: selecione o que deve ser cortado",
   "studio.selectTwoAdjacentClips": "Selecione dois clipes que se encontram na mesma faixa e depois escolha uma transição",
   "studio.selectVideoImageClip": "Selecione primeiro um clipe de vídeo ou imagem na linha do tempo",
   "studio.selectVideoImageText": "Selecione primeiro um clipe de vídeo, imagem ou texto na linha do tempo",
