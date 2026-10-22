@@ -231,13 +231,16 @@ export component ConfigPane inherits Rectangle {
     // keeps Audio alone, and a title gets Text alone: its look is its
     // typography, stroke and box, all on the Text tab, and Video or Audio
     // on a title would be panels that can only say "nothing here".
-    property <bool> is-text: root.selected.kind == ClipKind.text;
-    property <bool> is-image: root.selected.kind == ClipKind.image;
+    property <ClipKind> cached-kind: root.selected.kind;
+    property <bool> cached-batch-volume: root.selected.batch-volume;
+
+    property <bool> is-text: root.cached-kind == ClipKind.text;
+    property <bool> is-image: root.cached-kind == ClipKind.image;
     /// A shape gets one tab, Vector Image, with the placement panel
     /// alone: it has no sound, no rate, no colour to adjust and no chain
     /// of effects - a figure is its fill and its outline, nothing more.
-    property <bool> is-shape: root.selected.kind == ClipKind.shape;
-    property <bool> is-audio: root.selected.kind == ClipKind.audio;
+    property <bool> is-shape: root.cached-kind == ClipKind.shape;
+    property <bool> is-audio: root.cached-kind == ClipKind.audio;
     /// A filter layer gets its own lone tab for the same reason a title does:
     /// it has no transform, no gain and no rate, and every other tab could
     /// only say "nothing here". What it does have - its strength, the colour
@@ -246,8 +249,8 @@ export component ConfigPane inherits Rectangle {
     // Enter captions on Style; keep a tab explicitly chosen within the collection.
     property <bool> is-caption: root.is-text && CaptionsLibrary.style-count > 0;
     changed is-caption => { if root.is-caption { root.tab = 1; } }
-    property <bool> is-layer: root.selected.kind == ClipKind.filter;
-    property <[string]> tabs: root.selected.batch-volume ? ["Audio"] : root.is-text ? (CaptionsLibrary.style-count > 0 ? ["Captions", "Text", "CaptionEffects"] : ["Text", "CaptionEffects"])
+    property <bool> is-layer: root.cached-kind == ClipKind.filter;
+    property <[string]> tabs: root.cached-batch-volume ? ["Audio"] : root.is-text ? (CaptionsLibrary.style-count > 0 ? ["Captions", "Text", "CaptionEffects"] : ["Text", "CaptionEffects"])
         : root.is-layer ? ["Filter"]
         : root.is-shape ? ["Video"]
         : root.is-image ? ["Video", "Effects"]
@@ -255,7 +258,7 @@ export component ConfigPane inherits Rectangle {
         : ["Video", "Audio", "Effects"];
     /// The same tabs in the interface's language. `tabs` stays English,
     /// because the panels are picked by comparing against it.
-    property <[string]> tabs-shown: root.selected.batch-volume ? [I18n.t("common.audio")] : root.is-text ? (CaptionsLibrary.style-count > 0 ? [I18n.t("captions.captions"), I18n.t("captions.styleTab"), I18n.t("videoMotion.animation")] : [I18n.t("common.text"), I18n.t("videoMotion.animation")])
+    property <[string]> tabs-shown: root.cached-batch-volume ? [I18n.t("common.audio")] : root.is-text ? (CaptionsLibrary.style-count > 0 ? [I18n.t("captions.captions"), I18n.t("captions.styleTab"), I18n.t("videoMotion.animation")] : [I18n.t("common.text"), I18n.t("videoMotion.animation")])
         : root.is-layer ? [I18n.t("configPane.filter")]
         : root.is-shape ? [I18n.t("configPane.vectorImage")]
         : root.is-image ? [I18n.t("common.video"), I18n.t("common.effects")]
@@ -274,6 +277,12 @@ export component ConfigPane inherits Rectangle {
     /// shape of the strip changes, and left alone when it has not.
     property <ClipKind> strip-kind;
     changed selected => {
+        if (root.cached-kind != root.selected.kind) {
+            root.cached-kind = root.selected.kind;
+        }
+        if (root.cached-batch-volume != root.selected.batch-volume) {
+            root.cached-batch-volume = root.selected.batch-volume;
+        }
         if (root.selected.kind != root.strip-kind) {
             root.strip-kind = root.selected.kind;
             // Clamped rather than reset: going from a video to a still should
@@ -295,7 +304,7 @@ export component ConfigPane inherits Rectangle {
         // and the Effects tab's "Effects", since `showing` picks the panel
         // by this name alone.
         : root.heading == "Audio"
-            ? (root.selected.batch-volume ? ["Sound"] : ["Sound", "AudioEffects", "AudioSpeed"])
+            ? (root.cached-batch-volume ? ["Sound"] : ["Sound", "AudioEffects", "AudioSpeed"])
         : root.heading == "Effects" ? ["Effects"]
         : root.heading == "Captions" ? ["Captions"]
         : root.heading == "CaptionEffects" ? ["CaptionEffects"]
@@ -306,7 +315,7 @@ export component ConfigPane inherits Rectangle {
             ? (root.is-shape ? [I18n.t("configPane.basic")]
                 : [I18n.t("configPane.basic"), I18n.t("common.enhance"), I18n.t("common.adjust"), I18n.t("videoMotion.animation")])
         : root.heading == "Audio"
-            ? (root.selected.batch-volume ? [I18n.t("configPane.basic")]
+            ? (root.cached-batch-volume ? [I18n.t("configPane.basic")]
                 : [I18n.t("configPane.basic"), I18n.t("configPane.audioEffects"), I18n.t("common.speed")])
         : root.heading == "Effects" ? [I18n.t("common.effects")]
         : root.heading == "Text" ? [CaptionsLibrary.style-count > 0 ? I18n.t("captions.captions") : I18n.t("common.text")]

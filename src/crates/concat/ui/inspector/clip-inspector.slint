@@ -2383,6 +2383,8 @@ export component SpeedPanel inherits VerticalLayout {
     property <float> slowest;
     property <float> fastest-truth: SpeedRamp.fastest;
     property <float> slowest-truth: SpeedRamp.slowest;
+    property <[string]> ramp-mode-options: [I18n.t("speedRamp.constant"), I18n.t("speedRamp.curve")];
+    property <[string]> ramp-bend-options: [I18n.t("speedRamp.smooth"), I18n.t("speedRamp.straight")];
     changed fastest-truth => { root.fastest = root.fastest-truth; }
     changed slowest-truth => { root.slowest = root.slowest-truth; }
 
@@ -2415,7 +2417,7 @@ export component SpeedPanel inherits VerticalLayout {
                     property <bool> truth: root.curved;
                     changed truth => { self.current = self.truth ? 1 : 0; }
 
-                    options: [I18n.t("speedRamp.constant"), I18n.t("speedRamp.curve")];
+                    options: root.ramp-mode-options;
                     current: root.curved ? 1 : 0;
                     changed(index) => {
                         SpeedRamp.curve(index == 1);
@@ -2461,7 +2463,7 @@ export component SpeedPanel inherits VerticalLayout {
                     property <bool> truth: SpeedRamp.smooth;
                     changed truth => { self.current = self.truth ? 0 : 1; }
 
-                    options: [I18n.t("speedRamp.smooth"), I18n.t("speedRamp.straight")];
+                    options: root.ramp-bend-options;
                     current: SpeedRamp.smooth ? 0 : 1;
                     changed(index) => {
                         SpeedRamp.smoothness(index == 0);
@@ -2526,6 +2528,11 @@ export component AdjustPanel inherits VerticalLayout {
     in property <[CurveData]> curves;
     in-out property <int> tab: 0;
 
+    property <[string]> adjust-options: [I18n.t("clipInspector.colorTab"), I18n.t("clipInspector.curvesTab"), I18n.t("clipInspector.wheelsTab")];
+    property <bool> no-curves: root.curves.length == 0;
+    property <bool> no-wheels: root.wheels.length == 0;
+    property <[bool]> adjust-disabled: [false, root.no-curves, root.no-wheels];
+
     callback set(key: string, value: float);
     /// A curve's point moved, or put down when `point` is -1, or taken off.
     callback curve-point(key: string, point: int, x: float, y: float);
@@ -2548,9 +2555,9 @@ export component AdjustPanel inherits VerticalLayout {
                 padding-left: Theme.pad;
                 padding-right: Theme.pad;
                 SegmentedControl {
-                    options: [I18n.t("clipInspector.colorTab"), I18n.t("clipInspector.curvesTab"), I18n.t("clipInspector.wheelsTab")];
+                    options: root.adjust-options;
                     current <=> root.tab;
-                    disabled: [false, root.curves.length == 0, root.wheels.length == 0];
+                    disabled: root.adjust-disabled;
                 }
             }
             // The wheels, three in a row: a puck is two knobs of the panel,
