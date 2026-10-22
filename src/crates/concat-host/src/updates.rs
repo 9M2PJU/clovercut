@@ -155,7 +155,7 @@ pub fn releases_from_json(json: &str) -> Result<Vec<Release>, String> {
             })
         })
         .collect();
-    releases.sort_by(|a, b| b.version.cmp(&a.version));
+    releases.sort_by_key(|b| std::cmp::Reverse(b.version));
     releases.dedup_by(|a, b| a.version == b.version);
     Ok(releases)
 }

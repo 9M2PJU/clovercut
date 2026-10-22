@@ -383,10 +383,11 @@ fn test_export_cancellation_latency_and_destination_preservation() {
         let cancel = Arc::clone(&cancel);
         move || {
             export::run(&request, &cancel, move |progress| {
-                if progress.total > 0 && progress.frame >= 5 {
-                    if !cancel_trigger.swap(true, Ordering::Relaxed) {
-                        *ct.lock().unwrap() = Some(Instant::now());
-                    }
+                if progress.total > 0
+                    && progress.frame >= 5
+                    && !cancel_trigger.swap(true, Ordering::Relaxed)
+                {
+                    *ct.lock().unwrap() = Some(Instant::now());
                 }
             })
         }

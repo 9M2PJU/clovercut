@@ -119,15 +119,13 @@ fn cpu_name() -> Option<String> {
 #[cfg(all(not(windows), not(target_vendor = "apple"), target_arch = "x86_64"))]
 fn x86_brand() -> Option<String> {
     use std::arch::x86_64::__cpuid;
-    // SAFETY: CPUID is on every x86-64 CPU.
-    let top = unsafe { __cpuid(0x8000_0000) }.eax;
+    let top = __cpuid(0x8000_0000).eax;
     if top < 0x8000_0004 {
         return None;
     }
     let mut bytes = Vec::with_capacity(48);
     for leaf in 0x8000_0002u32..=0x8000_0004 {
-        // SAFETY: as above, and the leaf is within the range just read.
-        let r = unsafe { __cpuid(leaf) };
+        let r = __cpuid(leaf);
         for word in [r.eax, r.ebx, r.ecx, r.edx] {
             bytes.extend_from_slice(&word.to_le_bytes());
         }

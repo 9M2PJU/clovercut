@@ -151,14 +151,14 @@ fn capture_screenshot(name: &str) {
         let res = std::process::Command::new("grim")
             .args(["-g", &geom, dest.to_str().unwrap()])
             .output();
-        if let Ok(out) = res {
-            if out.status.success() {
-                println!(
-                    "WALKTHROUGH: Captured {name} at {geom} -> {}",
-                    dest.display()
-                );
-                return;
-            }
+        if let Ok(out) = res
+            && out.status.success()
+        {
+            println!(
+                "WALKTHROUGH: Captured {name} at {geom} -> {}",
+                dest.display()
+            );
+            return;
         }
     }
     eprintln!("WALKTHROUGH: Failed to capture {name}");

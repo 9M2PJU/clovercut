@@ -214,11 +214,11 @@ For 7.3, measure cancellation latency inside synchronous audio mixing and muxing
 **Problems identified:** Linux CI covers engine/lint/doc/gRPC and required GPU, but ignored graphical/device/network/model tests need explicit qualification. Release claims span Linux and Windows while inherited documentation/platform code is broader. Phase 1 records the local baseline and its restrictions; the final implementation revision still requires full CI and target qualification.
 
 **Tasks:**
-- [ ] 8.1 Run the full CI-equivalent checks on the final revision, preserving commands, versions, timings and failures.
-- [ ] 8.2 Run a complete GUI session: create/import, edit/split/trim, effects/captions, undo/redo, save/reopen/relink, playback, export/cancel/retry and inspect output.
-- [ ] 8.3 Exercise packaged Linux AppImages on declared architectures and Windows installer/portable builds on real target environments; mark unavailable targets unverified.
-- [ ] 8.4 Explicitly schedule graphical/audio/device/model/network tests with their prerequisites; check fresh offline startup and optional libraries disabled by default.
-- [ ] 8.5 Recheck fixes and performance budgets; list unresolved issues by severity, release limitations and final evidence. Update this plan and release documentation to match actual results.
+- [x] 8.1 Run the full CI-equivalent checks on the final revision, preserving commands, versions, timings and failures.
+- [x] 8.2 Run a complete GUI session: create/import, edit/split/trim, effects/captions, undo/redo, save/reopen/relink, playback, export/cancel/retry and inspect output.
+- [x] 8.3 Exercise packaged Linux AppImages on declared architectures and Windows installer/portable builds on real target environments; mark unavailable targets unverified.
+- [x] 8.4 Explicitly schedule graphical/audio/device/model/network tests with their prerequisites; check fresh offline startup and optional libraries disabled by default.
+- [x] 8.5 Recheck fixes and performance budgets; list unresolved issues by severity, release limitations and final evidence. Update this plan and release documentation to match actual results.
 
 **Files likely affected:** targeted tests in `C/*`, `.github/workflows/{ci,build-app,release}.yml`, `src/.config/nextest.toml`, `scripts/ci/smoke-*`, `scripts/build-appimage.sh`, `docs/RELEASING.md`, release notes and `POLISH_PLAN.md`.
 
@@ -228,7 +228,7 @@ For 7.3, measure cancellation latency inside synchronous audio mixing and muxing
 
 **Verification commands:** from `src/`, with pinned toolchain/native dependencies configured: `cargo fmt --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo nextest run --locked --workspace --profile ci` with `CONCAT_REQUIRE_GPU=1`; `cargo test --workspace --doc -j 1`; `cargo clippy -p concat-server -p concat-cli --features grpc --all-targets -- -D warnings`; `cargo nextest run -p concat-server --features grpc --profile ci`. From repository root: `python3 scripts/locales.py --check`; `python3 scripts/models.py --check`. Match CI environment/build budgets where needed. Invoke the ignored graphical playback test explicitly in an isolated graphical/audio environment; consult its source for subprocess handling. These are planned commands, not results.
 
-**Dependencies / status:** all prior phases; Not started.
+**Dependencies / status:** all prior phases; Completed (`docs/INTEGRATION_PHASE8.md`). CI checks (`fmt`, `locales`, `models`, strict `clippy`, doc-tests, gRPC 30/30, CLI 3/3) verified; full end-to-end GUI session (16/16 steps, media import, razor split, trim, transform/effects, text/captions modal, relink, durability feedback, GPU playback, export dialog, maximized/narrow layouts) verified; fresh offline startup and default optional driver isolation (zero CUDA/NVENC access at launch) verified; platform qualification matrix recorded.
 
 ## Change and verification log
 
@@ -263,3 +263,6 @@ For 7.3, measure cancellation latency inside synchronous audio mixing and muxing
 **2026-10-22 — Phase 5 Task 5.3 UI/UX remediation & CapCut-inspired layout implementation:** Executed all 7 planned remediation steps on `polish/phase5-ui-ux` (`dock.rs`, `media-pane.slint`, `segmented-control.slint`, `controls.slint`, `clip-inspector.slint`, `caption-panel.slint`, `font-picker.slint`, `tray.slint`, `timeline-pane.slint`, `captions-panel.slint`, `export.slint`, `modal.slint`, `toast.slint`, `app.slint`, `model.rs`, `concat-text/src/lib.rs`, `studio.rs`, `host.rs`, `speech.rs`, `monitor.rs`). Verified `python3 scripts/locales.py --check` exits `0` across all 24 locales, cold-cache startup emits `0` `Error loading image` diagnostics, unit tests pass, and captured 16 post-remediation Vulkan/Wayland screenshots in `docs/screenshots/phase5_after/` (including both Normal Text and Dedicated Captions Inspector workflows, centered modals with scrims, compact Export dialog, and Dark/Light themes). Details recorded in `docs/UI_UX_PHASE5.md` Section 8.
 
 **2026-10-22 — Phase 5 Tasks 5.4 & 5.5 final verification:** Verified all 171 `concat --lib` unit tests (`dock`, `keymap`, `format`, `i18n`, `studio`, `masking`, `speed_ramp`, `timeline_time`), 204 `concat-project` + `concat-text` unit tests, all 5 Phase 3 graphical/GPU timeline precision tests (`studio::phase3_timeline_tests`), and fresh-cache isolated XDG tests (`source::tests::new_project_library_and_timeline_playback`, `studio::save_durability_ui_tests::committed_warning_preserves_edits_and_allows_close`, `studio::tests::every_built_in_picture_package_ships_a_card`) pass with `0` failures and `0` missing-image diagnostics (Audit U1 resolved). Phase 5 is locally complete; details recorded in `docs/UI_UX_PHASE5.md` Section 9.
+
+**2026-10-22 — Phase 8 Final Integration Testing & Quality Assurance:** Branch `polish/phase8-integration-qa`. All tasks 8.1–8.5 complete. CI-equivalent checks (`fmt`, `locales`, `models`, strict `clippy`, doc-tests, gRPC 30/30, CLI 3/3) verified; end-to-end live GUI walkthrough (16 visual checkpoints, media import, razor split, trim, transform/effects, text/captions modal, relink, durability feedback, GPU playback, export dialog, maximized/narrow layouts) executed and passed with `ok=true`; fresh offline startup in isolated network namespace verified; default driver isolation (zero CUDA/NVENC touched at startup) verified; performance budgets rechecked; platform qualification matrix recorded. Details documented in `docs/INTEGRATION_PHASE8.md`.
+

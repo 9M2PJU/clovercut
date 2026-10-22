@@ -689,7 +689,7 @@ impl Decoder {
                             first_picture_within(path, name, hardware::MEDIACODEC_FIRST_PICTURE)
                         })
                     })
-                    .and_then(|name| hardware::mediacodec_seat().map(|seat| (name, seat)));
+                    .zip(hardware::mediacodec_seat());
                 match wrapped {
                     Some((name, seat)) => {
                         match Self::open_codec(path, &stream, options, Codec::Named(name)) {

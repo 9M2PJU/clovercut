@@ -200,7 +200,7 @@ fn run_rapid_transport_scrubbing() {
         slint::TimerMode::Repeated,
         Duration::from_millis(20), // 50 Hz tick for driving 20 Hz scrub
         move || {
-            let mut studio = shell.studio.borrow_mut();
+            let studio = shell.studio.borrow_mut();
 
             // Phase A: First 30 ticks alternate play/pause
             if toggle_count < 30 {
@@ -429,7 +429,7 @@ fn run_audio_device_recovery() {
         slint::TimerMode::Repeated,
         Duration::from_millis(10),
         move || {
-            let mut studio = shell.studio.borrow_mut();
+            let studio = shell.studio.borrow_mut();
 
             // After 300ms of active playback, record baseline and inject failure
             if !error_injected && began.elapsed() >= Duration::from_millis(300) {

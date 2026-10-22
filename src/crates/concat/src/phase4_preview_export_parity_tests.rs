@@ -411,7 +411,7 @@ fn subtest_speed_curves() {
         ]),
     });
 
-    let (exported_file, frames, _) = harness.export_video("speed-2x");
+    let (_exported_file, frames, _) = harness.export_video("speed-2x");
     assert_eq!(
         frames.len(),
         60,

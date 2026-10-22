@@ -6,9 +6,9 @@
 //! Covers Tasks 6.1, 6.2, 6.3, 6.4, and 6.5:
 //! - 6.1: Reference machine, startup, seek latency, frame time, RSS & GPU memory.
 //! - 6.2: Long audio, caption-heavy (240 cues), and layered 4K project profiling
-//!        with separated decode, text layout/paint, UI publishing, and GPU composition costs.
+//!   with separated decode, text layout/paint, UI publishing, and GPU composition costs.
 //! - 6.3: Memory plateau across seek/play/project-switch cycles, cache eviction,
-//!        old-project resource release, and 200 undo/redo steps.
+//!   old-project resource release, and 200 undo/redo steps.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
