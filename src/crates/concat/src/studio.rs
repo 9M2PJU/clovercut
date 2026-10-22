@@ -4118,7 +4118,7 @@ impl Studio {
 
     /// Commits a plan that has a lane, and selects what it made.
     pub fn place(&mut self, plan: &DropPlan) {
-        let Some(track_id) = self.row_track(plan.row).map(|track| track.id.clone()) else {
+        let Some(mut track_id) = self.row_track(plan.row).map(|track| track.id.clone()) else {
             return;
         };
         if self.locked(&track_id) {
@@ -4175,6 +4175,20 @@ impl Studio {
             }
             return;
         }
+
+        // If the target track already has a clip overlapping with this placement,
+        // automatically mint a new track on top so the new element layers over it.
+        let overlaps = self.timeline().clips.iter().any(|c| {
+            c.track_id == track_id
+                && c.start < plan.start + plan.duration
+                && c.start + c.duration > plan.start
+        });
+        if overlaps {
+            if let Some(new_track) = self.apply(Command::AddTrack { bottom: false }) {
+                track_id = new_track;
+            }
+        }
+
         if let Some(id) = plan.media.strip_prefix("sticker:") {
             self.handle(crate::panes::Msg::Stickers(
                 crate::panes::stickers::StickersMsg::Place(
@@ -4221,14 +4235,14 @@ impl Studio {
                 media_ids,
                 track_id: Some(track_id),
                 start: plan.start,
-                ripple: true,
+                ripple: !overlaps && self.prefs.magnetic,
             })
         } else {
             self.apply(Command::AddClip {
                 media_id: plan.media.clone(),
                 track_id,
                 start: plan.start,
-                ripple: true,
+                ripple: !overlaps && self.prefs.magnetic,
             })
         };
         if let Some(id) = created {
@@ -8256,37 +8270,49 @@ impl Studio {
     // ── edits from menus and the tray ──
 
     /// Split at `at`: every selected clip the instant runs through, or every
-    /// clip at all when nothing is selected.
+    /// clip at all when nothing is selected or when the selection is elsewhere.
     pub fn split_at(&mut self, at: impl Into<f64>, only_selected: bool) {
         let selection = self.selection.clone();
         let at = at.into();
-        let victims: Vec<String> = self
+        let min_dur = f64::from(MIN_DURATION);
+        let under: Vec<String> = self
             .timeline()
             .clips
             .iter()
             .filter(|clip| {
-                clip.start + f64::from(MIN_DURATION) < at
-                    && at < clip.start + clip.duration - f64::from(MIN_DURATION)
-                    && (!only_selected || selection.is_empty() || selection.contains(&clip.id))
+                clip.start + min_dur < at
+                    && at < clip.start + clip.duration - min_dur
                     && !self.locked(&clip.track_id)
             })
             .map(|clip| clip.id.clone())
             .collect();
+        let selected_under: Vec<String> = under
+            .iter()
+            .filter(|id| selection.contains(id))
+            .cloned()
+            .collect();
+
+        let victims = if only_selected && !selected_under.is_empty() {
+            selected_under
+        } else {
+            under
+        };
+
         if !victims.is_empty() {
-            self.apply(Command::SplitClips {
+            let created = self.apply(Command::SplitClips {
                 clip_ids: victims,
                 time: at,
             });
+            if let Some(tail_id) = created {
+                self.selection = vec![tail_id];
+            }
         }
     }
 
     /// Delete Left / Delete Right, CapCut's Q and W: the selected clips the
     /// playhead runs through lose everything before it, or everything
-    /// after it, as one undo step. With nothing selected, the one clip
-    /// under the playhead is cut; with several there and none chosen, a
-    /// notice asks for one rather than guessing - a caption over the
-    /// picture is as much "the clip" as the picture is. The lane closes
-    /// behind the cut only on a magnetic timeline, as any trim's does.
+    /// after it, as one undo step. With nothing selected (or when the selection
+    /// is on clips elsewhere on the timeline), the clip under the playhead is cut.
     /// https://github.com/jub0t/Concat/issues/400
     pub fn delete_to_playhead(&mut self, side: PlayheadSide) {
         let at = self.playhead;
@@ -8302,17 +8328,32 @@ impl Studio {
             })
             .map(|clip| clip.id.clone())
             .collect();
-        let targets: Vec<String> = if self.selection.is_empty() {
-            if under.len() > 1 {
-                self.notify(&t("studio.selectClipToCut"), true);
-                return;
+        let selected_under: Vec<String> = under
+            .iter()
+            .filter(|id| self.selection.contains(id))
+            .cloned()
+            .collect();
+        let targets: Vec<String> = if !selected_under.is_empty() {
+            selected_under
+        } else if under.len() > 1 {
+            let track_order: Vec<&str> = self
+                .timeline()
+                .tracks
+                .iter()
+                .map(|t| t.id.as_str())
+                .collect();
+            let best = under.iter().min_by_key(|id| {
+                self.clip(id)
+                    .and_then(|c| track_order.iter().position(|&t| t == c.track_id))
+                    .unwrap_or(usize::MAX)
+            });
+            if let Some(best_id) = best {
+                vec![best_id.clone()]
+            } else {
+                under
             }
-            under
         } else {
             under
-                .into_iter()
-                .filter(|id| self.selection.contains(id))
-                .collect()
         };
         self.delete_clips_to_playhead(&targets, side);
     }

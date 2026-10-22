@@ -353,12 +353,6 @@ export component TextPanel inherits VerticalLayout {
             changed(v) => { root.set(ClipField.font-size, v); root.commit(); }
         }
 
-        SwitchRow {
-            label: I18n.t("textPanel.italic");
-            checked: root.selected.italic;
-            toggled(on) => { root.set(ClipField.italic, on ? 1 : 0); root.commit(); }
-        }
-
         Row {
             label: I18n.t("captions.fontStyle");
             label-width: root.label-w;

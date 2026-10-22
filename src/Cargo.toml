@@ -70,7 +70,7 @@ codegen-units = 1
 [profile.quick]
 inherits = "release"
 lto = false
-codegen-units = 16
+codegen-units = 2
 incremental = true
 
 # The window's own crate unoptimised. It is where every edit lands, and
@@ -88,7 +88,7 @@ incremental = true
 # build is `--profile app`.
 [profile.quick.package.concat]
 opt-level = 0
-codegen-units = 16
+codegen-units = 2
 
 # The shipping build of the editor window: `cargo build --profile app -p concat`.
 #

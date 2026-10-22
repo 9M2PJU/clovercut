@@ -16,3 +16,7 @@
 # in Cargo.toml for what it is and why it is quick.
 [alias]
 dev = "run --bin clovercut --profile quick"
+
+[target.'cfg(all(target_os = "linux", target_arch = "x86_64"))']
+rustflags = ["-C", "link-arg=-Wl,-z,muldefs"]
+
