@@ -9954,7 +9954,10 @@ impl Studio {
             } else {
                 self.sole_selection()
                     .and_then(|id| self.clip(&id))
-                    .map(|clip| !clip.keys.is_empty() || clip.video_effects.iter().any(|e| !e.keys.is_empty()))
+                    .map(|clip| {
+                        !clip.keys.is_empty()
+                            || clip.video_effects.iter().any(|e| !e.keys.is_empty())
+                    })
                     .unwrap_or(false)
             }
         } else {
@@ -10122,7 +10125,8 @@ impl Studio {
                         .iter()
                         .enumerate()
                         .filter_map(|(index, effect)| {
-                            let package = catalogue.packages().find(|p| p.answers_to(&effect.id))?;
+                            let package =
+                                catalogue.packages().find(|p| p.answers_to(&effect.id))?;
                             is_lut(package).then(|| crate::ui::ClipLutData {
                                 index: index as i32,
                                 name: package.manifest.effect.name.clone().into(),
@@ -10131,7 +10135,8 @@ impl Studio {
                                     .params
                                     .get(concat_effects::catalogue::INTENSITY)
                                     .copied()
-                                    .unwrap_or(100.0) as f32,
+                                    .unwrap_or(100.0)
+                                    as f32,
                             })
                         })
                         .collect()
