@@ -1,7 +1,7 @@
 name: CI
 
-# The engine's tests and lints on every push and pull request. The bundles
-# are built by release.yml, on a tag; see that file.
+# Run the full engine checks manually or when preparing a release.
+# Ordinary pushes and pull requests do not start a compilation.
 #
 # Every action is pinned to a commit, with the tag it was in a comment
 # beside it: a tag can be moved to other code after a run has trusted it,
@@ -9,9 +9,6 @@ name: CI
 # The prebuilt libraries the jobs download are pinned the same way, by
 # digest, in scripts/ci/deps.lock.
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
   # release.yml runs this before it builds anything: a tag on a red tree
   # is not a release. It names the tag, because a release started by hand
@@ -23,11 +20,10 @@ on:
         type: string
         default: ""
 
-# New pushes and PR updates supersede their previous CI run. Release calls
-# use their exact source ref and remain independent from main's push CI.
+# Manual checks and release checks keep independent source refs.
 concurrency:
   group: ci-${{ github.event_name }}-${{ inputs.ref || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+  cancel-in-progress: false
 
 jobs:
   engine:
