@@ -912,7 +912,10 @@ fn overlap(clips: &mut Vec<ExportClip>, cut: &Cut, frame: f64) -> Option<Overlap
     if length < frame {
         return None;
     }
-    let lead = length / 2.0;
+    let mut lead = (length / 2.0).min(head_handle(b));
+    if lead < frame / 2.0 {
+        lead = 0.0;
+    }
     let tail = length - lead;
     let a_track = a.track;
     let a_end = a.start + a.duration;
@@ -944,7 +947,6 @@ fn overlap(clips: &mut Vec<ExportClip>, cut: &Cut, frame: f64) -> Option<Overlap
 /// Footage before `clip`'s in-point, in timeline seconds. A clip whose
 /// speed rides a curve has none to offer: its source clock is the curve's,
 /// which says nothing about before its start.
-#[allow(dead_code)]
 fn head_handle(clip: &ExportClip) -> f64 {
     if clip.kind == ClipKind::Image {
         f64::INFINITY
