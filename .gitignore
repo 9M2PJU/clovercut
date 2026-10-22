@@ -29,6 +29,11 @@ venv/
 .DS_Store
 Thumbs.db
 desktop.ini
+/.agents/
+/.aws/
+/.codex/
+/.claude/
+/audit/
 
 # Scratch media at the repo root.
 #

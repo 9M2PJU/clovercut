@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.jpg" alt="Clovercut — a free, open-source video editor" width="800" />
+  <img src="assets/logo.jpg" alt="Clovercut — a free, open-source video editor" width="800" />
 </p>
 
 <h1 align="center">clovercut</h1>
