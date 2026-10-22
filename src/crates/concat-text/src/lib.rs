@@ -1427,47 +1427,91 @@ fn blur(pixmap: &mut Pixmap, radius: usize) {
 
 /// The blur over a whole pixmap, including its clamped boundary samples.
 fn blur_full(pixmap: &mut Pixmap, radius: usize) {
+    if radius == 0 {
+        return;
+    }
     let (width, height) = (pixmap.width() as usize, pixmap.height() as usize);
+    if width == 0 || height == 0 {
+        return;
+    }
+    let row_bytes = width * 4;
+    let window = (2 * radius + 1) as u32;
     let data = pixmap.data_mut();
     let mut scratch = vec![0u8; data.len()];
+    let mut col_sums = vec![[0u32; 4]; width];
+
     for _ in 0..2 {
-        // Horizontal, into scratch.
+        // Horizontal, into scratch (all 4 channels per pixel in one pass).
         for y in 0..height {
-            let row = y * width * 4;
-            for channel in 0..4 {
-                let mut sum: u32 = 0;
-                let window = (2 * radius + 1) as u32;
-                let at = |x: isize| -> u32 {
-                    let x = x.clamp(0, width as isize - 1) as usize;
-                    u32::from(data[row + x * 4 + channel])
-                };
-                for x in -(radius as isize)..=(radius as isize) {
-                    sum += at(x);
-                }
-                for x in 0..width {
-                    scratch[row + x * 4 + channel] = (sum / window) as u8;
-                    sum += at(x as isize + radius as isize + 1);
-                    sum -= at(x as isize - radius as isize);
-                }
+            let src_row = &data[y * row_bytes..(y + 1) * row_bytes];
+            let dst_row = &mut scratch[y * row_bytes..(y + 1) * row_bytes];
+            let mut sum = [
+                u32::from(src_row[0]) * (radius as u32 + 1),
+                u32::from(src_row[1]) * (radius as u32 + 1),
+                u32::from(src_row[2]) * (radius as u32 + 1),
+                u32::from(src_row[3]) * (radius as u32 + 1),
+            ];
+            for ix in 1..=radius {
+                let p = ix.min(width - 1) * 4;
+                sum[0] += u32::from(src_row[p]);
+                sum[1] += u32::from(src_row[p + 1]);
+                sum[2] += u32::from(src_row[p + 2]);
+                sum[3] += u32::from(src_row[p + 3]);
+            }
+            for x in 0..width {
+                let out = x * 4;
+                dst_row[out] = (sum[0] / window) as u8;
+                dst_row[out + 1] = (sum[1] / window) as u8;
+                dst_row[out + 2] = (sum[2] / window) as u8;
+                dst_row[out + 3] = (sum[3] / window) as u8;
+
+                let add_p = (x + radius + 1).min(width - 1) * 4;
+                let sub_p = x.saturating_sub(radius) * 4;
+                sum[0] = sum[0] + u32::from(src_row[add_p]) - u32::from(src_row[sub_p]);
+                sum[1] = sum[1] + u32::from(src_row[add_p + 1]) - u32::from(src_row[sub_p + 1]);
+                sum[2] = sum[2] + u32::from(src_row[add_p + 2]) - u32::from(src_row[sub_p + 2]);
+                sum[3] = sum[3] + u32::from(src_row[add_p + 3]) - u32::from(src_row[sub_p + 3]);
             }
         }
-        // Vertical, back into data.
-        for x in 0..width {
-            for channel in 0..4 {
-                let mut sum: u32 = 0;
-                let window = (2 * radius + 1) as u32;
-                let at = |y: isize| -> u32 {
-                    let y = y.clamp(0, height as isize - 1) as usize;
-                    u32::from(scratch[(y * width + x) * 4 + channel])
-                };
-                for y in -(radius as isize)..=(radius as isize) {
-                    sum += at(y);
-                }
-                for y in 0..height {
-                    data[(y * width + x) * 4 + channel] = (sum / window) as u8;
-                    sum += at(y as isize + radius as isize + 1);
-                    sum -= at(y as isize - radius as isize);
-                }
+
+        // Vertical, back into data in row-major order for cache locality.
+        let first_row = &scratch[..row_bytes];
+        for (x, col) in col_sums.iter_mut().enumerate() {
+            let p = x * 4;
+            *col = [
+                u32::from(first_row[p]) * (radius as u32 + 1),
+                u32::from(first_row[p + 1]) * (radius as u32 + 1),
+                u32::from(first_row[p + 2]) * (radius as u32 + 1),
+                u32::from(first_row[p + 3]) * (radius as u32 + 1),
+            ];
+        }
+        for iy in 1..=radius {
+            let r = &scratch[iy.min(height - 1) * row_bytes..(iy.min(height - 1) + 1) * row_bytes];
+            for (x, col) in col_sums.iter_mut().enumerate() {
+                let p = x * 4;
+                col[0] += u32::from(r[p]);
+                col[1] += u32::from(r[p + 1]);
+                col[2] += u32::from(r[p + 2]);
+                col[3] += u32::from(r[p + 3]);
+            }
+        }
+        for y in 0..height {
+            let dst_row = &mut data[y * row_bytes..(y + 1) * row_bytes];
+            let add_y = (y + radius + 1).min(height - 1);
+            let sub_y = y.saturating_sub(radius);
+            let add_row = &scratch[add_y * row_bytes..(add_y + 1) * row_bytes];
+            let sub_row = &scratch[sub_y * row_bytes..(sub_y + 1) * row_bytes];
+            for (x, col) in col_sums.iter_mut().enumerate() {
+                let p = x * 4;
+                dst_row[p] = (col[0] / window) as u8;
+                dst_row[p + 1] = (col[1] / window) as u8;
+                dst_row[p + 2] = (col[2] / window) as u8;
+                dst_row[p + 3] = (col[3] / window) as u8;
+
+                col[0] = col[0] + u32::from(add_row[p]) - u32::from(sub_row[p]);
+                col[1] = col[1] + u32::from(add_row[p + 1]) - u32::from(sub_row[p + 1]);
+                col[2] = col[2] + u32::from(add_row[p + 2]) - u32::from(sub_row[p + 2]);
+                col[3] = col[3] + u32::from(add_row[p + 3]) - u32::from(sub_row[p + 3]);
             }
         }
     }
@@ -1510,7 +1554,7 @@ pub fn render_frame(
 ) -> Result<RenderedFrame, Error> {
     let (canvas, block, words) = paint(fonts, style, width, height)?;
     Ok(RenderedFrame {
-        rgba: straight_rgba(&canvas),
+        rgba: straight_rgba(canvas),
         width,
         height,
         block_width: block.0,
@@ -1784,27 +1828,44 @@ fn paint(
     }
 
     // The shadow: the words again, offset down and right, black, blurred on
-    // a layer of their own and laid under the real words.
+    // a bounded layer of their own and laid under the real words.
     if style.shadow
         && let Some(words) = &words
-        && let Some(mut layer) = Pixmap::new(width, height)
     {
-        let mut shade = Paint {
-            anti_alias: true,
-            ..Paint::default()
-        };
-        shade.set_color(Color::from_rgba8(0, 0, 0, 150));
-        let offset = Transform::from_translate(em * 0.05, em * 0.07);
-        layer.fill_path(words, &shade, FillRule::Winding, offset, None);
-        blur(&mut layer, (em * 0.04).round().max(1.0) as usize);
-        canvas.draw_pixmap(
-            0,
-            0,
-            layer.as_ref(),
-            &PixmapPaint::default(),
-            Transform::identity(),
-            None,
-        );
+        let dx = em * 0.05;
+        let dy = em * 0.07;
+        let radius = (em * 0.04).round().max(1.0) as usize;
+        let margin = radius.saturating_mul(2).min(u32::MAX as usize) as u32;
+        let bounds = words.bounds();
+        let raw_left = ((bounds.left() + dx).floor() as i32 - 2).clamp(0, width as i32) as u32;
+        let raw_top = ((bounds.top() + dy).floor() as i32 - 2).clamp(0, height as i32) as u32;
+        let raw_right = ((bounds.right() + dx).ceil() as i32 + 2).clamp(0, width as i32) as u32;
+        let raw_bottom = ((bounds.bottom() + dy).ceil() as i32 + 2).clamp(0, height as i32) as u32;
+        let sub_left = raw_left.saturating_sub(margin);
+        let sub_top = raw_top.saturating_sub(margin);
+        let sub_right = raw_right.saturating_add(margin).min(width);
+        let sub_bottom = raw_bottom.saturating_add(margin).min(height);
+        if sub_right > sub_left
+            && sub_bottom > sub_top
+            && let Some(mut layer) = Pixmap::new(sub_right - sub_left, sub_bottom - sub_top)
+        {
+            let mut shade = Paint {
+                anti_alias: true,
+                ..Paint::default()
+            };
+            shade.set_color(Color::from_rgba8(0, 0, 0, 150));
+            let offset = Transform::from_translate(dx - sub_left as f32, dy - sub_top as f32);
+            layer.fill_path(words, &shade, FillRule::Winding, offset, None);
+            blur(&mut layer, radius);
+            canvas.draw_pixmap(
+                sub_left as i32,
+                sub_top as i32,
+                layer.as_ref(),
+                &PixmapPaint::default(),
+                Transform::identity(),
+                None,
+            );
+        }
     }
 
     // The outline, under the fill so only its outer half shows - which is
@@ -1994,7 +2055,7 @@ pub fn render_shape_frame(
 ) -> Result<RenderedFrame, Error> {
     let (canvas, block) = paint_shape(style, width, height)?;
     Ok(RenderedFrame {
-        rgba: straight_rgba(&canvas),
+        rgba: straight_rgba(canvas),
         width,
         height,
         block_width: block.0,
@@ -2006,16 +2067,18 @@ pub fn render_shape_frame(
 }
 
 /// tiny-skia keeps premultiplied pixels; a frame carries straight alpha.
-fn straight_rgba(canvas: &Pixmap) -> Vec<u8> {
-    let mut rgba = Vec::with_capacity(canvas.pixels().len() * 4);
-    for pixel in canvas.pixels() {
-        let straight = pixel.demultiply();
-        rgba.extend_from_slice(&[
-            straight.red(),
-            straight.green(),
-            straight.blue(),
-            straight.alpha(),
-        ]);
+fn straight_rgba(canvas: Pixmap) -> Vec<u8> {
+    let mut rgba = canvas.take();
+    for px in rgba.chunks_exact_mut(4) {
+        let a = px[3];
+        if a != 0 && a != 255 {
+            let straight = tiny_skia::PremultipliedColorU8::from_rgba(px[0], px[1], px[2], a)
+                .expect("canvas holds valid premultiplied pixels")
+                .demultiply();
+            px[0] = straight.red();
+            px[1] = straight.green();
+            px[2] = straight.blue();
+        }
     }
     rgba
 }

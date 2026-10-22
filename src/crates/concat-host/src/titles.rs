@@ -195,9 +195,20 @@ impl Titles {
     pub fn new(dirs: &AppDirs) -> Titles {
         let dir = dirs.data.join("titles");
         sweep(&dir, TITLES_KEPT);
+        let fonts = Arc::new(Mutex::new(None));
+        let warm = Arc::clone(&fonts);
+        let _ = std::thread::Builder::new()
+            .name("concat-fonts".into())
+            .spawn(move || {
+                let loaded = Fonts::new();
+                let mut slot = warm.lock().unwrap_or_else(|e| e.into_inner());
+                if slot.is_none() {
+                    *slot = Some(loaded);
+                }
+            });
         Titles {
             dir,
-            fonts: Arc::new(Mutex::new(None)),
+            fonts,
             loaded_files: Arc::new(Mutex::new(HashSet::new())),
             memo: Arc::new(Mutex::new(HashMap::new())),
             live: Arc::new(Mutex::new(LivePaintings::new(LIVE_BYTES, LIVE_CEILING))),
@@ -546,6 +557,28 @@ impl Titles {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .insert(key, art);
+    }
+
+    /// Bytes of live-painted title/shape RGBA frames currently cached in memory.
+    pub fn live_bytes(&self) -> usize {
+        self.live.lock().unwrap_or_else(|e| e.into_inner()).bytes
+    }
+
+    /// Number of live-painted title/shape frames currently cached in memory.
+    pub fn live_count(&self) -> usize {
+        self.live
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .kept
+            .len()
+    }
+
+    /// Drops all live-painted title/shape frames held in memory when a
+    /// project closes or switches.
+    pub fn clear_live(&self) {
+        let mut live = self.live.lock().unwrap_or_else(|e| e.into_inner());
+        live.kept.clear();
+        live.bytes = 0;
     }
 }
 

@@ -251,6 +251,7 @@ impl RevealMap {
     pub fn from_rects(width: u32, height: u32, rects: &[(i32, i32, u32, u32)]) -> RevealMap {
         let mut gray = vec![0u8; width as usize * height as usize];
         let last = rects.len().saturating_sub(1).max(1) as f32;
+        let mut id_bytes = Vec::with_capacity(rects.len() * 17);
         for (index, &(x, y, w, h)) in rects.iter().enumerate() {
             let value = ((index as f32 / last) * 255.0).round() as u8;
             let x0 = x.clamp(0, width as i32) as u32;
@@ -261,8 +262,15 @@ impl RevealMap {
                 let start = row as usize * width as usize + x0 as usize;
                 gray[start..start + (x1 - x0) as usize].fill(value);
             }
+            if value > 0 && x1 > x0 && y1 > y0 {
+                id_bytes.extend_from_slice(&x0.to_le_bytes());
+                id_bytes.extend_from_slice(&y0.to_le_bytes());
+                id_bytes.extend_from_slice(&x1.to_le_bytes());
+                id_bytes.extend_from_slice(&y1.to_le_bytes());
+                id_bytes.push(value);
+            }
         }
-        let id = fnv64(&gray) ^ u64::from(width) ^ (u64::from(height) << 32);
+        let id = fnv64(&id_bytes) ^ u64::from(width) ^ (u64::from(height) << 32);
         RevealMap {
             id,
             width,

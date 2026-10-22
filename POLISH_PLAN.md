@@ -169,11 +169,11 @@ Additional dependencies:
 **Problems identified:** source-frame byte-budgeted LRU, waveform/caption virtualization, GPU shrink behavior and snapshot sharing already exist. PCM cache is entry-capped; combined CPU/GPU/PCM resource use has not been measured. `src/Cargo.toml` documents full-window Skia redraw and UI-thread title painting.
 
 **Tasks:**
-- [ ] 6.1 Record reference machine, build profile, media and project sizes; measure cold/warm startup, seek latency, frame time, dropped frames, RSS and GPU memory where observable.
-- [ ] 6.2 Profile long audio, caption-heavy and layered 4K projects; separate decode, text layout/paint, UI publishing and composition costs.
-- [ ] 6.3 Measure memory plateau across repeated seek/play/project-switch cycles, cache eviction and 200 undo steps; inspect PCM byte use and worker lifetimes.
-- [ ] 6.4 Optimize only measured bottlenecks, one at a time; add bounds or eviction changes only where evidence justifies them.
-- [ ] 6.5 Rerun timing, playback and preview/export parity checks after each optimization.
+- [x] 6.1 Record reference machine, build profile, media and project sizes; measure cold/warm startup, seek latency, frame time, dropped frames, RSS and GPU memory where observable.
+- [x] 6.2 Profile long audio, caption-heavy and layered 4K projects; separate decode, text layout/paint, UI publishing and composition costs.
+- [x] 6.3 Measure memory plateau across repeated seek/play/project-switch cycles, cache eviction and 200 undo steps; inspect PCM byte use and worker lifetimes.
+- [x] 6.4 Optimize only measured bottlenecks, one at a time; add bounds or eviction changes only where evidence justifies them.
+- [x] 6.5 Rerun timing, playback and preview/export parity checks after each optimization.
 
 **Files likely affected:** `C/concat-media/src/{pool,prefetch,feed}.rs`, `C/concat-host/src/{playback,preview,memory}.rs`, `C/concat/src/{studio,lib}.rs`, `C/concat-text/src/lib.rs`, `C/concat-render/src/{metrics,gpu}.rs`, `C/concat-project/src/editor.rs` if profiling implicates snapshots.
 
@@ -183,7 +183,7 @@ Additional dependencies:
 
 **Verification:** repeatable optimized-build profiling, at least three comparable baseline/changed runs, resource traces, cache metrics and prior correctness fixtures.
 
-**Dependencies / status:** Phases 1–5; Not started.
+**Dependencies / status:** Phases 1–5 complete; Phase 6 Tasks 6.1–6.5 Complete (`docs/PERFORMANCE_PHASE6.md`). Baseline established across 3-run benchmarks; lifecycle leaks on project close eliminated (GPU pool, Live titles, PCM mappings -> 0 MB); 4K title painting accelerated 3.6x; caption cue transitions accelerated 3.56x; verified against Phase 3 timing and Phase 4 parity/robustness suites.
 
 ## 7. Export and rendering reliability
 

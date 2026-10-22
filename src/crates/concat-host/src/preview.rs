@@ -395,5 +395,33 @@ impl Monitor {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clear();
+        #[cfg(feature = "gpu")]
+        if let Some(gpu) = self.gpu.as_ref() {
+            gpu.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .shrink_pool(0.0);
+        }
+    }
+
+    /// Bytes of decoded frames held in the CPU reader pool.
+    pub fn pool_cached_bytes(&self) -> usize {
+        self.pool.cached_bytes()
+    }
+
+    /// Frame cache hit/decode statistics from the CPU reader pool.
+    pub fn pool_stats(&self) -> concat_media::CacheStats {
+        self.pool.stats()
+    }
+
+    /// Bytes of pooled layer textures currently held on the GPU compositor.
+    pub fn gpu_pool_bytes(&self) -> u64 {
+        #[cfg(feature = "gpu")]
+        if let Some(gpu) = self.gpu.as_ref() {
+            return gpu
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .pool_bytes();
+        }
+        0
     }
 }

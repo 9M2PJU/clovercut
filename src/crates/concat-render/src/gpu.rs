@@ -2157,6 +2157,16 @@ impl WgpuCompositor {
         self.pool_budget
     }
 
+    /// Bytes of GPU layer textures currently held in the pool.
+    pub fn pool_bytes(&self) -> u64 {
+        self.pool_bytes
+    }
+
+    /// Number of GPU layer textures currently held in the pool.
+    pub fn pool_textures(&self) -> usize {
+        self.pool_textures
+    }
+
     /// Retires texture sizes the timeline has moved past. 300 unclaimed
     /// composites (ten seconds of 30fps export) says a size is gone for
     /// good, not just between two clips of it.

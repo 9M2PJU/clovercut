@@ -951,6 +951,14 @@ pub struct Studio {
     /// Counts every change to the document. What the flattened clip list
     /// below is keyed on, so a frame of an unchanged document reuses it.
     revision: u64,
+    /// The last base (non-title) flattening of the document for the monitor,
+    /// keyed by revision and project directory so caption cue transitions do
+    /// not re-flatten video and audio tracks when only the visible cue changes.
+    flat_base: Option<(
+        u64,
+        std::path::PathBuf,
+        std::sync::Arc<Vec<concat_export::ExportClip>>,
+    )>,
     /// The last flattening of the document for the monitor - titles
     /// included - and the revision and output size it was made at. Shared
     /// with the monitor by pointer, so it can keep its plan for as long as
@@ -2451,6 +2459,7 @@ impl Studio {
             media_jump: 0,
             audition: None,
             revision: 0,
+            flat_base: None,
             flat: None,
             commit_pending: false,
             commit_targets: Vec::new(),
@@ -2567,6 +2576,10 @@ impl Studio {
         self.window_pending.clear();
         self.waves.borrow_mut().clear();
         self.media.thumbs.clear();
+        self.title_blocks.clear();
+        self.host.titles.clear_live();
+        self.flat_base = None;
+        self.flat = None;
     }
 
     pub fn ask_remove_track(&mut self, row: i32) {
@@ -3061,11 +3074,28 @@ impl Studio {
         let clips = if cached {
             std::sync::Arc::clone(&self.flat.as_ref().expect("checked").3)
         } else {
-            let mut clips = concat_export::flatten::flatten_timeline_in(
-                self.project(),
-                None,
-                Some(&project_dir),
-            );
+            let base_cached = self.echo.is_none()
+                && self
+                    .flat_base
+                    .as_ref()
+                    .is_some_and(|(at, dir, _)| *at == self.revision && *dir == project_dir);
+            let mut clips = if base_cached {
+                (*self.flat_base.as_ref().expect("checked").2).clone()
+            } else {
+                let flattened = concat_export::flatten::flatten_timeline_in(
+                    self.project(),
+                    None,
+                    Some(&project_dir),
+                );
+                if self.echo.is_none() {
+                    self.flat_base = Some((
+                        self.revision,
+                        project_dir.clone(),
+                        std::sync::Arc::new(flattened.clone()),
+                    ));
+                }
+                flattened
+            };
             // Only the titles under this frame are painted, in memory at the
             // monitor's size. A caption collection may contain thousands of
             // different strings; painting the whole timeline here blocked the
@@ -14490,3 +14520,7 @@ mod phase4_playback_robustness_tests;
 #[cfg(all(test, target_os = "linux"))]
 #[path = "phase4_preview_export_parity_tests.rs"]
 mod phase4_preview_export_parity_tests;
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "phase6_performance_tests.rs"]
+mod phase6_performance_tests;

@@ -629,14 +629,36 @@ impl Playback {
         self.rebuild_count.load(Ordering::Relaxed)
     }
 
+    /// Total bytes of memory-mapped WAV files currently held in the PCM cache.
+    pub fn mapped_bytes(&self) -> usize {
+        locked(&self.cache)
+            .values()
+            .map(|entry| entry.pcm.map.len())
+            .sum()
+    }
+
+    /// Number of memory-mapped WAV spans currently held in the PCM cache.
+    pub fn mapped_count(&self) -> usize {
+        locked(&self.cache).len()
+    }
+
     /// Replaces the audible clip set.
     ///
     /// Anything already decoded plays immediately; anything new joins the
     /// decode queue and joins the mix when it lands. `project` is the
     /// project folder, whose cache holds the PCM files.
     pub fn set_clips(self: &Arc<Self>, project: PathBuf, specs: Vec<ClipSpec>) {
+        let project_changed = {
+            let mut held = locked(&self.project);
+            let changed = held.as_ref() != Some(&project);
+            *held = Some(project.clone());
+            changed
+        };
+        if project_changed || project.as_os_str().is_empty() {
+            locked(&self.queue.jobs).clear();
+            locked(&self.cache).clear();
+        }
         *locked(&self.specs) = specs.clone();
-        *locked(&self.project) = Some(project.clone());
 
         for spec in specs {
             let key = decode_key(&spec);
@@ -768,14 +790,18 @@ fn decode_worker(playback: &Arc<Playback>) {
 
         match decode(&job.spec, &job.project, &job.key) {
             Ok(pcm) => {
-                let now = playback.tick.fetch_add(1, Ordering::Relaxed) + 1;
-                locked(&playback.cache).insert(
-                    job.key.clone(),
-                    CacheEntry {
-                        pcm: Arc::new(pcm),
-                        last_used: now,
-                    },
-                );
+                let same_project = !job.project.as_os_str().is_empty()
+                    && locked(&playback.project).as_ref() == Some(&job.project);
+                if same_project {
+                    let now = playback.tick.fetch_add(1, Ordering::Relaxed) + 1;
+                    locked(&playback.cache).insert(
+                        job.key.clone(),
+                        CacheEntry {
+                            pcm: Arc::new(pcm),
+                            last_used: now,
+                        },
+                    );
+                }
             }
             Err(error) => report(
                 playback.events.as_ref(),
