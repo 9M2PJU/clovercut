@@ -62,7 +62,7 @@ fn cut_and_gesture_rounding_characterization() {
         assert!(String::from_utf8_lossy(&output.stdout).contains("phase3 cuts: ok"));
         return;
     }
-    let gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+    let gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
     let mut studio = Studio::new(crate::host::Host::start(gpu).unwrap());
     let _app = crate::ui::App::new().unwrap();
     let mut cases = 0;
@@ -233,7 +233,7 @@ fn isolated_fixture(test: &str, run: impl FnOnce(&mut Studio, &projects::Project
         );
         return;
     }
-    let gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+    let gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
     let mut studio = Studio::new(crate::host::Host::start(gpu).unwrap());
     let _app = crate::ui::App::new().unwrap();
     let info = projects::create(
@@ -534,7 +534,7 @@ fn transport_clock_matches_decoded_and_published_frame() {
         }
     }
     assert!(encoder.wait().unwrap().success());
-    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
     // Use the production pixel publication path so the final Slint image is readable.
     let mut studio = Studio::new(crate::host::Host::start(None).unwrap());
     let app = crate::ui::App::new().unwrap();

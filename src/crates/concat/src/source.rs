@@ -437,7 +437,7 @@ mod tests {
             .status()
             .unwrap();
         assert!(encoded.success());
-        let gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+        let gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
         let host = Host::start(gpu).unwrap();
         let mut studio = Studio::new(host);
         let app = App::new().unwrap();

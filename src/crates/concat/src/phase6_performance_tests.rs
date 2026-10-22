@@ -267,7 +267,7 @@ fn phase6_performance_and_memory_suite() {
     // TASK 6.1: Cold & Warm Startup, Seek Latency, Continuous Frame Time
     // -------------------------------------------------------------------------
     let t_cold_start = Instant::now();
-    let gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+    let gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
     let mut studio = Studio::new(crate::host::Host::start(gpu).unwrap());
     let app = crate::ui::App::new().unwrap();
     let models = Models::new();

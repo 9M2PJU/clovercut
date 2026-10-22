@@ -51,6 +51,7 @@ const HEIGHT: u32 = 90;
 
 /// Statistical image difference metrics between preview and decoded export.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ParityMetrics {
     pub max_diff: u8,
     pub mae: f64,
@@ -222,6 +223,7 @@ fn make_tone_audio(path: &Path, freq_hz: u32, seconds: f64) {
 }
 
 /// Helper struct wrapping production Studio preview and export verification.
+#[allow(dead_code)]
 struct ParityHarness {
     studio: Studio,
     dir: PathBuf,
@@ -244,7 +246,7 @@ impl ParityHarness {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("create scratch dir");
 
-        let gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+        let gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
         let host = crate::host::Host::start(gpu).expect("host start with GPU");
         let mut studio = Studio::new(host);
 

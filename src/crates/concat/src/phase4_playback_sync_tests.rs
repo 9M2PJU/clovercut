@@ -263,7 +263,7 @@ fn run_single_rate_sync(num: i64, den: i64) {
 
     let media_path = generate_av_sync_fixture(&dir, "sync_test.nut", num, den, 6.0, 1.0, 0.0);
 
-    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
     let mut studio = Studio::new(crate::host::Host::start(None).unwrap());
     let app = App::new().unwrap();
     let info = projects::create(
@@ -447,7 +447,7 @@ fn run_seek_accuracy() {
 
     let media_path = generate_av_sync_fixture(&dir, "seek_test.nut", num, den, 10.0, 1.0, 0.0);
 
-    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
     let mut studio = Studio::new(crate::host::Host::start(None).unwrap());
     let app = App::new().unwrap();
     let info = projects::create(dir.to_str().unwrap(), "Seek_Accuracy", 64, 36, num, den).unwrap();
@@ -555,7 +555,7 @@ fn run_nonzero_pts() {
     // Generate media with 2.0s PTS offset
     let media_path = generate_av_sync_fixture(&dir, "pts_offset.nut", num, den, 5.0, 1.0, 2.0);
 
-    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
     let mut studio = Studio::new(crate::host::Host::start(None).unwrap());
     let app = App::new().unwrap();
     let info = projects::create(dir.to_str().unwrap(), "Nonzero_PTS", 64, 36, num, den).unwrap();
@@ -646,7 +646,7 @@ fn run_cuts_and_transitions() {
     let media_a = generate_av_sync_fixture(&dir, "cut_a.nut", num, den, 3.0, 1.0, 0.0);
     let media_b = generate_av_sync_fixture(&dir, "cut_b.nut", num, den, 3.0, 1.0, 0.0);
 
-    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
     let mut studio = Studio::new(crate::host::Host::start(None).unwrap());
     let app = App::new().unwrap();
     let info =
@@ -736,7 +736,7 @@ fn run_muted_and_silent() {
 
     let media_path = generate_av_sync_fixture(&dir, "mute_test.nut", num, den, 3.0, 1.0, 0.0);
 
-    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
     let mut studio = Studio::new(crate::host::Host::start(None).unwrap());
     let app = App::new().unwrap();
     let info = projects::create(dir.to_str().unwrap(), "Mute_Silent", 64, 36, num, den).unwrap();
@@ -827,7 +827,7 @@ fn run_ten_minute_drift() {
     let media_path = generate_av_sync_fixture(&dir, "drift_610s.nut", num, den, 610.0, 1.0, 0.0);
     println!("Media generated successfully.");
 
-    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
     let mut studio = Studio::new(crate::host::Host::start(None).unwrap());
     let app = App::new().unwrap();
     let info =

@@ -153,7 +153,7 @@ fn run_rapid_transport_scrubbing() {
 
     let media_path = generate_robustness_media(&dir, "rapid.nut", 10.0, [50, 150, 250]);
 
-    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
     let mut studio = Studio::new(crate::host::Host::start(None).unwrap());
     let app = App::new().unwrap();
     let info = projects::create(dir.to_str().unwrap(), "Rapid_Transport", 64, 36, 30, 1).unwrap();
@@ -200,7 +200,7 @@ fn run_rapid_transport_scrubbing() {
         slint::TimerMode::Repeated,
         Duration::from_millis(20), // 50 Hz tick for driving 20 Hz scrub
         move || {
-            let studio = shell.studio.borrow_mut();
+            let mut studio = shell.studio.borrow_mut();
 
             // Phase A: First 30 ticks alternate play/pause
             if toggle_count < 30 {
@@ -276,7 +276,7 @@ fn run_project_switching_lifecycle() {
     let media_a = generate_robustness_media(&dir_a, "media_a.nut", 5.0, [255, 0, 0]); // RED
     let media_b = generate_robustness_media(&dir_b, "media_b.nut", 5.0, [0, 255, 0]); // GREEN
 
-    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
     let mut studio = Studio::new(crate::host::Host::start(None).unwrap());
     let app = App::new().unwrap();
 
@@ -383,7 +383,7 @@ fn run_audio_device_recovery() {
 
     let media_path = generate_robustness_media(&dir, "recovery.nut", 10.0, [100, 100, 100]);
 
-    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+    let _gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
     let mut studio = Studio::new(crate::host::Host::start(None).unwrap());
     let app = App::new().unwrap();
     let info = projects::create(dir.to_str().unwrap(), "Device_Recovery", 64, 36, 30, 1).unwrap();

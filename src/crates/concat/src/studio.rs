@@ -870,6 +870,7 @@ pub struct Studio {
     pub lanes: crate::panes::timeline::TimelinePane,
     pub selection: Vec<String>,
     pub last_inspector_selection: std::cell::RefCell<Option<Vec<String>>>,
+    pub last_inspector_revision: std::cell::RefCell<u64>,
     pub playhead: f64,
     pub caption_apply_all: bool,
     pub playing: bool,
@@ -2420,6 +2421,7 @@ impl Studio {
             lanes: crate::panes::timeline::TimelinePane::default(),
             selection: Vec::new(),
             last_inspector_selection: std::cell::RefCell::new(None),
+            last_inspector_revision: std::cell::RefCell::new(0),
             playhead: 0.0,
             caption_apply_all: true,
             // ~20px a second: a ten-second cut fits a pane at its default width.
@@ -3306,6 +3308,7 @@ impl Studio {
         let was_playing = self.playing;
         self.playing = false;
         self.last_inspector_selection.borrow_mut().take();
+        *self.last_inspector_revision.borrow_mut() = 0;
         self.transport.stop();
         self.host.playback.pause();
         // The textures playback streamed through are let go once it stops.
@@ -5017,6 +5020,11 @@ impl Studio {
         if let Some(entry) = usize::try_from(index).ok().and_then(|i| chain.get_mut(i)) {
             entry.params.insert(key.to_owned(), f64::from(value));
         }
+        if audio {
+            self.sync_audio();
+        } else if !self.playing {
+            self.request_preview();
+        }
     }
 
     /// One knob of the colour panel, on the echo. The adjust package joins
@@ -5037,6 +5045,9 @@ impl Studio {
                 link.params.insert(key.to_owned(), f64::from(value));
             }
         });
+        if !self.playing {
+            self.request_preview();
+        }
     }
 
     /// The Speed tab's Constant | Curve, on the echo. A curve starts flat
@@ -5131,11 +5142,17 @@ impl Studio {
         self.edit_adjust_link(|link| {
             grading::set_curve_point(&mut link.params, key, point, x.into(), y.into());
         });
+        if !self.playing {
+            self.request_preview();
+        }
     }
 
     /// One point of one of the colour panel's curves taken off, on the echo.
     pub fn adjust_curve_remove(&mut self, key: &str, point: i32) {
         self.edit_adjust_link(|link| grading::remove_curve_point(&mut link.params, key, point));
+        if !self.playing {
+            self.request_preview();
+        }
     }
 
     /// The selected clip's colour link on the echo, put at the head of the
@@ -5172,6 +5189,9 @@ impl Studio {
         self.edit_chain_link(index, |link| {
             grading::set_curve_point(&mut link.params, key, point, x.into(), y.into());
         });
+        if !self.playing {
+            self.request_preview();
+        }
     }
 
     /// One point of a curve of the picture chain's link `index` taken off,
@@ -5180,6 +5200,9 @@ impl Studio {
         self.edit_chain_link(index, |link| {
             grading::remove_curve_point(&mut link.params, key, point);
         });
+        if !self.playing {
+            self.request_preview();
+        }
     }
 
     /// A colour knob of the picture chain's link `index`, on the echo:
@@ -5188,6 +5211,9 @@ impl Studio {
         self.edit_chain_link(index, |link| {
             link.params.insert(key.to_owned(), packed(colour));
         });
+        if !self.playing {
+            self.request_preview();
+        }
     }
 
     /// The picture chain's link `index` of the selected clip, on the echo.
@@ -9911,19 +9937,24 @@ impl Studio {
             let last = self.last_inspector_selection.borrow();
             last.as_ref().map(|v| v.as_slice()) != Some(&self.selection)
         };
+        let revision_changed = {
+            let last = *self.last_inspector_revision.borrow();
+            last != self.revision
+        };
 
         let is_editing = self.commit_pending || self.echo.is_some();
         let should_publish_inspector = if is_editing {
             // User is actively editing or dragging in the inspector; do not overwrite!
             false
         } else if self.playing {
-            // During playback, publish if selection changed or if the selected clip has animated keys
-            if selection_changed {
+            // During playback, publish if selection changed, revision changed (e.g. effect added/removed),
+            // or if the selected clip has animated keys or keyframes on effects
+            if selection_changed || revision_changed {
                 true
             } else {
                 self.sole_selection()
                     .and_then(|id| self.clip(&id))
-                    .map(|clip| !clip.keys.is_empty())
+                    .map(|clip| !clip.keys.is_empty() || clip.video_effects.iter().any(|e| !e.keys.is_empty()))
                     .unwrap_or(false)
             }
         } else {
@@ -9932,6 +9963,7 @@ impl Studio {
 
         if should_publish_inspector {
             *self.last_inspector_selection.borrow_mut() = Some(self.selection.clone());
+            *self.last_inspector_revision.borrow_mut() = self.revision;
             editor.set_selected_clip(self.selected());
             editor.set_selected_transition(self.selected_transition_data());
             let (knobs, choices) = self.transition_knobs();
@@ -10042,187 +10074,189 @@ impl Studio {
             None => SharedString::new(),
         });
 
-        // The selected clip's chains, as the inspector's two stacks.
-        let (video, audio) = match self.sole_selection().and_then(|id| self.clip(&id)) {
-            Some(clip) => (
-                clip.video_effects
-                    .iter()
-                    .enumerate()
-                    .map(|(index, effect)| EffectData {
-                        id: index as i32 + 1,
-                        name: label_of(&effect.id).into(),
-                        audio: false,
-                    })
-                    .collect(),
-                clip.filters
-                    .iter()
-                    .enumerate()
-                    .map(|(index, filter)| EffectData {
-                        id: index as i32 + 1000,
-                        name: label_of(&filter.id).into(),
-                        audio: true,
-                    })
-                    .collect(),
-            ),
-            None => (Vec::new(), Vec::new()),
-        };
-        sync(&models.video_effects, video);
-        sync(&models.audio_effects, audio);
-
-        // The same chains as the inspector's stacks see them: a row per
-        // link and a row per knob, from the catalogue's manifests.
-        let (visual, visual_params, sound, sound_params) =
-            match self.sole_selection().and_then(|id| self.clip(&id)) {
-                Some(clip) => {
-                    let (visual, visual_params) = chain_rows(&clip.video_effects);
-                    let (sound, sound_params) = chain_rows(&clip.filters);
-                    (visual, visual_params, sound, sound_params)
-                }
-                None => (Vec::new(), Vec::new(), Vec::new(), Vec::new()),
-            };
-        let catalogue = Catalogue::builtin();
-        let luts = self
-            .sole_selection()
-            .and_then(|id| self.clip(&id))
-            .map(|clip| {
-                clip.video_effects
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(index, effect)| {
-                        let package = catalogue.packages().find(|p| p.answers_to(&effect.id))?;
-                        is_lut(package).then(|| crate::ui::ClipLutData {
-                            index: index as i32,
-                            name: package.manifest.effect.name.clone().into(),
-                            on: effect.enabled,
-                            intensity: effect
-                                .params
-                                .get(concat_effects::catalogue::INTENSITY)
-                                .copied()
-                                .unwrap_or(100.0) as f32,
+        if should_publish_inspector {
+            // The selected clip's chains, as the inspector's two stacks.
+            let (video, audio) = match self.sole_selection().and_then(|id| self.clip(&id)) {
+                Some(clip) => (
+                    clip.video_effects
+                        .iter()
+                        .enumerate()
+                        .map(|(index, effect)| EffectData {
+                            id: index as i32 + 1,
+                            name: label_of(&effect.id).into(),
+                            audio: false,
                         })
+                        .collect(),
+                    clip.filters
+                        .iter()
+                        .enumerate()
+                        .map(|(index, filter)| EffectData {
+                            id: index as i32 + 1000,
+                            name: label_of(&filter.id).into(),
+                            audio: true,
+                        })
+                        .collect(),
+                ),
+                None => (Vec::new(), Vec::new()),
+            };
+            sync(&models.video_effects, video);
+            sync(&models.audio_effects, audio);
+
+            // The same chains as the inspector's stacks see them: a row per
+            // link and a row per knob, from the catalogue's manifests.
+            let (visual, visual_params, sound, sound_params) =
+                match self.sole_selection().and_then(|id| self.clip(&id)) {
+                    Some(clip) => {
+                        let (visual, visual_params) = chain_rows(&clip.video_effects);
+                        let (sound, sound_params) = chain_rows(&clip.filters);
+                        (visual, visual_params, sound, sound_params)
+                    }
+                    None => (Vec::new(), Vec::new(), Vec::new(), Vec::new()),
+                };
+            let catalogue = Catalogue::builtin();
+            let luts = self
+                .sole_selection()
+                .and_then(|id| self.clip(&id))
+                .map(|clip| {
+                    clip.video_effects
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(index, effect)| {
+                            let package = catalogue.packages().find(|p| p.answers_to(&effect.id))?;
+                            is_lut(package).then(|| crate::ui::ClipLutData {
+                                index: index as i32,
+                                name: package.manifest.effect.name.clone().into(),
+                                on: effect.enabled,
+                                intensity: effect
+                                    .params
+                                    .get(concat_effects::catalogue::INTENSITY)
+                                    .copied()
+                                    .unwrap_or(100.0) as f32,
+                            })
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            sync(&models.clip_luts, luts);
+            let motion = self
+                .sole_selection()
+                .and_then(|id| self.clip(&id))
+                .filter(|clip| clip.kind.is_visual())
+                .map(|clip| clip.visual_motion)
+                .unwrap_or_default();
+            let motion_ui = app.global::<crate::ui::VideoMotion>();
+            motion_ui.set_entrance(i32::from(motion.entrance));
+            motion_ui.set_exit(i32::from(motion.exit));
+            motion_ui.set_duration(motion.duration as f32);
+            sync(&models.applied_visual, visual);
+            sync(&models.visual_params, visual_params);
+            sync(
+                &models.visual_colours,
+                match self.sole_selection().and_then(|id| self.clip(&id)) {
+                    Some(clip) => chain_colours(&clip.video_effects),
+                    None => Vec::new(),
+                },
+            );
+            sync(&models.applied_audio, sound);
+            sync(&models.audio_params, sound_params);
+            sync(
+                &models.adjust_params,
+                match self.sole_selection().and_then(|id| self.clip(&id)) {
+                    Some(clip) if graded(clip.kind) => {
+                        adjust_rows(&clip.video_effects, self.key_point().map(|(_, at)| at))
+                    }
+                    _ => Vec::new(),
+                },
+            );
+
+            // The wheels and curves: the chain's by link, the colour panel's
+            // keyable at the playhead. Each curve's points go into the model
+            // kept for it.
+            let clip = self.sole_selection().and_then(|id| self.clip(&id));
+            let (visual_wheels, visual_curves) =
+                clip.map_or_else(Default::default, |clip| chain_grading(&clip.video_effects));
+            let (adjust_wheels, adjust_curves) = match (clip, Catalogue::builtin().get(ADJUST_ID)) {
+                (Some(clip), Some(package)) if graded(clip.kind) => grading_rows(
+                    package,
+                    clip.video_effects
+                        .iter()
+                        .find(|entry| entry.id == ADJUST_ID),
+                    -1,
+                    Some(self.key_point().map(|(_, at)| at)),
+                ),
+                _ => Default::default(),
+            };
+            let placed = |curves: Vec<(CurveData, Vec<CurvePointData>)>| -> Vec<CurveData> {
+                let mut kept = models.curve_points.borrow_mut();
+                curves
+                    .into_iter()
+                    .map(|(mut curve, points)| {
+                        let model = Rc::clone(
+                            kept.entry((curve.entry, curve.key.to_string()))
+                                .or_insert_with(|| Rc::new(VecModel::default())),
+                        );
+                        sync(&model, points);
+                        curve.points = ModelRc::from(model);
+                        curve
                     })
                     .collect()
-            })
-            .unwrap_or_default();
-        sync(&models.clip_luts, luts);
-        let motion = self
-            .sole_selection()
-            .and_then(|id| self.clip(&id))
-            .filter(|clip| clip.kind.is_visual())
-            .map(|clip| clip.visual_motion)
-            .unwrap_or_default();
-        let motion_ui = app.global::<crate::ui::VideoMotion>();
-        motion_ui.set_entrance(i32::from(motion.entrance));
-        motion_ui.set_exit(i32::from(motion.exit));
-        motion_ui.set_duration(motion.duration as f32);
-        sync(&models.applied_visual, visual);
-        sync(&models.visual_params, visual_params);
-        sync(
-            &models.visual_colours,
-            match self.sole_selection().and_then(|id| self.clip(&id)) {
-                Some(clip) => chain_colours(&clip.video_effects),
-                None => Vec::new(),
-            },
-        );
-        sync(&models.applied_audio, sound);
-        sync(&models.audio_params, sound_params);
-        sync(
-            &models.adjust_params,
-            match self.sole_selection().and_then(|id| self.clip(&id)) {
-                Some(clip) if graded(clip.kind) => {
-                    adjust_rows(&clip.video_effects, self.key_point().map(|(_, at)| at))
-                }
-                _ => Vec::new(),
-            },
-        );
-
-        // The wheels and curves: the chain's by link, the colour panel's
-        // keyable at the playhead. Each curve's points go into the model
-        // kept for it.
-        let clip = self.sole_selection().and_then(|id| self.clip(&id));
-        let (visual_wheels, visual_curves) =
-            clip.map_or_else(Default::default, |clip| chain_grading(&clip.video_effects));
-        let (adjust_wheels, adjust_curves) = match (clip, Catalogue::builtin().get(ADJUST_ID)) {
-            (Some(clip), Some(package)) if graded(clip.kind) => grading_rows(
-                package,
-                clip.video_effects
+            };
+            sync(&models.adjust_wheels, adjust_wheels);
+            sync(&models.adjust_curves, placed(adjust_curves));
+            // The chain's, one group a link, in chain order, each group's list
+            // the model kept for its link.
+            let visual_curves = placed(visual_curves);
+            let mut entries: Vec<i32> = visual_wheels
+                .iter()
+                .map(|wheel| wheel.entry)
+                .chain(visual_curves.iter().map(|curve| curve.entry))
+                .collect();
+            entries.sort_unstable();
+            entries.dedup();
+            let (mut wheel_groups, mut curve_groups) = (Vec::new(), Vec::new());
+            for entry in entries {
+                let wheels: Vec<WheelData> = visual_wheels
                     .iter()
-                    .find(|entry| entry.id == ADJUST_ID),
-                -1,
-                Some(self.key_point().map(|(_, at)| at)),
-            ),
-            _ => Default::default(),
-        };
-        let placed = |curves: Vec<(CurveData, Vec<CurvePointData>)>| -> Vec<CurveData> {
-            let mut kept = models.curve_points.borrow_mut();
-            curves
-                .into_iter()
-                .map(|(mut curve, points)| {
+                    .filter(|wheel| wheel.entry == entry)
+                    .cloned()
+                    .collect();
+                if !wheels.is_empty() {
                     let model = Rc::clone(
-                        kept.entry((curve.entry, curve.key.to_string()))
+                        models
+                            .link_wheels
+                            .borrow_mut()
+                            .entry(entry)
                             .or_insert_with(|| Rc::new(VecModel::default())),
                     );
-                    sync(&model, points);
-                    curve.points = ModelRc::from(model);
-                    curve
-                })
-                .collect()
-        };
-        sync(&models.adjust_wheels, adjust_wheels);
-        sync(&models.adjust_curves, placed(adjust_curves));
-        // The chain's, one group a link, in chain order, each group's list
-        // the model kept for its link.
-        let visual_curves = placed(visual_curves);
-        let mut entries: Vec<i32> = visual_wheels
-            .iter()
-            .map(|wheel| wheel.entry)
-            .chain(visual_curves.iter().map(|curve| curve.entry))
-            .collect();
-        entries.sort_unstable();
-        entries.dedup();
-        let (mut wheel_groups, mut curve_groups) = (Vec::new(), Vec::new());
-        for entry in entries {
-            let wheels: Vec<WheelData> = visual_wheels
-                .iter()
-                .filter(|wheel| wheel.entry == entry)
-                .cloned()
-                .collect();
-            if !wheels.is_empty() {
-                let model = Rc::clone(
-                    models
-                        .link_wheels
-                        .borrow_mut()
-                        .entry(entry)
-                        .or_insert_with(|| Rc::new(VecModel::default())),
-                );
-                sync(&model, wheels);
-                wheel_groups.push(WheelGroupData {
-                    entry,
-                    wheels: ModelRc::from(model),
-                });
+                    sync(&model, wheels);
+                    wheel_groups.push(WheelGroupData {
+                        entry,
+                        wheels: ModelRc::from(model),
+                    });
+                }
+                let curves: Vec<CurveData> = visual_curves
+                    .iter()
+                    .filter(|curve| curve.entry == entry)
+                    .cloned()
+                    .collect();
+                if !curves.is_empty() {
+                    let model = Rc::clone(
+                        models
+                            .link_curves
+                            .borrow_mut()
+                            .entry(entry)
+                            .or_insert_with(|| Rc::new(VecModel::default())),
+                    );
+                    sync(&model, curves);
+                    curve_groups.push(CurveGroupData {
+                        entry,
+                        curves: ModelRc::from(model),
+                    });
+                }
             }
-            let curves: Vec<CurveData> = visual_curves
-                .iter()
-                .filter(|curve| curve.entry == entry)
-                .cloned()
-                .collect();
-            if !curves.is_empty() {
-                let model = Rc::clone(
-                    models
-                        .link_curves
-                        .borrow_mut()
-                        .entry(entry)
-                        .or_insert_with(|| Rc::new(VecModel::default())),
-                );
-                sync(&model, curves);
-                curve_groups.push(CurveGroupData {
-                    entry,
-                    curves: ModelRc::from(model),
-                });
-            }
+            sync(&models.visual_wheels, wheel_groups);
+            sync(&models.visual_curves, curve_groups);
         }
-        sync(&models.visual_wheels, wheel_groups);
-        sync(&models.visual_curves, curve_groups);
     }
 
     // ── the effect libraries ──
@@ -14052,7 +14086,7 @@ mod save_durability_ui_tests {
             assert!(String::from_utf8_lossy(&output.stdout).contains("durability UI: ok"));
             return;
         }
-        let gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+        let gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
         let mut studio = Studio::new(crate::host::Host::start(gpu).unwrap());
         let app = crate::ui::App::new().unwrap();
         let models = Models::new();
@@ -14262,7 +14296,7 @@ mod lifecycle_tests {
                 .unwrap()
                 .success()
         );
-        let gpu = crate::platform::select_backend(|_| {}, || {}, || {}).unwrap();
+        let gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
         let mut studio = Studio::new(crate::host::Host::start(gpu).unwrap());
         let app = crate::ui::App::new().unwrap();
         let a = projects::create(root.to_str().unwrap(), "Project A", 64, 36, 10, 1).unwrap();
