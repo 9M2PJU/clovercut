@@ -200,23 +200,33 @@ export component TitleBar inherits Rectangle {
         spacing: 2px;
 
         // CapCut-style Brand Mark: App Icon + Typography Wordmark
-        HorizontalLayout {
+        VerticalLayout {
             alignment: center;
-            spacing: 6px;
-            padding-right: 8px;
+            padding-right: 12px;
 
-            Image {
-                source: @image-url("../../../../assets/icons/clovercut_64.png");
-                width: 18px;
-                height: 18px;
-                image-fit: contain;
-            }
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: center;
 
-            Image {
-                source: @image-url("../../../../assets/typography.png");
-                height: 14px;
-                width: 66px;
-                image-fit: contain;
+                VerticalLayout {
+                    alignment: center;
+                    Image {
+                        source: @image-url("../../../../assets/icons/clovercut_64.png");
+                        width: 22px;
+                        height: 22px;
+                        image-fit: contain;
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    Image {
+                        source: @image-url("../../../../assets/typography.png");
+                        height: 19px;
+                        width: 90px;
+                        image-fit: contain;
+                    }
+                }
             }
         }
 
