@@ -95,6 +95,10 @@ jobs:
           mkdir -p ffmpeg-dev
           tar -xf ffmpeg.tar.xz -C ffmpeg-dev --strip-components=1
           echo "FFMPEG_DIR=$PWD/ffmpeg-dev" >> "$GITHUB_ENV"
+          echo "$PWD/ffmpeg-dev/bin" >> "$GITHUB_PATH"
+          # Integration tests invoke both FFmpeg executables, not just libav*.
+          test -x ffmpeg-dev/bin/ffmpeg
+          test -x ffmpeg-dev/bin/ffprobe
 
       # ONNX Runtime as a shared library, linked dynamically, for the reason
       # build-app.yml gives: a static one beside sherpa-onnx's is the same

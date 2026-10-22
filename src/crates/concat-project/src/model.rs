@@ -208,7 +208,41 @@ fn is_false(value: &bool) -> bool {
     !value
 }
 
-/// A lane. Deliberately untyped: any media goes on any track.
+/// The content type a timeline lane carries.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum TrackKind {
+    /// Video clips and photos.
+    #[default]
+    Video,
+    /// Background music, voiceover and sound effects.
+    Audio,
+    /// Titles and custom text boxes.
+    Text,
+    /// Auto-generated captions or imported subtitles.
+    Captions,
+    /// Animated stickers, emojis, and vector figures.
+    Sticker,
+    /// Adjustment layers, visual looks, and LUT filters.
+    Filter,
+}
+
+impl TrackKind {
+    /// Maps a clip's kind and caption state to the designated track type.
+    pub fn from_clip_kind(kind: ClipKind, is_caption: bool) -> Self {
+        match kind {
+            ClipKind::Audio => TrackKind::Audio,
+            ClipKind::Text if is_caption => TrackKind::Captions,
+            ClipKind::Text => TrackKind::Text,
+            ClipKind::Shape => TrackKind::Sticker,
+            ClipKind::Layer => TrackKind::Filter,
+            ClipKind::Video | ClipKind::Image => TrackKind::Video,
+        }
+    }
+}
+
+/// A timeline lane, identified by type.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Track {
@@ -219,6 +253,9 @@ pub struct Track {
     pub visible: bool,
     /// Audio on this track is silent when true.
     pub muted: bool,
+    /// The type of content this track carries.
+    #[serde(default)]
+    pub kind: TrackKind,
     /// Fields this build does not know, kept so they round-trip.
     #[serde(flatten, default, skip_serializing_if = "Map::is_empty")]
     pub extra: Map<String, Value>,
@@ -230,6 +267,7 @@ impl Default for Track {
             id: String::new(),
             visible: true,
             muted: false,
+            kind: TrackKind::Video,
             extra: Map::new(),
         }
     }

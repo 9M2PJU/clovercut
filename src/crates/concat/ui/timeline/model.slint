@@ -45,13 +45,22 @@ export struct TimelineTabData {
 /// the dropdown in its header.
 export enum TrackSize { auto, small, medium, large }
 
-/// One lane. Deliberately untyped: any media goes on any track, which is why
-/// every lane carries both a visibility and a mute switch rather than one or
-/// the other.
+/// The type of track on the timeline.
+export enum TrackKind {
+    video,
+    audio,
+    text,
+    captions,
+    sticker,
+    filter,
+}
+
+/// One lane, identified by kind.
 export struct TrackData {
     id: string,
     visible: bool,
     muted: bool,
+    kind: TrackKind,
     /// What the header's dropdown shows, and what `height` was resolved from.
     size: TrackSize,
     /// The lane's drawn height, and its top edge measured down the stack from

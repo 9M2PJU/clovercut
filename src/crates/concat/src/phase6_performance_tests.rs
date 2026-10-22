@@ -703,7 +703,13 @@ fn phase6_performance_and_memory_suite() {
             ripple: false,
         })
         .unwrap();
-    let t_pip_id = studio.apply(Command::AddTrack { bottom: false }).unwrap();
+    let t_pip_id = studio
+        .apply(Command::AddTrack {
+            bottom: false,
+            kind: None,
+            insert_at: None,
+        })
+        .unwrap();
     let pip_cid = studio
         .apply(Command::AddClip {
             media_id: m_hd,

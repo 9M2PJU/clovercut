@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/tulcoturo/clovercut"><img src="https://img.shields.io/badge/Project-Clovercut-16b86a" alt="Clovercut project" /></a>
-  <a href="https://github.com/tulcoturo/clovercut/releases"><img src="https://img.shields.io/badge/Version-0.1.0-00bcd4" alt="Source version 0.1.0" /></a>
+  <a href="https://github.com/tulcoturo/clovercut/releases"><img src="https://img.shields.io/badge/Version-0.1.1-00bcd4" alt="Source version 0.1.1" /></a>
   <a href="https://github.com/tulcoturo/clovercut/issues"><img src="https://img.shields.io/badge/Feedback-Issues-blue" alt="Report bugs and suggest improvements" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-16b86a" alt="License: AGPL-3.0-or-later" /></a>
   <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-blueviolet" alt="Linux and Windows" />
@@ -29,9 +29,9 @@ Built with a high-performance **Rust** engine and a responsive **Slint** interfa
 
 ---
 
-## Current Version: 0.1.0
+## Current Version: 0.1.1
 
-The current source version is **0.1.0**. The latest published binary release is **0.0.2**; see [Releases](https://github.com/tulcoturo/clovercut/releases) for available downloads. Version 0.1.0 packages are being prepared for Linux, Windows, and Android ARM64; workflow support does not imply that every package has been built or tested on a device.
+The current source version is **0.1.1**. The latest published binary release is **0.0.2**; see [Releases](https://github.com/tulcoturo/clovercut/releases) for available downloads. Version 0.1.1 packages are being prepared for Linux, Windows, and Android ARM64; workflow support does not imply that every package has been built or tested on a device.
 
 Highlights in the current source include:
 
@@ -41,7 +41,7 @@ Highlights in the current source include:
 - Editing improvements for playhead cuts, centered transitions, and inspector controls during playback.
 - Drag-and-drop previews for new overlay tracks and removal of empty tracks after moving or deleting clips.
 
-See the [0.1.0 release notes](docs/releases/0.1.0.md) for the release overview.
+See the [0.1.1 release notes](docs/releases/0.1.1.md) for the release overview.
 
 ## Why Clovercut? Core Standout Features
 
@@ -97,7 +97,7 @@ See the [0.1.0 release notes](docs/releases/0.1.0.md) for the release overview.
 
 ## Downloads & Installation
 
-The latest published release is **0.0.2**, with **Linux** and **Windows (x64)** packages. The commands below refer to that release. For 0.1.0, download packages only when they appear on the release page.
+The latest published release is **0.0.2**, with **Linux** and **Windows (x64)** packages. The commands below refer to that release. For 0.1.1, download packages only when they appear on the release page.
 
 ### Linux
 Download the portable AppImage from [Releases](https://github.com/tulcoturo/clovercut/releases):
@@ -113,8 +113,8 @@ chmod +x Clovercut-0.0.2-x86_64.AppImage
 - **Installer:** Download `Clovercut-0.0.2-windows-x86_64-setup.exe` and follow the guided setup.
 - **Portable:** Download `Clovercut-0.0.2-windows-x86_64-portable.zip`, extract to any directory, and run `clovercut.exe`.
 
-### Android ARM64 (0.1.0 packaging target)
-The 0.1.0 workflow includes `Clovercut-0.1.0-android-arm64.apk`. Check the release assets for availability; Android device testing is separate from desktop validation.
+### Android ARM64 (0.1.1 packaging target)
+The 0.1.1 workflow includes `Clovercut-0.1.1-android-arm64.apk`. Check the release assets for availability; Android device testing is separate from desktop validation.
 
 ### Safe Graphics Mode
 If a GPU driver issue causes window corruption or crashes on startup:

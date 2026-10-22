@@ -349,7 +349,11 @@ mod tests {
             "the manifest's frame seeds the first timeline"
         );
         let view = session
-            .apply(Command::AddTrack { bottom: false })
+            .apply(Command::AddTrack {
+                bottom: false,
+                kind: None,
+                insert_at: None,
+            })
             .expect("adds a track");
         assert!(view.can_undo);
         session

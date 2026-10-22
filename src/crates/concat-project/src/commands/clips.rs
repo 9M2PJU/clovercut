@@ -873,6 +873,7 @@ fn fresh_track(timeline: &mut Timeline, mint: &mut IdMint) -> String {
         id: id.clone(),
         visible: true,
         muted: false,
+        kind: TrackKind::Video,
         extra: Default::default(),
     });
     id

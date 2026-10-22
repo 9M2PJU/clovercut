@@ -913,6 +913,7 @@ pub struct Studio {
     /// line of the activity trail; see `note_activity`.
     activity_burst: Option<crate::panes::Burst>,
     pub toast: ToastState,
+    pub ungrouped_captions: HashSet<String>,
 
     // ── the launch screen ──
     pub on_start: bool,
@@ -2446,6 +2447,7 @@ impl Studio {
             menu_token: 0,
             activity_burst: None,
             toast: ToastState::default(),
+            ungrouped_captions: HashSet::new(),
             on_start: true,
             start,
             recents,
@@ -2686,33 +2688,121 @@ impl Studio {
             .map_or(TrackSize::Auto, |view| view.size)
     }
 
-    /// How tall one lane is drawn: a lane takes the height of the tallest
-    /// thing on it, without the lanes having to be typed. An empty one takes
-    /// the middle size.
+    /// Resolves the functional track kind for a lane: uses its explicit kind if set,
+    /// or inspects the clips on the lane (e.g. captions vs general text vs audio).
+    pub fn track_kind(&self, lane: &Track) -> model::TrackKind {
+        if lane.kind != model::TrackKind::Video {
+            return lane.kind;
+        }
+        let clips: Vec<&model::Clip> = self
+            .timeline()
+            .clips
+            .iter()
+            .map(|clip| clip.as_ref())
+            .filter(|clip| clip.track_id == lane.id)
+            .collect();
+        if let Some(first) = clips.first() {
+            let is_caption = concat_project::captions::is_caption(first);
+            model::TrackKind::from_clip_kind(first.kind, is_caption)
+        } else {
+            lane.kind
+        }
+    }
+
+    /// Finds the preferred insertion index (in the bottom-to-top track stack)
+    /// to keep tracks of the same kind grouped together.
+    pub fn insertion_index_for_track_kind(&self, kind: model::TrackKind) -> Option<usize> {
+        let tracks = &self.timeline().tracks;
+        if tracks.is_empty() {
+            return None;
+        }
+        let last_same_kind_idx = tracks
+            .iter()
+            .enumerate()
+            .rposition(|(_, track)| self.track_kind(track) == kind);
+
+        if let Some(pos) = last_same_kind_idx {
+            Some(pos + 1)
+        } else {
+            match kind {
+                model::TrackKind::Audio => Some(0),
+                model::TrackKind::Video => {
+                    let first_non_audio = tracks
+                        .iter()
+                        .position(|t| self.track_kind(t) != model::TrackKind::Audio);
+                    Some(first_non_audio.unwrap_or(0))
+                }
+                model::TrackKind::Filter => {
+                    let first_higher = tracks.iter().position(|t| {
+                        matches!(
+                            self.track_kind(t),
+                            model::TrackKind::Sticker
+                                | model::TrackKind::Text
+                                | model::TrackKind::Captions
+                        )
+                    });
+                    Some(first_higher.unwrap_or(tracks.len()))
+                }
+                model::TrackKind::Sticker => {
+                    let first_higher = tracks.iter().position(|t| {
+                        matches!(
+                            self.track_kind(t),
+                            model::TrackKind::Text | model::TrackKind::Captions
+                        )
+                    });
+                    Some(first_higher.unwrap_or(tracks.len()))
+                }
+                model::TrackKind::Text => {
+                    let first_higher = tracks
+                        .iter()
+                        .position(|t| self.track_kind(t) == model::TrackKind::Captions);
+                    Some(first_higher.unwrap_or(tracks.len()))
+                }
+                model::TrackKind::Captions => Some(tracks.len()),
+            }
+        }
+    }
+
+    /// Returns caption clip IDs that span this video clip and are currently grouped with it.
+    pub fn associated_captions(&self, video_clip_id: &str) -> Vec<String> {
+        let Some(video) = self.clip(video_clip_id) else {
+            return Vec::new();
+        };
+        if video.kind != model::ClipKind::Video && video.kind != model::ClipKind::Image {
+            return Vec::new();
+        }
+        if self.ungrouped_captions.contains(video_clip_id) {
+            return Vec::new();
+        }
+        let v_start = video.start;
+        let v_end = video.start + video.duration;
+        self.timeline()
+            .clips
+            .iter()
+            .filter(|c| {
+                concat_project::captions::is_caption(c)
+                    && !self.ungrouped_captions.contains(&c.id)
+                    && c.start >= v_start - 0.05
+                    && c.start + c.duration <= v_end + 0.05
+            })
+            .map(|c| c.id.clone())
+            .collect()
+    }
+
+    /// How tall one lane is drawn: auto height adapts cleanly to the track kind.
     fn lane_height(&self, lane: &Track) -> f32 {
         match self.lane_size(&lane.id) {
             TrackSize::Small => LANE_SMALL,
             TrackSize::Medium => LANE_MEDIUM,
             TrackSize::Large => LANE_LARGE,
-            TrackSize::Auto => {
-                let tallest = self
-                    .timeline()
-                    .clips
-                    .iter()
-                    .filter(|clip| clip.track_id == lane.id)
-                    .map(|clip| match clip.kind {
-                        model::ClipKind::Video | model::ClipKind::Image => LANE_LARGE,
-                        model::ClipKind::Audio => LANE_MEDIUM,
-                        // A title is its name strip alone; a layer has no
-                        // picture at all; a shape's name says what it is.
-                        // None needs a body's height.
-                        model::ClipKind::Text | model::ClipKind::Layer | model::ClipKind::Shape => {
-                            LANE_SMALL
-                        }
-                    })
-                    .fold(0.0_f32, f32::max);
-                if tallest > 0.0 { tallest } else { LANE_MEDIUM }
-            }
+            TrackSize::Auto => match self.track_kind(lane) {
+                model::TrackKind::Video => LANE_LARGE,
+                model::TrackKind::Audio => LANE_MEDIUM,
+                model::TrackKind::Text
+                | model::TrackKind::Captions
+                | model::TrackKind::Sticker
+                | model::TrackKind::Filter => LANE_SMALL,
+            },
         }
     }
 
@@ -4122,33 +4212,51 @@ impl Studio {
             )
             .max(0.0);
 
+        let item_track_kind = if plan.media.starts_with("sound:")
+            || plan.kind == crate::ui::ClipKind::Audio
+        {
+            model::TrackKind::Audio
+        } else if plan.media.starts_with("caption:") {
+            model::TrackKind::Captions
+        } else if plan.media.starts_with("sticker:") || plan.kind == crate::ui::ClipKind::Shape {
+            model::TrackKind::Sticker
+        } else if plan.kind == crate::ui::ClipKind::Filter {
+            model::TrackKind::Filter
+        } else if plan.kind == crate::ui::ClipKind::Text {
+            model::TrackKind::Text
+        } else {
+            model::TrackKind::Video
+        };
+
         let (target_row, is_new_track) = if self.drop.as_ref().is_some_and(|d| d.new_track) {
             if y < 60.0 {
                 (0, true)
             } else {
                 let adj_row = row_at(&self.lane_heights(), y - 60.0).clamp(0, lanes - 1);
-                let track_id = self.row_track(adj_row).map(|t| &t.id);
-                let overlaps = track_id.is_some_and(|tid| {
+                let track = self.row_track(adj_row);
+                let incompatible = track.is_some_and(|t| self.track_kind(t) != item_track_kind);
+                let overlaps = track.is_some_and(|t| {
                     self.timeline().clips.iter().any(|c| {
-                        c.track_id == *tid
+                        c.track_id == t.id
                             && c.start < plan.start + plan.duration
                             && c.start + c.duration > plan.start
                     })
                 });
-                (adj_row, overlaps)
+                (adj_row, overlaps || incompatible)
             }
         } else {
             let in_top = row == 0 && y < 35.0;
             let target = row.clamp(0, lanes - 1);
-            let track_id = self.row_track(target).map(|t| &t.id);
-            let overlaps = track_id.is_some_and(|tid| {
+            let track = self.row_track(target);
+            let incompatible = track.is_some_and(|t| self.track_kind(t) != item_track_kind);
+            let overlaps = track.is_some_and(|t| {
                 self.timeline().clips.iter().any(|c| {
-                    c.track_id == *tid
+                    c.track_id == t.id
                         && c.start < plan.start + plan.duration
                         && c.start + c.duration > plan.start
                 })
             });
-            (target, in_top || overlaps)
+            (target, in_top || overlaps || incompatible)
         };
 
         plan.row = target_row;
@@ -4243,16 +4351,46 @@ impl Studio {
             return;
         }
 
-        // If the drop plan requested a new track, or the target track already has
-        // an overlapping clip, mint a new track on top so the element layers over it.
+        let item_track_kind = if plan.media.starts_with("sound:")
+            || plan.kind == crate::ui::ClipKind::Audio
+        {
+            model::TrackKind::Audio
+        } else if plan.media.starts_with("caption:") {
+            model::TrackKind::Captions
+        } else if plan.media.starts_with("sticker:") || plan.kind == crate::ui::ClipKind::Shape {
+            model::TrackKind::Sticker
+        } else if plan.kind == crate::ui::ClipKind::Filter {
+            model::TrackKind::Filter
+        } else if plan.kind == crate::ui::ClipKind::Text {
+            model::TrackKind::Text
+        } else {
+            model::TrackKind::Video
+        };
+
+        let target_incompatible = self
+            .timeline()
+            .tracks
+            .iter()
+            .find(|t| t.id == track_id)
+            .is_some_and(|t| self.track_kind(t) != item_track_kind);
+
+        // If the drop plan requested a new track, or the target track is incompatible
+        // or already has an overlapping clip, mint a new track so the element layers over it.
         let will_make_new_track = plan.new_track
+            || target_incompatible
             || self.timeline().clips.iter().any(|c| {
                 c.track_id == track_id
                     && c.start < plan.start + plan.duration
                     && c.start + c.duration > plan.start
             });
         if will_make_new_track {
-            if let Some(new_track) = self.apply(Command::AddTrack { bottom: false }) {
+            let bottom = item_track_kind == model::TrackKind::Audio;
+            let insert_at = self.insertion_index_for_track_kind(item_track_kind);
+            if let Some(new_track) = self.apply(Command::AddTrack {
+                bottom,
+                kind: Some(item_track_kind),
+                insert_at,
+            }) {
                 track_id = new_track;
             }
         }
@@ -5507,11 +5645,21 @@ impl Studio {
         // picture stays, as any two clips do. It used to travel with its
         // picture, which made Detach a split in name only (#265); the link
         // between them is kept for Reattach, not for the drag.
-        let moving = if self.selection.iter().any(|held| held == id) {
+        let mut moving = if self.selection.iter().any(|held| held == id) {
             self.selection.clone()
         } else {
             vec![id.to_owned()]
         };
+        // Include grouped associated captions when dragging a video clip
+        let mut extra_captions = Vec::new();
+        for clip_id in &moving {
+            for cap_id in self.associated_captions(clip_id) {
+                if !moving.contains(&cap_id) && !extra_captions.contains(&cap_id) {
+                    extra_captions.push(cap_id);
+                }
+            }
+        }
+        moving.extend(extra_captions);
         let origins = moving
             .iter()
             .filter_map(|clip_id| {
@@ -5562,19 +5710,74 @@ impl Studio {
                     .map(|origin| origin.start)
                     .fold(f64::INFINITY, f64::min);
                 let shift = (seconds + self.snap_shift(&edges, threshold, &moving)).max(-earliest);
-                let rows = nearest_row(lanes, row_top(lanes, anchor.row) + pixels) - anchor.row;
+                let current_y = row_top(lanes, anchor.row) + pixels;
+                let count = self.timeline().tracks.len() as i32;
+                let rows = nearest_row(lanes, current_y) - anchor.row;
+                let candidate_row = (anchor.row + rows).clamp(0, count - 1);
+                let candidate_track = self.row_track(candidate_row);
+                let anchor_clip = self.clip(&anchor.clip).cloned();
+
+                let is_incompatible_row = if let Some(clip) = anchor_clip.as_ref() {
+                    let is_caption = concat_project::captions::is_caption(clip);
+                    let clip_track_kind = model::TrackKind::from_clip_kind(clip.kind, is_caption);
+                    candidate_track.is_some_and(|t| self.track_kind(t) != clip_track_kind)
+                } else {
+                    false
+                };
+
+                // Trigger new track preview if dragged above top lane (< 15px) or dragged onto an incompatible track kind
+                let is_new_track_target = current_y < 15.0 || is_incompatible_row;
+                if is_new_track_target {
+                    if let Some(clip) = anchor_clip.as_ref() {
+                        let ui_kind = match clip.kind {
+                            model::ClipKind::Audio => crate::ui::ClipKind::Audio,
+                            model::ClipKind::Text => crate::ui::ClipKind::Text,
+                            model::ClipKind::Layer => crate::ui::ClipKind::Filter,
+                            model::ClipKind::Shape => crate::ui::ClipKind::Shape,
+                            model::ClipKind::Image => crate::ui::ClipKind::Image,
+                            model::ClipKind::Video => crate::ui::ClipKind::Video,
+                        };
+                        self.drop = Some(DropPlan {
+                            media: String::new(),
+                            kind: ui_kind,
+                            label: clip.name.clone(),
+                            start: (anchor.start + shift).max(0.0),
+                            duration: clip.duration,
+                            row: candidate_row,
+                            new_track: true,
+                        });
+                    }
+                } else if self
+                    .drop
+                    .as_ref()
+                    .is_some_and(|d| d.new_track && d.media.is_empty())
+                {
+                    self.drop = None;
+                }
+
+                let rows = nearest_row(lanes, current_y) - anchor.row;
                 let count = self.timeline().tracks.len() as i32;
                 let moves: Vec<ClipMove> = origins
                     .iter()
                     .filter_map(|origin| {
                         let row = (origin.row + rows).clamp(0, count - 1);
-                        let track_id = self
-                            .row_track(row)
-                            .filter(|track| !self.locked(&track.id))
-                            .map(|track| track.id.clone())
-                            .or_else(|| {
-                                self.clip(&origin.clip).map(|clip| clip.track_id.clone())
-                            })?;
+                        let clip = self.clip(&origin.clip)?;
+                        let is_caption = concat_project::captions::is_caption(clip);
+                        let clip_track_kind =
+                            model::TrackKind::from_clip_kind(clip.kind, is_caption);
+
+                        let candidate_track =
+                            self.row_track(row).filter(|track| !self.locked(&track.id));
+                        let track_id = if let Some(target) = candidate_track {
+                            let target_kind = self.track_kind(target);
+                            if target_kind == clip_track_kind {
+                                target.id.clone()
+                            } else {
+                                clip.track_id.clone()
+                            }
+                        } else {
+                            clip.track_id.clone()
+                        };
                         Some(ClipMove {
                             clip_id: origin.clip.clone(),
                             start: (origin.start + shift).max(0.0),
@@ -5710,11 +5913,82 @@ impl Studio {
     /// The pointer let go: the whole gesture becomes one command.
     pub fn clip_released(&mut self) {
         let gesture = std::mem::replace(&mut self.gesture, Gesture::None);
-        let Some(echo) = self.echo.as_ref() else {
+        let Some(echo) = self.echo.take() else {
             return;
         };
         match gesture {
             Gesture::Move { origins, .. } => {
+                let is_new_track = self
+                    .drop
+                    .as_ref()
+                    .is_some_and(|d| d.new_track && d.media.is_empty());
+                self.drop = None;
+
+                if is_new_track {
+                    let anchor = origins.first().and_then(|orig| self.clip(&orig.clip));
+                    let is_caption =
+                        anchor.map_or(false, |c| concat_project::captions::is_caption(c));
+                    let track_kind = anchor.map_or(model::TrackKind::Video, |c| {
+                        model::TrackKind::from_clip_kind(c.kind, is_caption)
+                    });
+                    let bottom = track_kind == model::TrackKind::Audio;
+                    let insert_at = self.insertion_index_for_track_kind(track_kind);
+                    if let Some(new_track_id) = self.apply(Command::AddTrack {
+                        bottom,
+                        kind: Some(track_kind),
+                        insert_at,
+                    }) {
+                        let has_captions = origins.iter().any(|orig| {
+                            self.clip(&orig.clip)
+                                .is_some_and(concat_project::captions::is_caption)
+                        });
+                        let caption_track_id = if has_captions
+                            && track_kind == model::TrackKind::Video
+                        {
+                            self.timeline()
+                                .tracks
+                                .iter()
+                                .find(|t| self.track_kind(t) == model::TrackKind::Captions)
+                                .map(|t| t.id.clone())
+                                .or_else(|| {
+                                    let cap_insert = self
+                                        .insertion_index_for_track_kind(model::TrackKind::Captions);
+                                    self.apply(Command::AddTrack {
+                                        bottom: false,
+                                        kind: Some(model::TrackKind::Captions),
+                                        insert_at: cap_insert,
+                                    })
+                                })
+                        } else {
+                            None
+                        };
+
+                        let moves: Vec<ClipMove> = origins
+                            .iter()
+                            .filter_map(|origin| {
+                                let after = echo.active().clip(&origin.clip)?;
+                                let clip = self.clip(&origin.clip)?;
+                                let is_cap = concat_project::captions::is_caption(clip);
+                                let tid = if is_cap {
+                                    caption_track_id.as_ref().unwrap_or(&new_track_id).clone()
+                                } else {
+                                    new_track_id.clone()
+                                };
+                                Some(ClipMove {
+                                    clip_id: origin.clip.clone(),
+                                    start: after.start,
+                                    track_id: tid,
+                                })
+                            })
+                            .collect();
+                        if !moves.is_empty() {
+                            self.apply(Command::MoveClips { moves });
+                            self.prune_empty_tracks();
+                        }
+                        return;
+                    }
+                }
+
                 let moves: Vec<ClipMove> = origins
                     .iter()
                     .filter_map(|origin| {
@@ -8378,6 +8652,10 @@ impl Studio {
             selected_under
         } else if !same_track_under.is_empty() {
             same_track_under
+        } else if !selection.is_empty() {
+            // If clips are selected on other tracks, but playhead is not crossing any clip
+            // on those tracks, do not cut unrelated tracks.
+            vec![]
         } else {
             under
         };
@@ -8436,6 +8714,10 @@ impl Studio {
             selected_under
         } else if !same_track_under.is_empty() {
             same_track_under
+        } else if !self.selection.is_empty() {
+            // If clips are selected on other tracks, but playhead is not crossing any clip
+            // on those tracks, do not delete clips on unrelated tracks.
+            vec![]
         } else if under.len() > 1 {
             let track_order: Vec<&str> = self
                 .timeline()
@@ -9976,11 +10258,20 @@ impl Studio {
                 .rev()
                 .map(|lane| {
                     let height = self.lane_height(lane);
+                    let kind = match self.track_kind(lane) {
+                        model::TrackKind::Video => crate::ui::TrackKind::Video,
+                        model::TrackKind::Audio => crate::ui::TrackKind::Audio,
+                        model::TrackKind::Text => crate::ui::TrackKind::Text,
+                        model::TrackKind::Captions => crate::ui::TrackKind::Captions,
+                        model::TrackKind::Sticker => crate::ui::TrackKind::Sticker,
+                        model::TrackKind::Filter => crate::ui::TrackKind::Filter,
+                    };
                     let row = TrackData {
                         id: lane.id.as_str().into(),
                         visible: lane.visible,
                         muted: lane.muted,
                         locked: self.locked(&lane.id),
+                        kind,
                         size: self.lane_size(&lane.id),
                         height,
                         top,
@@ -12709,6 +13000,26 @@ impl Studio {
             ));
             rows.push(rule());
         }
+
+        if clip.kind == model::ClipKind::Video || concat_project::captions::is_caption(clip) {
+            let is_ungrouped = self.ungrouped_captions.contains(&clip.id);
+            let has_associated = !self.associated_captions(&clip.id).is_empty()
+                || (concat_project::captions::is_caption(clip) && !is_ungrouped);
+            if has_associated || is_ungrouped {
+                rows.push(action(
+                    "toggle-group-captions",
+                    if is_ungrouped {
+                        "Agrupar com Legendas".to_string()
+                    } else {
+                        "Desagrupar Legendas".to_string()
+                    },
+                    Glyph::TextMark,
+                    "",
+                    !locked,
+                ));
+                rows.push(rule());
+            }
+        }
         let audible = clip.kind != model::ClipKind::Image;
         rows.push(check(
             "mute",
@@ -13441,6 +13752,20 @@ impl Studio {
                 self.inspector_jump = (self.inspector_jump.0 + 1, "Video", "Enhance");
             }
             "export-audio" => self.export_clip_audio(id),
+            "toggle-group-captions" => {
+                let caps = self.associated_captions(id);
+                if self.ungrouped_captions.contains(id) {
+                    self.ungrouped_captions.remove(id);
+                    for cap in &caps {
+                        self.ungrouped_captions.remove(cap);
+                    }
+                } else {
+                    self.ungrouped_captions.insert(id.to_owned());
+                    for cap in &caps {
+                        self.ungrouped_captions.insert(cap.clone());
+                    }
+                }
+            }
             "detach" => self.detach_audio(&clip),
             "reattach" => {
                 self.apply(Command::ReattachAudio {
@@ -14270,7 +14595,11 @@ mod save_durability_ui_tests {
         )
         .unwrap();
         studio.open_project(info.clone()).unwrap();
-        studio.apply(Command::AddTrack { bottom: false });
+        studio.apply(Command::AddTrack {
+            bottom: false,
+            kind: None,
+            insert_at: None,
+        });
         assert_eq!(
             studio.session.as_mut().unwrap().save(None),
             Ok(projects::Saved::Written)
@@ -14281,7 +14610,11 @@ mod save_durability_ui_tests {
         let recovery =
             std::path::Path::new(&info.path).join("concat.json.saving.disposable-recovery");
         std::fs::write(&recovery, b"preserve uncommitted recovery fixture").unwrap();
-        studio.apply(Command::AddTrack { bottom: false });
+        studio.apply(Command::AddTrack {
+            bottom: false,
+            kind: None,
+            insert_at: None,
+        });
         std::fs::rename(&manifest, &backup).unwrap();
         std::fs::create_dir(&manifest).unwrap();
         let failed = studio.close_project();
@@ -14324,7 +14657,11 @@ mod save_durability_ui_tests {
         std::fs::set_permissions(&info.path, std::fs::Permissions::from_mode(0o700)).unwrap();
         assert!(result.as_ref().unwrap().warning().is_some());
         // A later edit made while the worker runs must remain dirty.
-        studio.apply(Command::AddTrack { bottom: false });
+        studio.apply(Command::AddTrack {
+            bottom: false,
+            kind: None,
+            insert_at: None,
+        });
         assert_eq!(studio.timeline().tracks.len(), 7);
         assert!(studio.dirty);
         studio.saved(result, false);
@@ -14591,7 +14928,11 @@ mod lifecycle_tests {
             .recv_timeout(Duration::from_secs(30))
             .unwrap();
         // This edit is newer than the blocked autosave.
-        studio.apply(Command::AddTrack { bottom: false });
+        studio.apply(Command::AddTrack {
+            bottom: false,
+            kind: None,
+            insert_at: None,
+        });
         let epoch = crate::host::project_epoch();
         // A reproducible pre-commit failure must refuse the switch without
         // cancelling the current project's jobs or releasing its claim.
@@ -14713,7 +15054,11 @@ mod lifecycle_tests {
         {
             let mut studio = shell.studio.borrow_mut();
             assert_eq!(studio.project_name, "Project B");
-            studio.apply(Command::AddTrack { bottom: false });
+            studio.apply(Command::AddTrack {
+                bottom: false,
+                kind: None,
+                insert_at: None,
+            });
             studio.close_project().unwrap();
             assert!(studio.session.is_none());
             assert!(!studio.autosave.running());

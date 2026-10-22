@@ -15,18 +15,30 @@ pub(super) fn apply(
     command: Command,
 ) -> Result<Outcome, CommandError> {
     match command {
-        Command::AddTrack { bottom } => {
+        Command::AddTrack {
+            bottom,
+            kind,
+            insert_at,
+        } => {
             let timeline = project.active_mut();
             let id = mint.next("t");
             let track = Track {
                 id: id.clone(),
                 visible: true,
                 muted: false,
+                kind: kind.unwrap_or(if bottom {
+                    TrackKind::Audio
+                } else {
+                    TrackKind::Video
+                }),
                 extra: Default::default(),
             };
             // The stack is stored bottom first: the last track is the lane
             // drawn on top.
-            if bottom {
+            if let Some(idx) = insert_at {
+                let clamp_idx = idx.min(timeline.tracks.len());
+                timeline.tracks.insert(clamp_idx, track);
+            } else if bottom {
                 timeline.tracks.insert(0, track);
             } else {
                 timeline.tracks.push(track);

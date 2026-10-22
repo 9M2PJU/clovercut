@@ -29,6 +29,7 @@ pub(super) fn apply(
                     id: mint.next("t"),
                     visible: true,
                     muted: false,
+                    kind: TrackKind::Video,
                     extra: Default::default(),
                 })
                 .collect();

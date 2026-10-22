@@ -571,15 +571,64 @@ jobs:
           echo "CARGO_APK_RELEASE_KEYSTORE=$keystore" >> "$GITHUB_ENV"
           echo "CARGO_APK_RELEASE_KEYSTORE_PASSWORD=clovercut" >> "$GITHUB_ENV"
 
+      - name: Memory headroom for Android compilation
+        run: |
+          set -euo pipefail
+          # A prior runner received SIGTERM; its logs did not establish OOM.
+          # Make swap provisioning explicit and retain memory diagnostics.
+          sudo fallocate -l 10G /swapfile-clovercut-android
+          sudo chmod 600 /swapfile-clovercut-android
+          sudo mkswap /swapfile-clovercut-android
+          sudo swapon /swapfile-clovercut-android
+          free -h
+          swapon --show
+
+      - name: Bound Android release UI compilation
+        working-directory: src
+        run: |
+          set -euo pipefail
+          # Keep the engine at release opt-level 3; bound the generated
+          # Slint module and avoid whole-program release LTO on the runner.
+          cat >> .cargo/config.toml <<'EOF'
+          [profile.release]
+          lto = false
+          codegen-units = 16
+          [profile.release.package.concat]
+          opt-level = 0
+          codegen-units = 16
+          EOF
+
       - name: Build the APK
+        timeout-minutes: 70
         working-directory: src
         env:
           CARGO_BUILD_JOBS: 1
         run: |
-          set -o pipefail
-          sudo fallocate -l 10G /swapfile 2>/dev/null && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile || true
+          set -euo pipefail
           eval "$(scripts/mobile-env.sh ${{ matrix.target }})"
-          cargo apk build --release -p concat-android --target ${{ matrix.target }} 2>&1 | tee build.log
+          /usr/bin/time -v cargo apk build --release -p concat-android --target ${{ matrix.target }} 2>&1 | tee build.log
+
+      - name: Android build diagnostics (failure only)
+        if: failure()
+        run: |
+          free -h
+          swapon --show
+          if [ -f src/build.log ]; then
+            {
+              echo "### Android build failed"
+              echo '```'
+              tail -n 150 src/build.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Preserve Android build log
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: android-arm64-build-log
+          path: src/build.log
+          if-no-files-found: ignore
 
       - name: Stage
         env:

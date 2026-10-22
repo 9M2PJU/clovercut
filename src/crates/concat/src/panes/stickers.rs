@@ -333,9 +333,13 @@ impl StickersPane {
                         let Some(media_id) = studio.apply(Command::AddMedia { item }) else {
                             return;
                         };
-                        let Some(track_id) =
-                            track.or_else(|| studio.apply(Command::AddTrack { bottom: false }))
-                        else {
+                        let Some(track_id) = track.or_else(|| {
+                            studio.apply(Command::AddTrack {
+                                bottom: false,
+                                kind: Some(concat_project::model::TrackKind::Sticker),
+                                insert_at: None,
+                            })
+                        }) else {
                             return;
                         };
                         if let Some(id) = studio.apply(Command::AddClip {

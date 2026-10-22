@@ -1093,7 +1093,11 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         state.handle(Msg::Timeline(TimelineMsg::HoverEnded));
     }));
     editor.on_add_track(on_window!(|state, bottom: bool| {
-        state.apply(concat_project::Command::AddTrack { bottom });
+        state.apply(concat_project::Command::AddTrack {
+            bottom,
+            kind: None,
+            insert_at: None,
+        });
     }));
     editor.on_delete_selected(on_window!(|state| {
         state.delete_selected();
@@ -2973,7 +2977,11 @@ mod tests {
         session.save(None).expect("the baseline write lands");
         let baseline = std::fs::read(&manifest).expect("reads the baseline manifest");
         session
-            .apply(concat_project::Command::AddTrack { bottom: false })
+            .apply(concat_project::Command::AddTrack {
+                bottom: false,
+                kind: None,
+                insert_at: None,
+            })
             .expect("adds a track");
         let edited = tracks(&session);
         assert_eq!(edited, unedited + 1, "the edit really changed the project");
@@ -3046,7 +3054,11 @@ mod tests {
         let (old_path, old_document) = session.prepare_save(None);
         let old_ticket = projects::ticket();
         session
-            .apply(concat_project::Command::AddTrack { bottom: false })
+            .apply(concat_project::Command::AddTrack {
+                bottom: false,
+                kind: None,
+                insert_at: None,
+            })
             .expect("adds the unsaved track");
         let edited = tracks(&session);
         let (new_path, new_document) = session.prepare_save(None);

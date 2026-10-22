@@ -1754,7 +1754,7 @@ export component Lanes inherits Rectangle {
         // `has-drag` as well as on Rust's verdict: a drag that leaves the
         // lanes gets an Exit and no further hover, so without it the ghost
         // would sit there after the pointer had gone.
-        if root.drop.active && landing.has-drag: Rectangle {
+        if root.drop.active && (landing.has-drag || root.drop.new-track): Rectangle {
             x: root.at(root.drop.start);
             y: root.drop.new-track
                 ? root.ruler-height + 4px

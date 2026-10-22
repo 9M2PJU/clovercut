@@ -130,7 +130,7 @@ jobs:
         tag_name: ${{ needs.check.outputs.tag }}
         target_commitish: ${{ needs.check.outputs.commit }}
         name: Clovercut ${{ needs.check.outputs.tag }}
-        draft: true
+        draft: false
         prerelease: ${{ contains(needs.check.outputs.tag, '-') }}
         body_path: ${{ runner.temp }}/notes.md
         fail_on_unmatched_files: true

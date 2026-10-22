@@ -6,7 +6,7 @@ import { Theme } from "../theme/theme.slint";
 import { Glyph, Icon } from "../icons.slint";
 import { IconButton } from "../primitives/panel.slint";
 import { ThinScrollbar } from "../primitives/scrollbar.slint";
-import { DropData, TrackData, TrackSize } from "model.slint";
+import { DropData, TrackData, TrackKind, TrackSize } from "model.slint";
 
 // The lane switches, in a fixed column beside the lanes.
 //
@@ -220,6 +220,15 @@ component Header inherits Rectangle {
     callback sized(size: TrackSize);
     callback removed();
 
+    pure function kind-glyph(kind: TrackKind) -> Glyph {
+        return kind == TrackKind.captions ? Glyph.captions
+            : kind == TrackKind.text ? Glyph.text-mark
+            : kind == TrackKind.sticker ? Glyph.sticker
+            : kind == TrackKind.filter ? Glyph.settings
+            : kind == TrackKind.audio ? Glyph.waveform
+            : Glyph.film;
+    }
+
     Rectangle {
         x: 0;
         y: parent.height - 1px;
@@ -233,7 +242,7 @@ component Header inherits Rectangle {
             padding-left: 8px;
             padding-right: 4px;
             padding-top: 6px;
-            spacing: 1px;
+            spacing: 2px;
             // No `alignment: start` here. A start-aligned row gives every
             // child its preferred width and stops stretching altogether — and
             // the spacer's preferred width is nothing, so the two ends would
@@ -250,9 +259,18 @@ component Header inherits Rectangle {
 
             VerticalLayout {
                 alignment: start;
-                SizeMenu {
-                    current: root.track.size;
-                    picked(size) => { root.sized(size); }
+                Rectangle {
+                    width: 24px;
+                    height: 24px;
+                    border-radius: Theme.r-sm;
+                    background: Theme.line.with-alpha(0.18);
+                    Icon {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        glyph: root.kind-glyph(root.track.kind);
+                        size: 13px;
+                        tint: Theme.fg-muted;
+                    }
                 }
             }
 
@@ -271,7 +289,7 @@ component Header inherits Rectangle {
                 }
             }
 
-            VerticalLayout {
+            if root.track.kind != TrackKind.audio: VerticalLayout {
                 alignment: start;
                 IconButton {
                     // Checked when the lane is *off*: the button is lit to say
@@ -289,7 +307,7 @@ component Header inherits Rectangle {
                 }
             }
 
-            VerticalLayout {
+            if root.track.kind == TrackKind.video || root.track.kind == TrackKind.audio: VerticalLayout {
                 alignment: start;
                 IconButton {
                     glyph: root.track.muted ? Glyph.volume-off : Glyph.volume;
@@ -301,6 +319,14 @@ component Header inherits Rectangle {
                         root.flag-changed(root.track.visible, !root.track.muted,
                             root.track.locked);
                     }
+                }
+            }
+
+            VerticalLayout {
+                alignment: start;
+                SizeMenu {
+                    current: root.track.size;
+                    picked(size) => { root.sized(size); }
                 }
             }
 

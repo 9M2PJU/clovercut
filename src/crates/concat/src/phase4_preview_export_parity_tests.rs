@@ -749,7 +749,11 @@ fn subtest_multitrack_audio_and_gain() {
     // Track 2
     let track2_id = harness
         .studio
-        .apply(Command::AddTrack { bottom: false })
+        .apply(Command::AddTrack {
+            bottom: false,
+            kind: None,
+            insert_at: None,
+        })
         .unwrap();
     let clip2 = harness
         .studio

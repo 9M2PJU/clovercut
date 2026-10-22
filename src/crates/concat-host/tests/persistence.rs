@@ -67,7 +67,13 @@ fn an_uncommitted_recovery_candidate_is_preserved_without_replacing_the_manifest
     let manifest = projects::manifest_path(root);
     let before = std::fs::read(&manifest).unwrap();
     let original_tracks = original.project().active().tracks.len();
-    original.apply(Command::AddTrack { bottom: false }).unwrap();
+    original
+        .apply(Command::AddTrack {
+            bottom: false,
+            kind: None,
+            insert_at: None,
+        })
+        .unwrap();
     let candidate = serde_json::to_vec_pretty(&original.document()).unwrap();
     let orphan = root.join("concat.json.saving.interrupted-fixture");
     std::fs::write(&orphan, &candidate).unwrap();
@@ -201,7 +207,13 @@ fn a_partial_write_failure_preserves_the_manifest_and_does_not_advance_save_orde
         .unwrap();
     std::fs::write(scratch.path().join(MARKER), b"disposable fixture only").unwrap();
     let mut session = open(scratch.path());
-    session.apply(Command::AddTrack { bottom: false }).unwrap();
+    session
+        .apply(Command::AddTrack {
+            bottom: false,
+            kind: None,
+            insert_at: None,
+        })
+        .unwrap();
     session.save(None).unwrap();
     let output = std::process::Command::new(std::env::current_exe().unwrap())
         .args([

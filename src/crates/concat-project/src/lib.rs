@@ -4712,7 +4712,11 @@ mod tests {
                 item,
             },
             Command::Batch {
-                commands: vec![Command::AddTrack { bottom: false }],
+                commands: vec![Command::AddTrack {
+                    bottom: false,
+                    kind: None,
+                    insert_at: None,
+                }],
             },
             Command::AddClip {
                 media_id: "m1".to_owned(),
@@ -4784,7 +4788,11 @@ mod tests {
             Command::ReattachAudio {
                 clip_id: "c1".to_owned(),
             },
-            Command::AddTrack { bottom: false },
+            Command::AddTrack {
+                bottom: false,
+                kind: None,
+                insert_at: None,
+            },
             Command::RemoveTrack {
                 track_id: "T1".to_owned(),
             },
@@ -5159,12 +5167,20 @@ mod tests {
         let mut editor = Editor::new();
         let before = editor.project().active().tracks.len();
         let top = editor
-            .apply(Command::AddTrack { bottom: false })
+            .apply(Command::AddTrack {
+                bottom: false,
+                kind: None,
+                insert_at: None,
+            })
             .expect("adds")
             .created_id
             .expect("an id");
         let under = editor
-            .apply(Command::AddTrack { bottom: true })
+            .apply(Command::AddTrack {
+                bottom: true,
+                kind: None,
+                insert_at: None,
+            })
             .expect("adds")
             .created_id
             .expect("an id");
@@ -5173,9 +5189,21 @@ mod tests {
         assert_eq!(tracks.last().map(|t| t.id.as_str()), Some(top.as_str()));
         assert_eq!(tracks.first().map(|t| t.id.as_str()), Some(under.as_str()));
         let old: Command = serde_json::from_str(r#"{"op":"addTrack"}"#).expect("parses");
-        assert_eq!(old, Command::AddTrack { bottom: false });
         assert_eq!(
-            serde_json::to_string(&Command::AddTrack { bottom: false }).expect("writes"),
+            old,
+            Command::AddTrack {
+                bottom: false,
+                kind: None,
+                insert_at: None,
+            }
+        );
+        assert_eq!(
+            serde_json::to_string(&Command::AddTrack {
+                bottom: false,
+                kind: None,
+                insert_at: None,
+            })
+            .expect("writes"),
             r#"{"op":"addTrack"}"#
         );
     }

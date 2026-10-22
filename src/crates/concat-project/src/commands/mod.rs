@@ -16,7 +16,7 @@ use crate::model::{
     AppliedFilter, AudioTrack, Background, Clip, ClipKind, ClipMask, ColorRange, ColorSpace, Crop,
     CustomFont, Cutout, CutoutMode, Enhanced, Framing, KeyEase, KeyProperty, MediaItem, MediaKind,
     MediaOrigin, Project, ShapeStyle, SpeedPoint, Stabilize, Stroke, TextStyle, Timeline, Track,
-    Transition, VideoSettings,
+    TrackKind, Transition, VideoSettings,
 };
 
 mod audio;
@@ -767,6 +767,12 @@ pub enum Command {
         /// Under every other lane rather than on top of them.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         bottom: bool,
+        /// The content kind of the new lane.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        kind: Option<TrackKind>,
+        /// Inserts at a specific index in the bottom-first tracks vector.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        insert_at: Option<usize>,
     },
     /// Deletes a lane and every clip on it. Errs at the floor of one track.
     RemoveTrack {

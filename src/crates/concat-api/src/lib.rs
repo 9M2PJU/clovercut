@@ -1830,8 +1830,15 @@ mod durability_tests {
         )
         .unwrap();
         api.open(&info.path).unwrap();
-        api.apply(&info.path, Command::AddTrack { bottom: false })
-            .unwrap();
+        api.apply(
+            &info.path,
+            Command::AddTrack {
+                bottom: false,
+                kind: None,
+                insert_at: None,
+            },
+        )
+        .unwrap();
         let restore = Permissions(info.path.clone().into());
         std::fs::set_permissions(&restore.0, std::fs::Permissions::from_mode(0o300)).unwrap();
         for request in [
