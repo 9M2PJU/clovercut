@@ -764,7 +764,9 @@ impl SpeechPane {
                 let picture = speaker
                     .avatar
                     .as_deref()
-                    .and_then(|path| slint::Image::load_from_path(path.as_ref()).ok());
+                    .map(std::path::Path::new)
+                    .filter(|path| path.is_file())
+                    .and_then(|path| slint::Image::load_from_path(path).ok());
                 crate::ui::AvatarData {
                     letter: avatar_letter(&name).into(),
                     hue: avatar_hue(&name),
@@ -1033,6 +1035,7 @@ impl SpeechPane {
     pub fn saved_avatar(&self, voice: &SavedVoice) -> crate::ui::AvatarData {
         let picture = voice
             .picture_path()
+            .filter(|path| path.is_file())
             .map(|path| {
                 self.pictures
                     .borrow_mut()

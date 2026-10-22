@@ -59,6 +59,8 @@ pub use platform::{LinkOpener, install_link_opener};
 #[cfg(any(target_os = "android", target_os = "ios"))]
 pub use platform::{MicrophoneAccess, install_microphone_access};
 mod panes;
+#[cfg(target_os = "linux")]
+mod phase5_ui_walkthrough;
 mod prefs;
 mod presets;
 mod source;
@@ -807,16 +809,27 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         let Some(path) = state.dock.split_path(held) else {
             return;
         };
-        let Dock::Split { columns, ratio, .. } = state.dock.at_mut(&path) else {
+        let Dock::Split {
+            columns,
+            ratio,
+            first,
+            second,
+        } = state.dock.at_mut(&path)
+        else {
             return;
         };
-        let wanted = if *columns { SEAT_MIN_W } else { SEAT_MIN_H };
-        let floor = if wanted * 2.0 <= extent {
-            wanted
+        let (min_first, min_second) = if *columns {
+            (first.min_width(), second.min_width())
         } else {
-            SEAT_MIN_GRAB.min(extent / 2.0)
-        } / extent;
-        *ratio = (from + delta / extent).clamp(floor, 1.0 - floor);
+            (first.min_height(), second.min_height())
+        };
+        let (floor_first, floor_second) = if min_first + min_second <= extent {
+            (min_first / extent, min_second / extent)
+        } else {
+            let grab = SEAT_MIN_GRAB.min(extent / 2.0) / extent;
+            (grab, grab)
+        };
+        *ratio = (from + delta / extent).clamp(floor_first, 1.0 - floor_second);
     }));
 
     // ── the bin ──
@@ -2121,6 +2134,30 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         state.flush_commit();
         state.caption_apply_all = all;
     }));
+    caption_library.on_source_changed(on_window!(|state, index: i32| {
+        state.handle(Msg::Captions(CaptionsMsg::SourceChanged(index)));
+    }));
+    caption_library.on_model_changed(on_window!(|state, index: i32| {
+        state.handle(Msg::Captions(CaptionsMsg::ModelChanged(index)));
+    }));
+    caption_library.on_placement_changed(on_window!(|state, index: i32| {
+        state.handle(Msg::Captions(CaptionsMsg::PlacementChanged(index)));
+    }));
+    caption_library.on_size_changed(on_window!(|state, index: i32| {
+        state.handle(Msg::Captions(CaptionsMsg::SizeChanged(index)));
+    }));
+    caption_library.on_text_edited(on_window!(|state, text: SharedString| {
+        state.handle(Msg::Captions(CaptionsMsg::TextEdited(text.to_string())));
+    }));
+    caption_library.on_begin_auto(on_window!(|state| {
+        state.handle(Msg::Captions(CaptionsMsg::BeginAuto));
+    }));
+    caption_library.on_begin_manual(on_window!(|state| {
+        state.handle(Msg::Captions(CaptionsMsg::BeginManual));
+    }));
+    caption_library.on_cancel(on_window!(|state| {
+        state.handle(Msg::Captions(CaptionsMsg::Cancel));
+    }));
     caption_library.on_create(on_window!(|state, automatic: bool| {
         let running = state.captions.running;
         state.handle(Msg::Captions(CaptionsMsg::Open));
@@ -2630,6 +2667,13 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     slint::Timer::single_shot(std::time::Duration::ZERO, || {
         Shell::with(|_, app| platform::apply_ui_scale(app.window()));
     });
+
+    #[cfg(target_os = "linux")]
+    let _walkthrough = if std::env::var_os("CLOVERCUT_UI_WALKTHROUGH").is_some() {
+        Some(phase5_ui_walkthrough::start(shell.clone(), app.as_weak()))
+    } else {
+        None
+    };
 
     let result = app.run();
     drop(reader_sweep);

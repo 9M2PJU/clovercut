@@ -1263,13 +1263,13 @@ export component VideoPanel inherits VerticalLayout {
                 Button {
                     label: I18n.t("clipInspector.fit");
                     glyph: Glyph.fit;
-                    horizontal-stretch: 1;
+                    block: true;
                     clicked => { Backdrop.frame(false); }
                 }
                 Button {
                     label: I18n.t("clipInspector.fill");
                     glyph: Glyph.maximize;
-                    horizontal-stretch: 1;
+                    block: true;
                     clicked => { Backdrop.frame(true); }
                 }
             }

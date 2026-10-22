@@ -1213,9 +1213,14 @@ fn package_art(
             package
                 .folder
                 .as_deref()
-                .and_then(|folder| slint::Image::load_from_path(&folder.join("preview.png")).ok())
+                .map(|folder| folder.join("preview.png"))
+                .filter(|path| path.is_file())
+                .and_then(|path| slint::Image::load_from_path(&path).ok())
                 .or_else(|| {
                     let card = card_paths.get(id)?;
+                    if !card.is_file() {
+                        return None;
+                    }
                     slint::Image::load_from_path(card).ok()
                 })
                 .or_else(|| bundled_card(id))
@@ -6045,6 +6050,13 @@ impl Studio {
                     .unwrap_or_default()
                     .into_iter()
                     .map(|font| font.family),
+            )
+            .chain(
+                concat_text::BUNDLED_BASE_FAMILIES
+                    .iter()
+                    .chain(concat_text::BUNDLED_EXTRA_FAMILIES.iter())
+                    .chain(std::iter::once(&"Zen Tokyo Zoo"))
+                    .map(|s| (*s).to_owned()),
             )
             .filter(|family| !family.is_empty())
             .collect();
@@ -11320,10 +11332,19 @@ impl Studio {
         let text = clip.text_at(place_in(clip, self.playhead));
         // Where the family sits in the picker's list; none when nothing on
         // this machine has it, which the picker shows in red.
+        let raw_family = text.font_family.trim_matches('"').trim();
+        let effective_family = if concat_text::RETIRED
+            .iter()
+            .any(|retired| retired.eq_ignore_ascii_case(raw_family))
+        {
+            concat_text::BUNDLED_FAMILY
+        } else {
+            raw_family
+        };
         let family_row = self
             .font_families()
             .iter()
-            .position(|family| family.eq_ignore_ascii_case(text.font_family.trim_matches('"')));
+            .position(|family| family.eq_ignore_ascii_case(effective_family));
         let fill = colour_of(&text.color);
         let stroke = colour_of(&text.stroke_color);
         let plate = colour_of(&text.background);
@@ -11405,10 +11426,9 @@ impl Studio {
             fade_in: clip.fade_in as f32,
             fade_out: clip.fade_out as f32,
             content: text.content.as_str().into(),
-            font_family: text.font_family.trim_matches('"').into(),
+            font_family: effective_family.into(),
             family_row: family_row.unwrap_or(0) as i32,
-            font_missing: family_row.is_none()
-                && !text.font_family.trim_matches('"').trim().is_empty(),
+            font_missing: family_row.is_none() && !effective_family.is_empty(),
             font_size: text.font_size as f32,
             font_weight: text.font_weight as f32,
             italic: text.italic,
@@ -12012,7 +12032,8 @@ impl Studio {
                 .map(|model| SharedString::from(model.name.as_str()))
                 .collect(),
         );
-        app.set_captions(self.captions.data(self));
+        let captions_sheet = self.captions.data(self);
+        app.set_captions(captions_sheet.clone());
         let selected_group = self
             .sole_selection()
             .and_then(|id| self.clip(&id))
@@ -12077,6 +12098,17 @@ impl Studio {
         caption_library.set_duration(motion.duration as f32);
         caption_library.set_running(self.captions.running);
         caption_library.set_apply_all(self.caption_apply_all);
+        caption_library.set_audio_sources(captions_sheet.sources);
+        caption_library.set_audio_source(captions_sheet.source);
+        caption_library.set_models(models.caption_models.clone().into());
+        caption_library.set_model(captions_sheet.model);
+        caption_library.set_placement(captions_sheet.placement);
+        caption_library.set_size(captions_sheet.size);
+        caption_library.set_script_text(captions_sheet.text);
+        caption_library.set_ready(captions_sheet.ready);
+        caption_library.set_stage(captions_sheet.stage);
+        caption_library.set_progress(captions_sheet.progress);
+        caption_library.set_message(captions_sheet.message);
         caption_library.set_can_adopt(
             self.sole_selection()
                 .and_then(|id| self.clip(&id))

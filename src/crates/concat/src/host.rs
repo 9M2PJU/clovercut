@@ -431,6 +431,9 @@ pub fn image_of(frame: &concat_core::frame::Frame) -> slint::Image {
 
 /// The JPEG at `path`, if it can be read, as a Slint image.
 pub fn image_at(path: &std::path::Path) -> Option<slint::Image> {
+    if !path.is_file() {
+        return None;
+    }
     slint::Image::load_from_path(path).ok()
 }
 

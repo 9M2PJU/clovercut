@@ -276,7 +276,7 @@ component OutputSection inherits DialogSection {
     callback ten-bit-changed(on: bool);
     callback hdr-changed(on: bool);
 
-    title: I18n.t("export.output");
+    title: I18n.t("export.output") + " · " + I18n.t("common.video");
 
     DialogRow {
         label: I18n.t("export.resolution");
@@ -381,6 +381,24 @@ component OutputSection inherits DialogSection {
                     checked: root.data.ten-bit;
                     toggled(on) => { root.ten-bit-changed(on); }
                 }
+            }
+        }
+    }
+}
+
+component AudioOutputSection inherits DialogSection {
+    title: I18n.t("common.audio");
+
+    DialogRow {
+        label: I18n.t("export.codec");
+        HorizontalLayout {
+            alignment: end;
+            Text {
+                text: "AAC · 48 kHz · Stereo";
+                color: Theme.fg;
+                font-family: Theme.font-technical;
+                font-size: Theme.fs;
+                vertical-alignment: center;
             }
         }
     }
@@ -512,11 +530,16 @@ component ExportFooter inherits VerticalLayout {
     if root.data.phase == ExportPhase.idle || root.data.phase == ExportPhase.failed:
     HorizontalLayout {
         alignment: root.narrow ? stretch : end;
+        spacing: 8px;
+        if !root.narrow: Button {
+            label: I18n.t("common.cancel");
+            clicked => { root.cancel(); }
+        }
         Button {
-            block: true;
+            block: root.narrow;
             primary: true;
             large: true;
-            min-width: root.narrow ? 0px : 320px;
+            min-width: root.narrow ? 0px : 240px;
             glyph: Glyph.export;
             label: root.data.empty ? I18n.t("export.nothingToExport")
                 : I18n.t("export.exportEstimate") + root.data.size-chosen;
@@ -573,42 +596,56 @@ export component ExportDialog inherits Rectangle {
     callback again();
 
     property <bool> running: root.data.phase == ExportPhase.running;
-    /// How many columns the width holds. Three groups a column wide need
-    /// about 330px each; under two of those the sheet is a phone's single
-    /// column and scrolls.
-    property <int> columns: root.width >= 1080px ? 3 : root.width >= 720px ? 2 : 1;
+    property <length> room-w: root.width - root.inset-left - root.inset-right;
+    property <length> room-h: root.height - root.inset-top - root.inset-bottom;
+    property <bool> card: !root.phone && root.room-w >= 680px && root.room-h >= 480px;
+    /// How many columns the dialog holds: two columns inside the centered
+    /// desktop card, or a single scrolling column on narrow/phone views.
+    property <int> columns: sheet.width >= 680px ? 2 : 1;
 
     /// How far down the sheet is, as a share of the window: 0 up, 1 gone.
-    /// A share rather than a length, so a window resized while the sheet is
-    /// away does not animate it back into view on the way to the new edge.
-    /// A quick start and a long settle: it arrives with a swoosh and lands
-    /// softly, and leaves the same way down.
     property <float> lowered: root.data.open ? 0 : 1;
-    animate lowered { duration: 380ms; easing: cubic-bezier(0.16, 1, 0.3, 1); }
+    animate lowered { duration: 280ms; easing: cubic-bezier(0.16, 1, 0.3, 1); }
 
     // Up while open, and while it is still sliding away after closing, so
     // the way out is seen as well as the way in.
     visible: root.data.open || root.lowered < 1;
+    background: root.card ? Theme.overlay : Colors.transparent;
+
+    TouchArea {
+        clicked => {
+            if (root.card && !root.running) {
+                root.closed();
+            }
+        }
+    }
 
     sheet := Rectangle {
-        x: 0;
-        y: root.height * root.lowered;
-        width: root.width;
-        height: root.height;
+        width: root.card ? Math.min(860px, root.room-w - 32px) : root.width;
+        height: root.card ? Math.min(620px, root.room-h - 32px) : root.height;
+        x: root.card ? root.inset-left + (root.room-w - self.width) / 2 : 0px;
+        y: root.card
+            ? root.inset-top + (root.room-h - self.height) / 2 + 24px * root.lowered
+            : root.height * root.lowered;
+        opacity: root.card ? (1.0 - root.lowered) : 1.0;
         background: Theme.panel;
+        border-width: root.card ? 1px : 0px;
+        border-color: Theme.line-strong;
+        border-radius: root.card ? Theme.r-xl : 0px;
+        clip: true;
 
         // Nothing under the sheet takes a press while it is up.
         TouchArea { }
 
         VerticalLayout {
-            padding-top: root.inset-top;
-            padding-bottom: root.inset-bottom;
-            padding-left: root.inset-left;
-            padding-right: root.inset-right;
+            padding-top: root.card ? 0px : root.inset-top;
+            padding-bottom: root.card ? 0px : root.inset-bottom;
+            padding-left: root.card ? 0px : root.inset-left;
+            padding-right: root.card ? 0px : root.inset-right;
 
             // ── the header ───────────────────────────────────────────────
             Rectangle {
-                height: 52px;
+                height: 46px;
 
                 Rectangle {
                     x: 0;
@@ -618,10 +655,6 @@ export component ExportDialog inherits Rectangle {
                     background: Theme.line;
                 }
 
-                // The close on the trailing edge and the title centred
-                // against the whole strip. Nothing on the leading edge:
-                // that corner is the window's traffic lights on a Mac, and
-                // the format is in the Summary anyway.
                 HorizontalLayout {
                     padding-left: Theme.pad;
                     padding-right: 12px;
@@ -629,15 +662,11 @@ export component ExportDialog inherits Rectangle {
 
                     Rectangle { horizontal-stretch: 1; }
 
-                    // Gone, not disabled, while a job is running: there is
-                    // no safe answer to pressing it, so it should not be
-                    // there to press. It points down, the way the sheet
-                    // leaves.
                     if !root.running: VerticalLayout {
                         alignment: center;
                         Rectangle {
-                            width: 32px;
-                            height: 32px;
+                            width: 28px;
+                            height: 28px;
                             border-radius: Theme.r-sm;
                             background: shut.has-hover ? Theme.field : Colors.transparent;
 
@@ -645,7 +674,7 @@ export component ExportDialog inherits Rectangle {
                                 x: (parent.width - self.width) / 2;
                                 y: (parent.height - self.height) / 2;
                                 glyph: Glyph.close;
-                                size: 14px;
+                                size: 13px;
                                 tint: shut.has-hover ? Theme.fg : Theme.fg-muted;
                             }
 
@@ -685,8 +714,8 @@ export component ExportDialog inherits Rectangle {
                 finger: root.phone;
 
                 Measure {
-                    padding-top: 8px;
-                    padding-bottom: 16px;
+                    padding-top: 6px;
+                    padding-bottom: 12px;
 
                     if root.running || root.columns == 1: VerticalLayout {
                         SummarySection { first: true; data: root.data; }
@@ -704,10 +733,10 @@ export component ExportDialog inherits Rectangle {
                             ten-bit-changed(on) => { root.ten-bit-changed(on); }
                             hdr-changed(on) => { root.hdr-changed(on); }
                         }
+                        if !root.running: AudioOutputSection { }
                     }
 
-                    // Two columns: the picture, what it is and where it
-                    // goes on the left; how it is written on the right.
+                    // Two columns: Preview + Summary on the left; Destination + Output on the right.
                     if !root.running && root.columns == 2: HorizontalLayout {
                         spacing: 12px;
 
@@ -723,60 +752,6 @@ export component ExportDialog inherits Rectangle {
                                 seek(seconds) => { root.seek(seconds); }
                             }
                             SummarySection { data: root.data; }
-                            DestinationSection {
-                                data: root.data;
-                                phone: root.phone;
-                                name-edited(name) => { root.name-edited(name); }
-                                browse => { root.browse(); }
-                            }
-                        }
-
-                        VerticalLayout {
-                            alignment: start;
-                            horizontal-stretch: 1;
-                            OutputSection {
-                                first: true;
-                                data: root.data;
-                                bitrate-changed(mbps) => { root.bitrate-changed(mbps); }
-                                rate-changed(index) => { root.rate-changed(index); }
-                                codec-changed(index) => { root.codec-changed(index); }
-                                ten-bit-changed(on) => { root.ten-bit-changed(on); }
-                                hdr-changed(on) => { root.hdr-changed(on); }
-                            }
-                        }
-                    }
-
-                    // Three columns: the picture and what it is; how it is
-                    // written; where it goes.
-                    if !root.running && root.columns == 3: HorizontalLayout {
-                        spacing: 12px;
-
-                        VerticalLayout {
-                            alignment: start;
-                            horizontal-stretch: 1;
-                            PreviewSection {
-                                first: true;
-                                frame: root.preview-frame;
-                                playhead: root.playhead;
-                                duration: root.duration-seconds;
-                                frame-rate: root.frame-rate;
-                                seek(seconds) => { root.seek(seconds); }
-                            }
-                            SummarySection { data: root.data; }
-                        }
-
-                        VerticalLayout {
-                            alignment: start;
-                            horizontal-stretch: 1;
-                            OutputSection {
-                                first: true;
-                                data: root.data;
-                                bitrate-changed(mbps) => { root.bitrate-changed(mbps); }
-                                rate-changed(index) => { root.rate-changed(index); }
-                                codec-changed(index) => { root.codec-changed(index); }
-                                ten-bit-changed(on) => { root.ten-bit-changed(on); }
-                                hdr-changed(on) => { root.hdr-changed(on); }
-                            }
                         }
 
                         VerticalLayout {
@@ -789,6 +764,15 @@ export component ExportDialog inherits Rectangle {
                                 name-edited(name) => { root.name-edited(name); }
                                 browse => { root.browse(); }
                             }
+                            OutputSection {
+                                data: root.data;
+                                bitrate-changed(mbps) => { root.bitrate-changed(mbps); }
+                                rate-changed(index) => { root.rate-changed(index); }
+                                codec-changed(index) => { root.codec-changed(index); }
+                                ten-bit-changed(on) => { root.ten-bit-changed(on); }
+                                hdr-changed(on) => { root.hdr-changed(on); }
+                            }
+                            AudioOutputSection { }
                         }
                     }
                 }
@@ -809,7 +793,13 @@ export component ExportDialog inherits Rectangle {
                     narrow: root.columns == 1;
                     phone: root.phone;
                     begin => { root.begin(); }
-                    cancel => { root.cancel(); }
+                    cancel => {
+                        if (root.running) {
+                            root.cancel();
+                        } else {
+                            root.closed();
+                        }
+                    }
                     reveal => { root.reveal(); }
                     again => { root.again(); }
                 }

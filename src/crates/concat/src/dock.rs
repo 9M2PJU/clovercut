@@ -145,6 +145,44 @@ impl Dock {
         }
     }
 
+    /// Minimum width required so every leaf in this subtree keeps at least `SEAT_MIN_W`.
+    pub fn min_width(&self) -> f32 {
+        match self {
+            Dock::Leaf(_) => SEAT_MIN_W,
+            Dock::Split {
+                columns: true,
+                first,
+                second,
+                ..
+            } => first.min_width() + SEAT_GAP + second.min_width(),
+            Dock::Split {
+                columns: false,
+                first,
+                second,
+                ..
+            } => first.min_width().max(second.min_width()),
+        }
+    }
+
+    /// Minimum height required so every leaf in this subtree keeps at least `SEAT_MIN_H`.
+    pub fn min_height(&self) -> f32 {
+        match self {
+            Dock::Leaf(_) => SEAT_MIN_H,
+            Dock::Split {
+                columns: false,
+                first,
+                second,
+                ..
+            } => first.min_height() + SEAT_GAP + second.min_height(),
+            Dock::Split {
+                columns: true,
+                first,
+                second,
+                ..
+            } => first.min_height().max(second.min_height()),
+        }
+    }
+
     /// Turn one leaf into a split, with a new view on the named side of it.
     /// Half and half: the seat being split is the only thing that knows how
     /// much room there is, and half of it is the answer that needs no rule.
@@ -221,7 +259,18 @@ pub fn lay_out(node: &Dock, (x, y, w, h): (f32, f32, f32, f32), out: &mut DockLa
 
             let along = if *columns { w } else { h };
             let usable = (along - SEAT_GAP).max(0.0);
-            let head = (usable * ratio).clamp(0.0, usable);
+            let (min_first, min_second) = if *columns {
+                (first.min_width(), second.min_width())
+            } else {
+                (first.min_height(), second.min_height())
+            };
+            let head = if usable >= min_first + min_second {
+                (usable * ratio).clamp(min_first, usable - min_second)
+            } else if min_first + min_second > 0.0 {
+                (usable * (min_first / (min_first + min_second))).clamp(0.0, usable)
+            } else {
+                (usable * ratio).clamp(0.0, usable)
+            };
             out.extents[index] = usable;
             out.dividers[index] = if *columns {
                 DockDivider {
@@ -254,32 +303,30 @@ pub fn lay_out(node: &Dock, (x, y, w, h): (f32, f32, f32, f32), out: &mut DockLa
     }
 }
 
-/// The arrangement the editor opens with: the inspector a column down the
-/// whole right side, and in the rest the library and the monitor across the
-/// top and the timeline under both of them. The inspector is the tallest
-/// thing in the window - a stack of sections that would otherwise scroll -
-/// and the timeline gives up its right end to it, which is the end with
-/// nothing on it yet. About 0.22 of the width to the inspector and 0.25 to
-/// the library, which is 0.32 of what is left once the inspector has had
-/// its share; the timeline takes the lower 0.4 of the height.
+/// The arrangement the editor opens with: a three-panel upper workspace
+/// (Media Library, Preview Monitor, and Inspector side by side across the top)
+/// and the Timeline spanning the full width of the lower portion of the window.
+/// About 0.28 of the width goes to the library, 0.44 to the monitor, and 0.28
+/// to the inspector; the timeline takes the lower 0.44 of the height across
+/// the entire window width.
 pub fn default_dock() -> Dock {
     Dock::Split {
-        columns: true,
-        ratio: 0.78,
+        columns: false,
+        ratio: 0.56,
         first: Box::new(Dock::Split {
-            columns: false,
-            ratio: 0.6,
+            columns: true,
+            ratio: 0.72,
             first: Box::new(Dock::Split {
                 columns: true,
-                ratio: 0.32,
+                ratio: 0.389,
                 first: Dock::leaf(PaneKind::Media),
                 second: Dock::leaf(PaneKind::Preview),
             }),
-            // The timeline, whose VU meters are a column at its own right
-            // edge (see vu-meter.slint) rather than a seat of their own.
-            second: Dock::leaf(PaneKind::Timeline),
+            second: Dock::leaf(PaneKind::Inspector),
         }),
-        second: Dock::leaf(PaneKind::Inspector),
+        // The timeline spans the full width of the lower workspace, with its
+        // VU meters at its own right edge (see vu-meter.slint).
+        second: Dock::leaf(PaneKind::Timeline),
     }
 }
 
@@ -329,4 +376,88 @@ pub fn nearest_row(heights: &[f32], y: f32) -> i32 {
         top += height;
     }
     best
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_dock_lays_out_three_upper_panels_and_full_width_lower_timeline() {
+        let dock = default_dock();
+        let mut out = DockLayout::default();
+        lay_out(&dock, (0.0, 0.0, 1920.0, 1080.0), &mut out);
+        assert_eq!(out.seats.len(), 4);
+
+        let media = out
+            .seats
+            .iter()
+            .find(|s| s.kind == PaneKind::Media)
+            .expect("media seat");
+        let preview = out
+            .seats
+            .iter()
+            .find(|s| s.kind == PaneKind::Preview)
+            .expect("preview seat");
+        let inspector = out
+            .seats
+            .iter()
+            .find(|s| s.kind == PaneKind::Inspector)
+            .expect("inspector seat");
+        let timeline = out
+            .seats
+            .iter()
+            .find(|s| s.kind == PaneKind::Timeline)
+            .expect("timeline seat");
+
+        // All three upper panels sit in the top row (same y and height)
+        assert_eq!(media.y, preview.y);
+        assert_eq!(preview.y, inspector.y);
+        assert_eq!(media.height, preview.height);
+        assert_eq!(preview.height, inspector.height);
+
+        // Ordered left to right: Media -> Preview -> Inspector
+        assert!(media.x < preview.x);
+        assert!(preview.x < inspector.x);
+
+        // Timeline sits below the upper workspace and spans 100% of the usable width
+        assert!(timeline.y > media.y + media.height);
+        assert_eq!(timeline.x, media.x);
+        assert!((timeline.width - 1920.0).abs() < 0.01);
+        assert!(media.width >= SEAT_MIN_W);
+        assert!(preview.width >= SEAT_MIN_W);
+        assert!(inspector.width >= SEAT_MIN_W);
+    }
+
+    #[test]
+    fn default_dock_enforces_minimum_seat_widths_down_to_narrow_desktop() {
+        let dock = default_dock();
+        for &(w, h) in &[
+            (911.0, 684.0),
+            (1264.0, 704.0),
+            (1584.0, 884.0),
+            (1904.0, 1064.0),
+        ] {
+            let mut out = DockLayout::default();
+            lay_out(&dock, (8.0, 8.0, w, h), &mut out);
+            for seat in &out.seats {
+                assert!(
+                    seat.width >= SEAT_MIN_W - 0.01,
+                    "seat {:?} width {} < SEAT_MIN_W at usable {}x{}",
+                    seat.kind,
+                    seat.width,
+                    w,
+                    h
+                );
+                assert!(
+                    seat.height >= SEAT_MIN_H - 0.01,
+                    "seat {:?} height {} < SEAT_MIN_H at usable {}x{}",
+                    seat.kind,
+                    seat.height,
+                    w,
+                    h
+                );
+            }
+        }
+    }
 }

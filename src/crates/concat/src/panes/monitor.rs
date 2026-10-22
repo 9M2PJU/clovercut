@@ -74,11 +74,8 @@ pub enum Picture {
 /// The monitor's state.
 #[derive(Default)]
 pub struct MonitorPane {
-    #[cfg(test)]
     pub(crate) observed_frames: Vec<(FrameSpec, f64, [u8; 4])>,
-    #[cfg(test)]
     pub(crate) observed_instants: Vec<std::time::Instant>,
-    #[cfg(test)]
     requested_clock: f64,
     /// The last frame drawn.
     pub image: slint::Image,
@@ -174,16 +171,7 @@ impl MonitorPane {
                                 .map_err(|error| format!("preview texture: {error}"))
                         }),
                     Ok(Picture::Pixels(bytes, width, height)) => {
-                        #[cfg(test)]
-                        {
-                            let offset = ((height / 2 * width + width / 2) * 4) as usize;
-                            self.observed_frames.push((
-                                spec,
-                                self.requested_clock,
-                                bytes[offset..offset + 4].try_into().unwrap(),
-                            ));
-                            self.observed_instants.push(std::time::Instant::now());
-                        }
+                        self.record_observed(spec, &bytes, width, height);
                         let buffer =
                             slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(
                                 &bytes, width, height,
@@ -214,34 +202,6 @@ impl MonitorPane {
             MonitorMsg::Opened => self.failed = false,
             MonitorMsg::Closed => self.image = slint::Image::default(),
         }
-    }
-
-    /// Clears observed test frames and instants to bound memory during long runs.
-    #[cfg(test)]
-    pub(crate) fn clear_observed(&mut self) {
-        self.observed_frames.clear();
-        self.observed_instants.clear();
-    }
-
-    /// The quality tier for the project's active timeline: 0 full, 1
-    /// half, 2 quarter. Half until chosen.
-    pub fn quality_of(&self, project: &Project) -> usize {
-        self.quality
-            .get(&project.active_timeline_id)
-            .copied()
-            .unwrap_or(1)
-    }
-
-    /// The frame's size at a quality tier: the output scaled, rounded to
-    /// even dimensions, never smaller than two pixels a side.
-    pub fn frame_size(quality: usize, (width, height): (u32, u32)) -> (u32, u32) {
-        let scale = match quality {
-            0 => 1.0,
-            1 => 0.5,
-            _ => 0.25,
-        };
-        let side = |px: u32| ((f64::from(px) * scale).round() as u32).max(2) & !1;
-        (side(width), side(height))
     }
 
     /// Asks the engine for the frame at the playhead - or under the pointer,
@@ -296,10 +256,7 @@ impl MonitorPane {
         self.busy = true;
         self.wanted = false;
         self.asked = Some(std::time::Instant::now());
-        #[cfg(test)]
-        {
-            self.requested_clock = studio.preview_time();
-        }
+        self.requested_clock = studio.preview_time();
         spawn_frame(
             move || {
                 // On the window's device the frame stays a texture; without
@@ -336,6 +293,54 @@ impl MonitorPane {
                 studio.handle(Msg::Monitor(MonitorMsg::Frame(result, spec)));
             },
         );
+    }
+
+    /// The quality tier for the project's active timeline: 0 full, 1
+    /// half, 2 quarter. Half until chosen.
+    pub fn quality_of(&self, project: &Project) -> usize {
+        self.quality
+            .get(&project.active_timeline_id)
+            .copied()
+            .unwrap_or(1)
+    }
+
+    /// The frame's size at a quality tier: the output scaled, rounded to
+    /// even dimensions, never smaller than two pixels a side.
+    pub fn frame_size(quality: usize, (width, height): (u32, u32)) -> (u32, u32) {
+        let scale = match quality {
+            0 => 1.0,
+            1 => 0.5,
+            _ => 0.25,
+        };
+        let side = |px: u32| ((f64::from(px) * scale).round() as u32).max(2) & !1;
+        (side(width), side(height))
+    }
+
+    #[cfg(not(test))]
+    fn record_observed(&mut self, _spec: FrameSpec, _bytes: &[u8], _width: u32, _height: u32) {
+        let _ = (
+            &self.observed_frames,
+            &self.observed_instants,
+            self.requested_clock,
+        );
+    }
+
+    #[cfg(test)]
+    fn record_observed(&mut self, spec: FrameSpec, bytes: &[u8], width: u32, height: u32) {
+        let offset = ((height / 2 * width + width / 2) * 4) as usize;
+        self.observed_frames.push((
+            spec,
+            self.requested_clock,
+            bytes[offset..offset + 4].try_into().unwrap(),
+        ));
+        self.observed_instants.push(std::time::Instant::now());
+    }
+
+    /// Clears observed test frames and instants to bound memory during long runs.
+    #[cfg(test)]
+    pub(crate) fn clear_observed(&mut self) {
+        self.observed_frames.clear();
+        self.observed_instants.clear();
     }
 }
 

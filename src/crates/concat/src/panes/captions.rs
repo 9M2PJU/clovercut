@@ -61,6 +61,10 @@ pub enum CaptionsMsg {
     SizeChanged(i32),
     /// Run the pass the sheet describes.
     Begin,
+    /// Run voice transcription directly from the inline left-pane Captions panel.
+    BeginAuto,
+    /// Run manual script captions directly from the inline left-pane Captions panel.
+    BeginManual,
     Cancel,
     /// The transcriber's worker reporting the stage it is in.
     Progress(JobStage),
@@ -180,6 +184,23 @@ impl CaptionsPane {
                 } else {
                     self.run_script(studio);
                 }
+            }
+            CaptionsMsg::BeginAuto => {
+                self.from_voice = true;
+                let sources = sources(studio);
+                if !self
+                    .clip
+                    .as_ref()
+                    .is_some_and(|id| sources.iter().any(|s| &s.id == id))
+                {
+                    self.clip = sources.first().map(|source| source.id.clone());
+                    self.chosen_with = studio.sole_selection();
+                }
+                self.run_sound(studio);
+            }
+            CaptionsMsg::BeginManual => {
+                self.from_voice = false;
+                self.run_script(studio);
             }
             CaptionsMsg::Cancel => {
                 studio.host.transcriber.cancel();
@@ -488,6 +509,12 @@ impl CaptionsPane {
             self.clip.as_deref(),
             |id| sources.iter().any(|source| source.id == id),
         )
+        .or_else(|| {
+            self.clip
+                .is_none()
+                .then(|| sources.first().map(|source| source.id.clone()))
+                .flatten()
+        })
     }
 
     fn collection_look(&self, studio: &Studio) -> (f64, f64) {
@@ -613,11 +640,7 @@ impl CaptionsPane {
 
     /// The sheet as Slint shows it.
     pub fn data(&self, studio: &Studio) -> CaptionsSheetData {
-        let sources = if self.open {
-            sources(studio)
-        } else {
-            Vec::new()
-        };
+        let sources = sources(studio);
         let source = self
             .subject_clip(studio, &sources)
             .and_then(|id| sources.iter().position(|source| source.id == id))

@@ -186,6 +186,13 @@ export component TimelineTray inherits Rectangle {
     in property <float> record-level;
     /// The VU meters at the lanes' right edge are shown.
     in property <bool> meters-shown: true;
+    /// Current timeline zoom scale in seconds-per-pixel (0.0005 .. 1.5).
+    in property <float> seconds-per-pixel: 0.05;
+
+    property <float> zoom-level: Math.clamp(
+        Math.log(1.5 / Math.clamp(root.seconds-per-pixel, 0.0005, 1.5), 3000.0),
+        0.0,
+        1.0);
 
     callback tool-changed(tool: TimelineTool);
     callback snap-changed(snap: bool);
@@ -472,6 +479,62 @@ export component TimelineTray inherits Rectangle {
             // bigger number is more seconds in the same pixel.
             clicked => { root.zoom(1.4); }
         }
+
+        // Interactive logarithmic zoom slider between Zoom Out and Zoom In.
+        zoom-rail := Rectangle {
+            width: 68px;
+            height: 26px;
+            horizontal-stretch: 0;
+
+            Rectangle {
+                x: 4px;
+                y: (parent.height - 4px) / 2;
+                width: parent.width - 8px;
+                height: 4px;
+                border-radius: 2px;
+                background: Theme.well;
+
+                Rectangle {
+                    x: 0;
+                    y: 0;
+                    width: parent.width * root.zoom-level;
+                    height: parent.height;
+                    border-radius: 2px;
+                    background: zoom-touch.has-hover || zoom-touch.pressed ? Theme.accent : Theme.fg-muted;
+                }
+            }
+
+            Rectangle {
+                x: 4px + (parent.width - 8px) * root.zoom-level - 5px;
+                y: (parent.height - 10px) / 2;
+                width: 10px;
+                height: 10px;
+                border-radius: 5px;
+                background: Theme.fg;
+                border-width: 1px;
+                border-color: Theme.panel;
+            }
+
+            zoom-touch := TouchArea {
+                mouse-cursor: pointer;
+                function apply-at(px: length) {
+                    let u = Math.clamp((px - 4px) / (parent.width - 8px), 0.0, 1.0);
+                    let target = 1.5 * Math.pow(0.0005 / 1.5, u);
+                    root.zoom(target / Math.max(0.0001, root.seconds-per-pixel));
+                }
+                pointer-event(event) => {
+                    if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
+                        self.apply-at(self.mouse-x);
+                    }
+                }
+                moved => {
+                    if (self.pressed) {
+                        self.apply-at(self.mouse-x);
+                    }
+                }
+            }
+        }
+
         TrayButton {
             glyph: Glyph.plus;
             label: I18n.t("common.zoomIn");

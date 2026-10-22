@@ -382,7 +382,44 @@ pub const SCRIPT_FALLBACKS: [&[u8]; 6] = [
 /// Faces that used to be bundled and no longer are: a document that names
 /// one is painted in the bundled face, not in whatever the system offers
 /// for a name it does not know.
-const RETIRED: [&str; 2] = ["Helvetica Neue", "Synonym"];
+pub const RETIRED: [&str; 3] = ["Helvetica Neue", "Synonym", "Cabinet Grotesk"];
+
+/// The family names of all bundled base fonts (including [`BUNDLED_FAMILY`]),
+/// in alphabetical order after [`BUNDLED_FAMILY`].
+pub const BUNDLED_BASE_FAMILIES: [&str; 25] = [
+    "Abril Fatface",
+    "Anton",
+    "Archivo Black",
+    "Atomic Age",
+    "Bangers",
+    "Bebas Neue",
+    "Black Ops One",
+    "Bungee Hairline",
+    "Caveat Brush",
+    "DM Serif Display",
+    "Emilys Candy",
+    "Frijole",
+    "Germania One",
+    "Google Sans Code",
+    "Hammersmith One",
+    "Inter",
+    "Kosugi Maru",
+    "Lobster",
+    "Londrina Solid",
+    "Montserrat",
+    "Mystery Quest",
+    "Pacifico",
+    "Permanent Marker",
+    "Pixelify Sans",
+    "Rubik Scribble",
+];
+/// Additional bundled display and preset font families.
+pub const BUNDLED_EXTRA_FAMILIES: [&str; 4] = [
+    "Secular One",
+    "Shadows Into Light Two",
+    "Space Grotesk",
+    "Staatliches",
+];
 
 impl Fonts {
     /// The bundled faces, the system's fonts, and a face for every script
@@ -3225,5 +3262,20 @@ mod tests {
             picture > 50,
             "{picture} coloured pixels: the emoji came out in colour"
         );
+    }
+
+    #[test]
+    fn bundled_base_and_extra_families_are_known_and_cabinet_grotesk_is_retired() {
+        let fonts = Fonts::with_system(false);
+        let families = fonts.families();
+        assert_eq!(BUNDLED_FAMILY, "Hanken Grotesk");
+        assert!(RETIRED.contains(&"Cabinet Grotesk"));
+        assert!(families.iter().any(|f| f == "Hanken Grotesk"));
+        for family in BUNDLED_BASE_FAMILIES.iter() {
+            assert!(
+                families.iter().any(|f| f == family),
+                "bundled font family {family} must be present in Fonts::families()"
+            );
+        }
     }
 }

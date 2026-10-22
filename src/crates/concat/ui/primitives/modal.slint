@@ -4,6 +4,7 @@
 import { I18n } from "../i18n.slint";
 import { Theme } from "../theme/theme.slint";
 import { Glyph, Icon } from "../icons.slint";
+import { FocusRing } from "focus-ring.slint";
 import { Tip } from "tooltip.slint";
 import { Select } from "select.slint";
 
@@ -270,6 +271,7 @@ export component Button inherits Rectangle {
     property <length> gap: (root.glyph == Glyph.none || root.square) ? 0px : 6px;
     property <length> mark: root.glyph == Glyph.none ? 0px : 14px;
     property <bool> lit: touch.has-hover && root.enabled;
+    property <bool> ring;
     /// the red the danger tone hovers into — a dark wash, not a fill
     property <color> danger-wash: Theme.danger-wash;
     property <color> danger-edge: Theme.danger-edge;
@@ -325,10 +327,32 @@ export component Button inherits Rectangle {
         }
     }
 
+    fs := FocusScope {
+        enabled: root.enabled;
+        focus-gained(reason) => {
+            root.ring = reason == FocusReason.tab-navigation;
+        }
+        focus-lost(reason) => {
+            root.ring = false;
+        }
+        key-pressed(event) => {
+            if (event.text == "\n" || event.text == " ") {
+                root.clicked();
+                return EventResult.accept;
+            }
+            return EventResult.reject;
+        }
+    }
+
     touch := TouchArea {
         enabled: root.enabled;
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
+    }
+
+    FocusRing {
+        active: root.ring;
+        radius: Theme.r;
     }
 }
 

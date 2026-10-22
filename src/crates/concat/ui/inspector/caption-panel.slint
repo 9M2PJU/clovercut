@@ -12,16 +12,17 @@ import { FontPicker } from "font-picker.slint";
 import { CaptionsLibrary } from "../workspace/captions-panel.slint";
 import { ClipField, ClipTextField, SelectedClipData, TextAlignment } from "../timeline/model.slint";
 
-component CaptionLook inherits Rectangle {
+export component CaptionLook inherits Rectangle {
     in property <color> ink;
     in property <color> edge;
     in property <string> label;
+    in property <bool> active: false;
     callback chosen();
-    height: 46px;
+    height: 44px;
     border-radius: Theme.r;
     background: area.has-hover ? Theme.field-hover : Theme.well;
-    border-width: 1px;
-    border-color: Theme.line;
+    border-width: root.active ? 2px : 1px;
+    border-color: root.active ? Theme.accent : Theme.line;
     // Small outlined samples use the same colours as the actual preset.
     for offset in [-1, 1]: Text {
         x: offset * 1px;
@@ -30,7 +31,7 @@ component CaptionLook inherits Rectangle {
         height: parent.height;
         text: "Aa";
         color: root.edge;
-        font-size: 24px;
+        font-size: 22px;
         font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
@@ -40,7 +41,7 @@ component CaptionLook inherits Rectangle {
         height: parent.height;
         text: "Aa";
         color: root.ink;
-        font-size: 24px;
+        font-size: 22px;
         font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
@@ -213,18 +214,22 @@ export component CaptionPanel inherits VerticalLayout {
             HorizontalLayout {
                 spacing: 8px;
                 VerticalLayout {
+                    horizontal-stretch: 1;
                     spacing: 4px;
-                    Text { text: I18n.t("textPanel.tracking"); color: Theme.fg-muted; font-size: Theme.fs; }
+                    Text { text: I18n.t("textPanel.tracking"); color: Theme.fg-muted; font-size: Theme.fs; overflow: elide; }
                     ValueControl {
+                        min-width: 68px; horizontal-stretch: 1;
                         value <=> root.tracking; minimum: -0.05; maximum: 0.3;
                         step: 1 / root.frame-h; unit: "px"; unit-scale: root.frame-h;
                         changed(v) => { root.set(ClipField.tracking, v); root.commit(); }
                     }
                 }
                 VerticalLayout {
+                    horizontal-stretch: 1;
                     spacing: 4px;
-                    Text { text: root.selected.text-vertical ? I18n.t("captions.columnSpacing") : I18n.t("textPanel.lineHeight"); color: Theme.fg-muted; font-size: Theme.fs; }
+                    Text { text: root.selected.text-vertical ? I18n.t("captions.columnSpacing") : I18n.t("textPanel.lineHeight"); color: Theme.fg-muted; font-size: Theme.fs; overflow: elide; }
                     ValueControl {
+                        min-width: 68px; horizontal-stretch: 1;
                         value <=> root.line-height; minimum: 0.7; maximum: 2.5; step: 0.05; unit: "x";
                         changed(v) => { root.set(ClipField.line-height, v); root.commit(); }
                     }
@@ -254,12 +259,54 @@ export component CaptionPanel inherits VerticalLayout {
         SectionHeader { title: I18n.t("captions.styles"); }
         SectionBody {
             padding-left: Theme.pad; padding-right: Theme.pad;
-            HorizontalLayout {
+            VerticalLayout {
                 spacing: 6px;
-                CaptionLook { ink: #ffffff; edge: #000000; label: I18n.t("captions.lookClassic"); chosen => { root.look(#ffffff, #000000, 0.003); } }
-                CaptionLook { ink: #ffdf36; edge: #000000; label: I18n.t("captions.lookYellow"); chosen => { root.look(#ffdf36, #000000, 0.004); } }
-                CaptionLook { ink: #000000; edge: #ffffff; label: I18n.t("captions.lookLight"); chosen => { root.look(#000000, #ffffff, 0.004); } }
-                CaptionLook { ink: #ffffff; edge: #8b3dff; label: I18n.t("captions.lookViolet"); chosen => { root.look(#ffffff, #8b3dff, 0.005); } }
+                HorizontalLayout {
+                    spacing: 6px;
+                    CaptionLook {
+                        ink: #ffffff; edge: #00000000; label: I18n.t("common.none");
+                        active: root.selected.fill == #ffffff && root.selected.stroke-width == 0;
+                        chosen => { root.look(#ffffff, #000000, 0.0); }
+                    }
+                    CaptionLook {
+                        ink: #ffffff; edge: #000000; label: I18n.t("captions.lookClassic");
+                        active: root.selected.fill == #ffffff && root.selected.stroke == #000000 && root.selected.stroke-width > 0;
+                        chosen => { root.look(#ffffff, #000000, 0.003); }
+                    }
+                    CaptionLook {
+                        ink: #ffdf36; edge: #000000; label: I18n.t("captions.lookYellow");
+                        active: root.selected.fill == #ffdf36;
+                        chosen => { root.look(#ffdf36, #000000, 0.004); }
+                    }
+                    CaptionLook {
+                        ink: #000000; edge: #ffffff; label: I18n.t("captions.lookLight");
+                        active: root.selected.fill == #000000 && root.selected.stroke == #ffffff && root.selected.stroke-width > 0;
+                        chosen => { root.look(#000000, #ffffff, 0.004); }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 6px;
+                    CaptionLook {
+                        ink: #ffffff; edge: #8b3dff; label: I18n.t("captions.lookViolet");
+                        active: root.selected.fill == #ffffff && root.selected.stroke == #8b3dff && root.selected.stroke-width > 0;
+                        chosen => { root.look(#ffffff, #8b3dff, 0.005); }
+                    }
+                    CaptionLook {
+                        ink: #38f2ff; edge: #0c1b29; label: "Cyan";
+                        active: root.selected.fill == #38f2ff;
+                        chosen => { root.look(#38f2ff, #0c1b29, 0.004); }
+                    }
+                    CaptionLook {
+                        ink: #ff6e59; edge: #1f0d0a; label: "Coral";
+                        active: root.selected.fill == #ff6e59;
+                        chosen => { root.look(#ff6e59, #1f0d0a, 0.004); }
+                    }
+                    CaptionLook {
+                        ink: #a3e635; edge: #111d08; label: "Lime";
+                        active: root.selected.fill == #a3e635;
+                        chosen => { root.look(#a3e635, #111d08, 0.004); }
+                    }
+                }
             }
         }
     }

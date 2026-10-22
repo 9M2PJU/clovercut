@@ -11,6 +11,7 @@ import { I18n } from "../i18n.slint";
 import { Theme } from "../theme/theme.slint";
 import { Glyph, Icon } from "../icons.slint";
 import { SearchField } from "controls.slint";
+import { FocusRing } from "../primitives/focus-ring.slint";
 import { Tip } from "../primitives/tooltip.slint";
 import { ListView } from "std-widgets.slint";
 
@@ -31,10 +32,29 @@ export component FontPicker inherits Rectangle {
     height: Theme.h;
     horizontal-stretch: 1;
     border-radius: Theme.r;
+    property <bool> ring;
     background: root.missing ? Theme.danger-wash
         : touch.has-hover ? Theme.field-hover : Theme.field;
     border-width: 1px;
     border-color: root.missing ? Theme.danger : Theme.line;
+
+    fs := FocusScope {
+        focus-gained(reason) => {
+            root.ring = reason == FocusReason.tab-navigation;
+        }
+        focus-lost(reason) => {
+            root.ring = false;
+        }
+        key-pressed(event) => {
+            if (event.text == Key.DownArrow || event.text == Key.UpArrow
+                || event.text == "\n" || event.text == " ") {
+                FontSearch.query-changed("");
+                list.show();
+                return EventResult.accept;
+            }
+            return EventResult.reject;
+        }
+    }
 
     HorizontalLayout {
         padding-left: 8px;
@@ -67,9 +87,15 @@ export component FontPicker inherits Rectangle {
     touch := TouchArea {
         mouse-cursor: pointer;
         clicked => {
+            fs.focus();
             FontSearch.query-changed("");
             list.show();
         }
+    }
+
+    FocusRing {
+        active: root.ring;
+        radius: Theme.r;
     }
 
     Tip {

@@ -34,7 +34,7 @@ export component SegmentedControl inherits Rectangle {
     property <length> seg-w: (root.width - 2 * root.inset) / Math.max(root.options.length, 1);
 
     height: Theme.h;
-    min-width: 120px;
+    min-width: 84px;
     horizontal-stretch: 1;
     background: Theme.well;
     border-width: 1px;
@@ -92,9 +92,9 @@ export component SegmentedControl inherits Rectangle {
         // note on IconButton's text in panel.slint for why a Text needs to
         // be handed one.
         if index >= root.icons.length: Text {
-            x: 0;
+            x: 3px;
             y: 0;
-            width: parent.width;
+            width: Math.max(0px, parent.width - 6px);
             height: parent.height;
             text: option;
             color: root.disabled[index] ? Theme.fg-dim

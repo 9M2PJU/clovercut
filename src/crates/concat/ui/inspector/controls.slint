@@ -6,6 +6,7 @@ import { Theme } from "../theme/theme.slint";
 import { Fmt } from "../util.slint";
 import { Glyph, Icon } from "../icons.slint";
 import { NumberField } from "../primitives/number-field.slint";
+import { FocusRing } from "../primitives/focus-ring.slint";
 import { Tip } from "../primitives/tooltip.slint";
 import { Stepper } from "../primitives/stepper.slint";
 import { ColorPicker } from "../primitives/color-picker.slint";
@@ -179,6 +180,27 @@ export component Rail inherits Rectangle {
 
     height: InspectorInput.field-height;
     opacity: root.enabled ? 1.0 : 0.45;
+    forward-focus: focus-scope;
+
+    focus-scope := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if (event.text == Key.LeftArrow) {
+                root.settle(root.value - root.step);
+                return accept;
+            }
+            if (event.text == Key.RightArrow) {
+                root.settle(root.value + root.step);
+                return accept;
+            }
+            return reject;
+        }
+    }
+
+    FocusRing {
+        active: focus-scope.has-focus;
+        radius: Theme.r-xs;
+    }
 
     property <float> span: Math.max(root.maximum - root.minimum, 0.000001);
     /// Half the dragger, so it stays inside the track at both ends and the
@@ -456,10 +478,9 @@ export component PositionRow inherits VerticalLayout {
         }
     }
     HorizontalLayout {
-        alignment: start;
         spacing: 6px;
         ValueControl {
-            width: 88px; horizontal-stretch: 0;
+            min-width: 68px; horizontal-stretch: 1;
             axis: "X";
             unit: "%";
             unit-scale: 100;
@@ -470,7 +491,7 @@ export component PositionRow inherits VerticalLayout {
             changed(v) => { root.changed(v, root.y-value); }
         }
         ValueControl {
-            width: 88px; horizontal-stretch: 0;
+            min-width: 68px; horizontal-stretch: 1;
             axis: "Y";
             unit: "%";
             unit-scale: 100;
@@ -578,7 +599,7 @@ export component Param inherits VerticalLayout {
         }
         if !root.rail: Rectangle { horizontal-stretch: 1; }
         ValueControl {
-            width: 88px;
+            width: 80px;
             horizontal-stretch: 0;
             value <=> root.value;
             minimum: root.minimum;
@@ -678,8 +699,26 @@ export component Switch inherits Rectangle {
     border-radius: Theme.r-sm;
     background: root.checked ? Theme.accent : Theme.field-active;
     opacity: root.enabled ? 1.0 : 0.45;
+    forward-focus: switch-focus;
 
     animate background { duration: 120ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+
+    switch-focus := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if (event.text == " " || event.text == Key.Return) {
+                root.checked = !root.checked;
+                root.toggled(root.checked);
+                return accept;
+            }
+            return reject;
+        }
+    }
+
+    FocusRing {
+        active: switch-focus.has-focus;
+        radius: Theme.r-sm;
+    }
 
     thumb := Rectangle {
         x: root.checked ? parent.width - self.width - 2px : 2px;

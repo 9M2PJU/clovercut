@@ -1648,7 +1648,7 @@ impl Default for TextStyle {
             caption_group: None,
             caption_motion: CaptionMotion::default(),
             content: "Your text".to_owned(),
-            font_family: "\"Cabinet Grotesk\"".to_owned(),
+            font_family: "Hanken Grotesk".to_owned(),
             font_size: 0.09,
             font_weight: 700.0,
             italic: false,
@@ -3094,5 +3094,16 @@ impl Timeline {
             .iter()
             .map(|clip| clip.start + clip.duration)
             .fold(0.0, f64::max)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_text_style_uses_bundled_hanken_grotesk_family() {
+        let style = TextStyle::default();
+        assert_eq!(style.font_family, "Hanken Grotesk");
     }
 }

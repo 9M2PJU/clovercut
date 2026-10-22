@@ -11,8 +11,9 @@ import { FontPicker } from "font-picker.slint";
 import { NumberField } from "../primitives/number-field.slint";
 import { Button } from "../primitives/modal.slint";
 import {
-    ColourField, HelpButton, InspectorFmt, Param, ParamFormat, SwitchRow,
+    ColourField, HelpButton, InspectorFmt, Param, ParamFormat, SwitchRow, TextFormatToggle,
 } from "controls.slint";
+import { CaptionLook } from "caption-panel.slint";
 import {
     ClipField, ClipTextField, SelectedClipData, TextAlignment,
 } from "../timeline/model.slint";
@@ -151,6 +152,16 @@ export component TextPanel inherits VerticalLayout {
     /// A box side in pixels: "auto" at zero, else the whole number.
     pure function px(v: float) -> string {
         return v <= 0 ? I18n.t("common.autoValue") : "\{Math.round(v)}";
+    }
+
+    function apply-look(ink: color, edge: color, width: float) {
+        root.set-colour(ClipTextField.color, ink);
+        root.set-colour(ClipTextField.stroke-color, edge);
+        root.set(ClipField.stroke-opacity, 1);
+        root.set(ClipField.stroke-width, width);
+        root.set(ClipField.font-weight, 700);
+        root.set(ClipField.shadow, 0);
+        root.commit();
     }
 
     // ── a batch ──────────────────────────────────────────────────────────
@@ -348,6 +359,26 @@ export component TextPanel inherits VerticalLayout {
             toggled(on) => { root.set(ClipField.italic, on ? 1 : 0); root.commit(); }
         }
 
+        Row {
+            label: I18n.t("captions.fontStyle");
+            label-width: root.label-w;
+            TextFormatToggle {
+                letter: "B"; label: I18n.t("textPanel.bold"); bold: true;
+                active: root.selected.font-weight >= 700;
+                toggled => { root.set(ClipField.font-weight, root.selected.font-weight >= 700 ? 400 : 700); root.commit(); }
+            }
+            TextFormatToggle {
+                letter: "I"; label: I18n.t("textPanel.italic"); italic: true;
+                active: root.selected.italic;
+                toggled => { root.set(ClipField.italic, root.selected.italic ? 0 : 1); root.commit(); }
+            }
+            TextFormatToggle {
+                letter: "U"; label: I18n.t("textPanel.underline"); underlined: true;
+                active: root.selected.underline;
+                toggled => { root.set(ClipField.underline, root.selected.underline ? 0 : 1); root.commit(); }
+            }
+        }
+
         // The fill has no alpha of its own: the title's Opacity below is
         // the one dial for how solid the words are.
         ColourField {
@@ -481,6 +512,69 @@ export component TextPanel inherits VerticalLayout {
                 }
             }
         }
+        }
+    }
+
+    // ── preset styles ───────────────────────────────────────────────────
+    Section {
+        presets := SectionHeader {
+            title: I18n.t("captions.styles");
+            collapsible: true;
+        }
+
+        if presets.open: SectionBody {
+            padding-left: Theme.pad;
+            padding-right: Theme.pad;
+            padding-bottom: 6px;
+            VerticalLayout {
+                spacing: 6px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    CaptionLook {
+                        ink: #ffffff; edge: #00000000; label: I18n.t("common.none");
+                        active: root.selected.fill == #ffffff && root.selected.stroke-width == 0;
+                        chosen => { root.apply-look(#ffffff, #000000, 0.0); }
+                    }
+                    CaptionLook {
+                        ink: #ffffff; edge: #000000; label: I18n.t("captions.lookClassic");
+                        active: root.selected.fill == #ffffff && root.selected.stroke == #000000 && root.selected.stroke-width > 0;
+                        chosen => { root.apply-look(#ffffff, #000000, 0.003); }
+                    }
+                    CaptionLook {
+                        ink: #ffdf36; edge: #000000; label: I18n.t("captions.lookYellow");
+                        active: root.selected.fill == #ffdf36;
+                        chosen => { root.apply-look(#ffdf36, #000000, 0.004); }
+                    }
+                    CaptionLook {
+                        ink: #000000; edge: #ffffff; label: I18n.t("captions.lookLight");
+                        active: root.selected.fill == #000000 && root.selected.stroke == #ffffff && root.selected.stroke-width > 0;
+                        chosen => { root.apply-look(#000000, #ffffff, 0.004); }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 6px;
+                    CaptionLook {
+                        ink: #ffffff; edge: #8b3dff; label: I18n.t("captions.lookViolet");
+                        active: root.selected.fill == #ffffff && root.selected.stroke == #8b3dff && root.selected.stroke-width > 0;
+                        chosen => { root.apply-look(#ffffff, #8b3dff, 0.005); }
+                    }
+                    CaptionLook {
+                        ink: #38f2ff; edge: #0c1b29; label: "Cyan";
+                        active: root.selected.fill == #38f2ff;
+                        chosen => { root.apply-look(#38f2ff, #0c1b29, 0.004); }
+                    }
+                    CaptionLook {
+                        ink: #ff6e59; edge: #1f0d0a; label: "Coral";
+                        active: root.selected.fill == #ff6e59;
+                        chosen => { root.apply-look(#ff6e59, #1f0d0a, 0.004); }
+                    }
+                    CaptionLook {
+                        ink: #a3e635; edge: #111d08; label: "Lime";
+                        active: root.selected.fill == #a3e635;
+                        chosen => { root.apply-look(#a3e635, #111d08, 0.004); }
+                    }
+                }
+            }
         }
     }
 

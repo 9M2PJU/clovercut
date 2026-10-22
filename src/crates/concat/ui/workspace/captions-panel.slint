@@ -4,9 +4,12 @@
 import { ListView } from "std-widgets.slint";
 
 import { I18n } from "../i18n.slint";
+import { Glyph } from "../icons.slint";
 import { Payload } from "../util.slint";
 import { Theme } from "../theme/theme.slint";
-import { Button } from "../primitives/modal.slint";
+import { Button, Progress } from "../primitives/modal.slint";
+import { Select } from "../primitives/select.slint";
+import { SegmentedControl } from "../primitives/segmented-control.slint";
 
 export struct CaptionRowData { id: string, text: string, time: string, selected: bool }
 export struct CaptionSourceData { id: string, name: string, detail: string }
@@ -25,6 +28,25 @@ export global CaptionsLibrary {
     callback scope-changed(all: bool);
     in-out property <bool> can-adopt;
     in-out property <int> style-count;
+    in-out property <[string]> audio-sources;
+    in-out property <int> audio-source: -1;
+    in-out property <[string]> models;
+    in-out property <int> model: 0;
+    in-out property <int> placement: 0;
+    in-out property <int> size: 1;
+    in-out property <string> script-text;
+    in-out property <bool> ready;
+    in-out property <string> stage;
+    in-out property <float> progress;
+    in-out property <string> message;
+    callback source-changed(index: int);
+    callback model-changed(index: int);
+    callback placement-changed(index: int);
+    callback size-changed(index: int);
+    callback text-edited(text: string);
+    callback begin-auto();
+    callback begin-manual();
+    callback cancel();
     callback create(automatic: bool);
     callback import-srt();
     callback export-srt();
@@ -35,55 +57,318 @@ export global CaptionsLibrary {
 }
 
 export component CaptionsPanel inherits Rectangle {
+    in property <int> category: 0;
     background: Theme.panel;
+    property <string> draft: CaptionsLibrary.script-text;
+    property <bool> typing: false;
+    property <string> shown-script: CaptionsLibrary.script-text;
+    changed shown-script => {
+        if (!root.typing) {
+            root.draft = root.shown-script;
+        }
+    }
+
     VerticalLayout {
         padding: 12px;
         spacing: 10px;
         Text {
-            text: I18n.t("captions.captions");
+            text: root.category == 0 ? I18n.t("captions.autoCaptions")
+                : root.category == 1 ? I18n.t("captions.manualCaptions")
+                : I18n.t("captions.subtitleLibrary");
             color: Theme.fg;
             font-size: Theme.fs-xl;
             font-weight: Theme.weight-title;
         }
         Text {
-            text: I18n.t("captions.sharedStyleHint");
+            text: root.category == 2 ? I18n.t("captions.dragSrtHint") : I18n.t("captions.sharedStyleHint");
             color: Theme.fg-muted;
             font-size: Theme.fs;
             wrap: word-wrap;
         }
-        HorizontalLayout {
+        if root.category == 0: VerticalLayout {
             spacing: 8px;
-            Button {
-                label: CaptionsLibrary.running ? I18n.t("captions.showProgress") : I18n.t("captions.autoCaptions");
+            HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    width: 64px;
+                    text: I18n.t("common.audio");
+                    color: Theme.fg-muted;
+                    font-size: Theme.fs;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                Select {
+                    horizontal-stretch: 1;
+                    options: CaptionsLibrary.audio-sources;
+                    current: CaptionsLibrary.audio-source;
+                    placeholder: I18n.t("captions.noVoiceOnTimeline");
+                    enabled: CaptionsLibrary.audio-sources.length > 0 && !CaptionsLibrary.running;
+                    changed(index) => { CaptionsLibrary.source-changed(index); }
+                }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    width: 64px;
+                    text: I18n.t("common.model");
+                    color: Theme.fg-muted;
+                    font-size: Theme.fs;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                Select {
+                    horizontal-stretch: 1;
+                    options: CaptionsLibrary.models;
+                    current: CaptionsLibrary.model;
+                    placeholder: I18n.t("common.noneInstalled");
+                    enabled: CaptionsLibrary.models.length > 0 && !CaptionsLibrary.running;
+                    changed(index) => { CaptionsLibrary.model-changed(index); }
+                }
+            }
+            if !CaptionsLibrary.ready: Text {
+                text: I18n.t("captions.downloadTranscriberModelFirst");
+                color: Theme.fg-muted;
+                font-size: Theme.fs-sm;
+                wrap: word-wrap;
+            }
+            if CaptionsLibrary.rows.length == 0: HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    width: 64px;
+                    text: I18n.t("captions.placement");
+                    color: Theme.fg-muted;
+                    font-size: Theme.fs;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                SegmentedControl {
+                    horizontal-stretch: 1;
+                    options: [I18n.t("common.bottom"), I18n.t("captions.centre"), I18n.t("common.top")];
+                    current: CaptionsLibrary.placement;
+                    changed(index) => { CaptionsLibrary.placement-changed(index); }
+                }
+            }
+            if CaptionsLibrary.rows.length == 0: HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    width: 64px;
+                    text: I18n.t("common.size");
+                    color: Theme.fg-muted;
+                    font-size: Theme.fs;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                SegmentedControl {
+                    horizontal-stretch: 1;
+                    options: [I18n.t("common.small"), I18n.t("common.medium"), I18n.t("common.large")];
+                    current: CaptionsLibrary.size;
+                    changed(index) => { CaptionsLibrary.size-changed(index); }
+                }
+            }
+            if CaptionsLibrary.message != "": Text {
+                text: CaptionsLibrary.message;
+                color: Theme.danger;
+                font-size: Theme.fs-sm;
+                wrap: word-wrap;
+            }
+            if CaptionsLibrary.running: VerticalLayout {
+                spacing: 6px;
+                HorizontalLayout {
+                    Text {
+                        horizontal-stretch: 1;
+                        text: CaptionsLibrary.stage != "" ? CaptionsLibrary.stage : I18n.t("captions.showProgress");
+                        color: Theme.fg;
+                        font-size: Theme.fs-sm;
+                    }
+                    Text {
+                        text: "\{Math.round(CaptionsLibrary.progress * 100)}%";
+                        color: Theme.fg-muted;
+                        font-family: Theme.font-technical;
+                        font-size: Theme.fs-sm;
+                    }
+                }
+                Progress {
+                    value: CaptionsLibrary.progress;
+                    live: true;
+                }
+                Button {
+                    block: true;
+                    ghost: true;
+                    glyph: Glyph.close;
+                    label: I18n.t("common.cancel");
+                    clicked => { CaptionsLibrary.cancel(); }
+                }
+            }
+            if !CaptionsLibrary.running: Button {
+                block: true;
+                large: true;
+                label: I18n.t("captions.generateCaptions");
                 primary: true;
-                clicked => { CaptionsLibrary.create(true); }
+                enabled: CaptionsLibrary.ready && CaptionsLibrary.audio-source >= 0;
+                clicked => { CaptionsLibrary.begin-auto(); }
             }
-            Button {
-                label: I18n.t("captions.manualCaptions");
-                enabled: !CaptionsLibrary.running;
-                clicked => { CaptionsLibrary.create(false); }
+            HorizontalLayout {
+                spacing: 8px;
+                Button {
+                    horizontal-stretch: 1;
+                    block: true;
+                    label: I18n.t("captions.importSrt");
+                    enabled: !CaptionsLibrary.running;
+                    clicked => { CaptionsLibrary.import-srt(); }
+                }
+                Button {
+                    horizontal-stretch: 1;
+                    block: true;
+                    label: I18n.t("captions.exportSrt");
+                    enabled: CaptionsLibrary.rows.length > 0;
+                    clicked => { CaptionsLibrary.export-srt(); }
+                }
             }
         }
-        HorizontalLayout {
+        if root.category == 1: VerticalLayout {
             spacing: 8px;
-            Button {
-                label: I18n.t("captions.importSrt");
-                enabled: !CaptionsLibrary.running;
-                clicked => { CaptionsLibrary.import-srt(); }
+            Rectangle {
+                height: 84px;
+                border-radius: Theme.r;
+                background: Theme.well;
+                border-width: 1px;
+                border-color: script.has-focus ? Theme.accent : Theme.line;
+                clip: true;
+
+                script := TextInput {
+                    x: 8px;
+                    y: 6px;
+                    width: parent.width - 16px;
+                    height: parent.height - 12px;
+                    text <=> root.draft;
+                    color: Theme.fg;
+                    font-size: Theme.fs;
+                    single-line: false;
+                    wrap: word-wrap;
+                    selection-background-color: Theme.accent;
+                    selection-foreground-color: Theme.on-accent;
+                    changed has-focus => { root.typing = self.has-focus; }
+                    edited => { CaptionsLibrary.text-edited(self.text); }
+                }
+
+                if root.draft == "" && !script.has-focus: Text {
+                    x: 8px;
+                    y: 6px;
+                    text: I18n.t("captions.typeWordsPutScreen");
+                    color: Theme.fg-dim;
+                    font-size: Theme.fs;
+                }
+            }
+            if CaptionsLibrary.rows.length == 0: HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    width: 64px;
+                    text: I18n.t("captions.placement");
+                    color: Theme.fg-muted;
+                    font-size: Theme.fs;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                SegmentedControl {
+                    horizontal-stretch: 1;
+                    options: [I18n.t("common.bottom"), I18n.t("captions.centre"), I18n.t("common.top")];
+                    current: CaptionsLibrary.placement;
+                    changed(index) => { CaptionsLibrary.placement-changed(index); }
+                }
+            }
+            if CaptionsLibrary.rows.length == 0: HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    width: 64px;
+                    text: I18n.t("common.size");
+                    color: Theme.fg-muted;
+                    font-size: Theme.fs;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                SegmentedControl {
+                    horizontal-stretch: 1;
+                    options: [I18n.t("common.small"), I18n.t("common.medium"), I18n.t("common.large")];
+                    current: CaptionsLibrary.size;
+                    changed(index) => { CaptionsLibrary.size-changed(index); }
+                }
             }
             Button {
-                label: I18n.t("captions.exportSrt");
-                enabled: CaptionsLibrary.rows.length > 0;
-                clicked => { CaptionsLibrary.export-srt(); }
+                block: true;
+                large: true;
+                primary: true;
+                label: I18n.t("captions.addCaptions");
+                enabled: !CaptionsLibrary.running && root.draft != "";
+                clicked => { CaptionsLibrary.begin-manual(); }
+            }
+            if CaptionsLibrary.can-adopt: Button {
+                block: true;
+                label: I18n.t("captions.adoptTextTrack");
+                clicked => { CaptionsLibrary.adopt(); }
+            }
+            if CaptionsLibrary.rows.length > 0: Button {
+                block: true;
+                label: I18n.t("captions.keepCollection");
+                clicked => { CaptionsLibrary.keep-collection(); }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                Button {
+                    horizontal-stretch: 1;
+                    block: true;
+                    label: I18n.t("captions.importSrt");
+                    enabled: !CaptionsLibrary.running;
+                    clicked => { CaptionsLibrary.import-srt(); }
+                }
+                Button {
+                    horizontal-stretch: 1;
+                    block: true;
+                    label: I18n.t("captions.exportSrt");
+                    enabled: CaptionsLibrary.rows.length > 0;
+                    clicked => { CaptionsLibrary.export-srt(); }
+                }
             }
         }
-        if CaptionsLibrary.rows.length > 0: Button {
-            label: I18n.t("captions.keepCollection");
-            clicked => { CaptionsLibrary.keep-collection(); }
+        if root.category == 2: VerticalLayout {
+            spacing: 8px;
+            HorizontalLayout {
+                spacing: 8px;
+                Button {
+                    horizontal-stretch: 1;
+                    block: true;
+                    primary: true;
+                    label: I18n.t("captions.importSrt");
+                    enabled: !CaptionsLibrary.running;
+                    clicked => { CaptionsLibrary.import-srt(); }
+                }
+                Button {
+                    horizontal-stretch: 1;
+                    block: true;
+                    label: I18n.t("captions.exportSrt");
+                    enabled: CaptionsLibrary.rows.length > 0;
+                    clicked => { CaptionsLibrary.export-srt(); }
+                }
+            }
+            if CaptionsLibrary.rows.length > 0: Button {
+                block: true;
+                label: I18n.t("captions.keepCollection");
+                clicked => { CaptionsLibrary.keep-collection(); }
+            }
+            if CaptionsLibrary.can-adopt: Button {
+                block: true;
+                label: I18n.t("captions.adoptTextTrack");
+                clicked => { CaptionsLibrary.adopt(); }
+            }
         }
-        if CaptionsLibrary.can-adopt: Button {
-            label: I18n.t("captions.adoptTextTrack");
-            clicked => { CaptionsLibrary.adopt(); }
+        if root.category != 2: Rectangle {
+            height: 1px;
+            background: Theme.line;
+        }
+        if root.category != 2: Text {
+            text: root.category == 0 ? I18n.t("captions.subtitleLibrary") : I18n.t("captions.allCaptions");
+            color: Theme.fg;
+            font-size: Theme.fs;
+            font-weight: 600;
         }
         if CaptionsLibrary.sources.length == 0: Text {
             text: I18n.t("captions.libraryEmpty");
@@ -91,8 +376,6 @@ export component CaptionsPanel inherits Rectangle {
             font-size: Theme.fs;
             wrap: word-wrap;
         }
-        Text { text: I18n.t("captions.subtitleLibrary"); color: Theme.fg; font-size: Theme.fs; font-weight: 600; }
-        Text { text: I18n.t("captions.dragSrtHint"); color: Theme.fg-muted; font-size: Theme.fs; wrap: word-wrap; }
         ListView {
             vertical-stretch: 1;
             for source in CaptionsLibrary.sources: Rectangle {
@@ -111,8 +394,9 @@ export component CaptionsPanel inherits Rectangle {
                             Text { text: source.name; color: Theme.fg; font-size: Theme.fs; overflow: elide; }
                             Text { text: source.detail; color: Theme.fg-muted; font-size: Theme.fs; }
                             HorizontalLayout {
-                                Button { label: I18n.t("captions.addToTimeline"); clicked => { CaptionsLibrary.place-source(source.id); } }
-                                Button { label: I18n.t("common.remove"); ghost: true; clicked => { CaptionsLibrary.remove-source(source.id); } }
+                                spacing: 6px;
+                                Button { block: true; label: I18n.t("captions.addToTimeline"); clicked => { CaptionsLibrary.place-source(source.id); } }
+                                Button { block: true; label: I18n.t("common.remove"); ghost: true; clicked => { CaptionsLibrary.remove-source(source.id); } }
                             }
                         }
                     }
