@@ -2,7 +2,7 @@
 
 Date: 2026-10-21. Baseline: `17f942be6bb0a8373b2e09e4d90f930d5f128353` on `safety/phase2-complete-2026-10-21` (also published to origin and independently checked with `git ls-remote`). Work branch: `polish/phase3-timeline-precision`. Phase 2 complete and approved. Phase 3 tasks 3.1–3.6 authorized sequentially; stop before a major architecture or editing-semantics change, and do not start Phase 4.
 
-> Final status: tasks 3.1–3.6 are complete and explicitly approved by the user within the documented local verification scope. The final acceptance and evidence sections below supersede all historical investigation checkpoints. Phase 4 has not started and remains unauthorized. Continuation is documented in [AGENT_HANDOFF.md](AGENT_HANDOFF.md). No new commit or push has been made.
+> Final status: tasks 3.1–3.6 are complete and explicitly approved by the user within the documented local verification scope. The final acceptance and evidence sections below supersede all historical investigation checkpoints.
 
 
 ## Policy recorded before timing changes
