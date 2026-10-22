@@ -128,9 +128,9 @@ fn window_geometry() -> Option<(i32, i32, u32, u32)> {
         if client.get("pid").and_then(|p| p.as_u64()) == Some(my_pid as u64) {
             let at = client.get("at")?.as_array()?;
             let size = client.get("size")?.as_array()?;
-            let x = at.get(0)?.as_i64()? as i32;
+            let x = at.first()?.as_i64()? as i32;
             let y = at.get(1)?.as_i64()? as i32;
-            let w = size.get(0)?.as_u64()? as u32;
+            let w = size.first()?.as_u64()? as u32;
             let h = size.get(1)?.as_u64()? as u32;
             return Some((x, y, w, h));
         }

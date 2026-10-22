@@ -869,6 +869,7 @@ pub struct Studio {
     /// about a track that the document does not.
     pub lanes: crate::panes::timeline::TimelinePane,
     pub selection: Vec<String>,
+    pub last_inspector_selection: std::cell::RefCell<Option<Vec<String>>>,
     pub playhead: f64,
     pub caption_apply_all: bool,
     pub playing: bool,
@@ -2418,6 +2419,7 @@ impl Studio {
             waves: RefCell::new(HashMap::new()),
             lanes: crate::panes::timeline::TimelinePane::default(),
             selection: Vec::new(),
+            last_inspector_selection: std::cell::RefCell::new(None),
             playhead: 0.0,
             caption_apply_all: true,
             // ~20px a second: a ten-second cut fits a pane at its default width.
@@ -3021,7 +3023,16 @@ impl Studio {
         let Some(session) = self.session.as_ref() else {
             return;
         };
-        let specs = audio_specs(&session.flattened_clips());
+        let clips = if self.echo.is_some() {
+            concat_export::flatten::flatten_timeline_in(
+                self.project(),
+                None,
+                Some(std::path::Path::new(session.path())),
+            )
+        } else {
+            session.flattened_clips()
+        };
+        let specs = audio_specs(&clips);
         self.host
             .playback
             .set_clips(std::path::PathBuf::from(session.path()), specs);
@@ -3294,6 +3305,7 @@ impl Studio {
         }
         let was_playing = self.playing;
         self.playing = false;
+        self.last_inspector_selection.borrow_mut().take();
         self.transport.stop();
         self.host.playback.pause();
         // The textures playback streamed through are let go once it stops.
@@ -8452,6 +8464,7 @@ impl Studio {
                 at,
             );
         }
+        self.sync_audio();
         self.clip_commit();
     }
 
@@ -9894,14 +9907,50 @@ impl Studio {
             None => DropData::default(),
         });
 
-        editor.set_selected_clip(self.selected());
-        editor.set_selected_transition(self.selected_transition_data());
-        let (knobs, choices) = self.transition_knobs();
-        sync(&models.transition_knobs, knobs);
-        sync(&models.transition_choices, choices);
-        // The background and Fit and Fill, on their own global: the Details
-        // panel, the Video panel and the phone all read it.
-        self.publish_backdrop(app);
+        let selection_changed = {
+            let last = self.last_inspector_selection.borrow();
+            last.as_ref().map(|v| v.as_slice()) != Some(&self.selection)
+        };
+
+        let is_editing = self.commit_pending || self.echo.is_some();
+        let should_publish_inspector = if is_editing {
+            // User is actively editing or dragging in the inspector; do not overwrite!
+            false
+        } else if self.playing {
+            // During playback, publish if selection changed or if the selected clip has animated keys
+            if selection_changed {
+                true
+            } else {
+                self.sole_selection()
+                    .and_then(|id| self.clip(&id))
+                    .map(|clip| !clip.keys.is_empty())
+                    .unwrap_or(false)
+            }
+        } else {
+            true
+        };
+
+        if should_publish_inspector {
+            *self.last_inspector_selection.borrow_mut() = Some(self.selection.clone());
+            editor.set_selected_clip(self.selected());
+            editor.set_selected_transition(self.selected_transition_data());
+            let (knobs, choices) = self.transition_knobs();
+            sync(&models.transition_knobs, knobs);
+            sync(&models.transition_choices, choices);
+            self.publish_backdrop(app);
+            self.publish_speed_ramp(app, models);
+            models.key_editor_rows.set_vec(self.key_editor_rows());
+            app.global::<KeyEditor>().set_at(
+                self.sole_selection()
+                    .and_then(|id| self.clip(&id))
+                    .map_or(0.0, |clip| place_in(clip, self.playhead) as f32),
+            );
+            let keys = app.global::<Keyframes>();
+            let rows = self.key_rows();
+            keys.set_available(!rows.is_empty());
+            sync(&models.key_rows, rows);
+        }
+
         // Written only when it differs: a fresh model is a change to every
         // binding that reads it, and this one is read on every publish.
         let labels = self.audio_track_labels();
@@ -9914,21 +9963,6 @@ impl Studio {
         if !same {
             editor.set_audio_tracks(slint::ModelRc::new(VecModel::from(labels)));
         }
-        // The keyframe cluster's state, on its own global: every keyable row
-        // in the inspector reads it, and none of them is threaded to.
-        let keys = app.global::<Keyframes>();
-        // The Keyframes panel: set whole, since a row holds a model of its
-        // keys and cannot be compared for a diff.
-        models.key_editor_rows.set_vec(self.key_editor_rows());
-        app.global::<KeyEditor>().set_at(
-            self.sole_selection()
-                .and_then(|id| self.clip(&id))
-                .map_or(0.0, |clip| place_in(clip, self.playhead) as f32),
-        );
-        self.publish_speed_ramp(app, models);
-        let rows = self.key_rows();
-        keys.set_available(!rows.is_empty());
-        sync(&models.key_rows, rows);
         let fonts = Some(self.fonts_fingerprint());
         let searched = Some({
             use std::hash::{Hash, Hasher};
