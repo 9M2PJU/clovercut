@@ -88,7 +88,7 @@ incremental = true
 # build is `--profile app`.
 [profile.quick.package.concat]
 opt-level = 0
-codegen-units = 256
+codegen-units = 16
 
 # The shipping build of the editor window: `cargo build --profile app -p concat`.
 #

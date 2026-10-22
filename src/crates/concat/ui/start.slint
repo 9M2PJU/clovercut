@@ -1654,36 +1654,38 @@ component WideHome inherits Rectangle {
                 alignment: start;
 
                 // ── the greeting ─────────────────────────────────────
-                Image {
-                    source: @image-url("../../../../assets/icons/clovercut_128.png");
-                    width: 72px;
-                    height: 72px;
-                    image-fit: contain;
-                }
-                Rectangle { height: 12px; }
-                Text {
-                    text: root.recents-total == 0
-                        ? I18n.t("start.welcome")
-                        : I18n.t("start.welcomeBack");
-                    color: Theme.fg;
-                    // The one display-sized line in the app. The tree
-                    // bundles no display face, so the interface face
-                    // carries it at its heaviest weight and tight tracking.
-                    font-size: Theme.fs-display;
-                    font-weight: Theme.weight-display;
-                    letter-spacing: -1px;
-                    wrap: word-wrap;
-                }
+                HorizontalLayout {
+                    spacing: 20px;
+                    alignment: start;
 
-                Rectangle { height: 8px; }
+                    Image {
+                        source: @image-url("../../../../assets/icons/clovercut_128.png");
+                        width: 80px;
+                        height: 80px;
+                        image-fit: contain;
+                    }
 
-                Text {
-                    text: root.recents-total == 0
-                        ? I18n.t("start.welcomeNote")
-                        : I18n.t("start.welcomeBackNote");
-                    color: Theme.fg-muted;
-                    font-size: Theme.fs-xl;
-                    wrap: word-wrap;
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 8px;
+
+                        Image {
+                            source: @image-url("../../../../assets/typography.png");
+                            height: 36px;
+                            width: 171px;
+                            image-fit: contain;
+                            horizontal-alignment: left;
+                        }
+
+                        Text {
+                            text: root.recents-total == 0
+                                ? I18n.t("start.welcomeNote")
+                                : I18n.t("start.welcomeBackNote");
+                            color: Theme.fg-muted;
+                            font-size: Theme.fs-lg;
+                            wrap: word-wrap;
+                        }
+                    }
                 }
 
                 Rectangle { height: 28px; }

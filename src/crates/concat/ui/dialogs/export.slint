@@ -660,6 +660,26 @@ export component ExportDialog inherits Rectangle {
                     padding-right: 12px;
                     spacing: 8px;
 
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+
+                        Image {
+                            source: @image-url("../../../../../assets/icons/clovercut_64.png");
+                            width: 20px;
+                            height: 20px;
+                            image-fit: contain;
+                        }
+
+                        Text {
+                            text: I18n.t("common.export");
+                            color: Theme.fg;
+                            font-size: Theme.fs-lg;
+                            font-weight: Theme.weight-title;
+                            vertical-alignment: center;
+                        }
+                    }
+
                     Rectangle { horizontal-stretch: 1; }
 
                     if !root.running: VerticalLayout {
@@ -683,27 +703,6 @@ export component ExportDialog inherits Rectangle {
                                 clicked => { root.closed(); }
                             }
                         }
-                    }
-                }
-
-                HorizontalLayout {
-                    x: (parent.width - self.preferred-width) / 2;
-                    y: 0;
-                    width: self.preferred-width;
-                    height: parent.height;
-                    spacing: 8px;
-
-                    VerticalLayout {
-                        alignment: center;
-                        Icon { glyph: Glyph.export; size: 16px; tint: Theme.accent; }
-                    }
-
-                    Text {
-                        text: I18n.t("common.export");
-                        color: Theme.fg;
-                        font-size: Theme.fs-lg;
-                        font-weight: Theme.weight-title;
-                        vertical-alignment: center;
                     }
                 }
             }

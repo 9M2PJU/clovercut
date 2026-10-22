@@ -199,9 +199,26 @@ export component TitleBar inherits Rectangle {
         padding-right: root.own-buttons ? 0px : 8px;
         spacing: 2px;
 
-        // No mark and no wordmark: the strip opens on the menus. A window
-        // does not need to say whose it is on every frame, and the launch
-        // screen's heading already carries the name where it means something.
+        // CapCut-style Brand Mark: App Icon + Typography Wordmark
+        HorizontalLayout {
+            alignment: center;
+            spacing: 6px;
+            padding-right: 8px;
+
+            Image {
+                source: @image-url("../../../../assets/icons/clovercut_64.png");
+                width: 18px;
+                height: 18px;
+                image-fit: contain;
+            }
+
+            Image {
+                source: @image-url("../../../../assets/typography.png");
+                height: 14px;
+                width: 66px;
+                image-fit: contain;
+            }
+        }
 
         // Each label reports its own position rather than a fixed one: they
         // are sized from their text, so where "View" starts depends on how
@@ -280,23 +297,24 @@ export component TitleBar inherits Rectangle {
             padding-left: 4px;
 
             export-button := Rectangle {
-                width: label.width + icon.width + 26px;
-                height: 24px;
+                width: label.width + icon.width + 28px;
+                height: 26px;
                 border-radius: Theme.r-sm;
                 background: export-touch.has-hover ? Theme.accent-hover : Theme.accent;
 
                 animate background { duration: 100ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
                 icon := Icon {
-                    x: 9px;
+                    x: 10px;
                     y: (parent.height - self.height) / 2;
                     glyph: Glyph.export;
-                    size: 12px;
+                    size: 13px;
+                    weight: 2.0;
                     tint: Theme.on-accent;
                 }
 
                 label := Text {
-                    x: icon.x + icon.width + 5px;
+                    x: icon.x + icon.width + 6px;
                     y: (parent.height - self.height) / 2;
                     text: I18n.t("common.export");
                     color: Theme.on-accent;
@@ -333,7 +351,7 @@ export component TitleBar inherits Rectangle {
         }
     }
 
-    // Centre: the project name, placed against the whole strip rather than
+    // Centre: the project name and status pill, placed against the whole strip rather than
     // laid out, so it stays centred in the window and not in whatever space
     // the menus leave over.
     centre := HorizontalLayout {
@@ -342,23 +360,35 @@ export component TitleBar inherits Rectangle {
         y: 0;
         width: self.preferred-width;
         height: parent.height;
-        spacing: 6px;
+        spacing: 8px;
 
         VerticalLayout {
             alignment: center;
             Text {
                 text: root.project-name;
-                color: Theme.fg-muted;
+                color: Theme.fg;
                 font-size: Theme.fs;
+                font-weight: Theme.weight-title;
+                overflow: elide;
+                max-width: 280px;
             }
         }
 
-        VerticalLayout {
+        if root.status != "": VerticalLayout {
             alignment: center;
-            Text {
-                text: root.status;
-                color: Theme.fg-dim;
-                font-size: Theme.fs-xs;
+            Rectangle {
+                height: 18px;
+                width: status-txt.preferred-width + 12px;
+                border-radius: Theme.r-sm;
+                background: Theme.field;
+
+                status-txt := Text {
+                    x: 6px;
+                    y: (parent.height - self.height) / 2;
+                    text: root.status;
+                    font-size: Theme.fs-xs;
+                    color: Theme.fg-muted;
+                }
             }
         }
     }

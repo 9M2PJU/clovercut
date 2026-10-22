@@ -1594,11 +1594,35 @@ export component SettingsDialog inherits Modal {
                     first: true;
                     title: I18n.t("settings.about");
 
-                    Text {
-                        text: I18n.t1("settings.concat", "\{root.data.version}");
-                        color: Theme.fg;
-                        font-size: Theme.fs-lg;
-                        font-weight: Theme.weight-title;
+                    HorizontalLayout {
+                        spacing: 16px;
+                        alignment: start;
+
+                        Image {
+                            source: @image-url("../../../../../assets/icons/clovercut_128.png");
+                            width: 52px;
+                            height: 52px;
+                            image-fit: contain;
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 4px;
+
+                            Image {
+                                source: @image-url("../../../../../assets/typography.png");
+                                height: 22px;
+                                width: 104px;
+                                image-fit: contain;
+                                horizontal-alignment: left;
+                            }
+
+                            Text {
+                                text: I18n.t1("settings.concat", "\{root.data.version}");
+                                color: Theme.fg-muted;
+                                font-size: Theme.fs;
+                            }
+                        }
                     }
                 }
 
