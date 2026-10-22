@@ -41,7 +41,7 @@ android-build = "0.1"
 # runtime libraries come from scripts/sherpa-mobile.sh.
 [package.metadata.android]
 package = "app.concat.editor"
-apk_name = "Concat"
+apk_name = "Clovercut"
 build_targets = ["aarch64-linux-android"]
 runtime_libs = "../../vendor/sherpa-onnx/jniLibs"
 # The launcher icon, at every density Android asks for (48, 72, 96, 144,

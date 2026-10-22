@@ -54,6 +54,7 @@ BUNDLES = [
     ("linux", "aarch64", "appimage", "Clovercut-{v}-aarch64.AppImage"),
     ("windows", "x86_64", "setup", "Clovercut-{v}-windows-x86_64-setup.exe"),
     ("windows", "x86_64", "portable", "Clovercut-{v}-windows-x86_64-portable.zip"),
+    ("android", "arm64", "apk", "Clovercut-{v}-android-arm64.apk"),
 ]
 
 

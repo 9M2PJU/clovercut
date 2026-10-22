@@ -501,3 +501,98 @@ jobs:
           stage/*.exe
           stage/*.zip
         if-no-files-found: error
+  android:
+    name: android-${{ matrix.abi }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-linux-android
+            abi: arm64
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.ref }}
+      - name: The pinned toolchain
+        id: toolchain
+        shell: bash
+        run: echo "channel=$(sed -n 's/^channel = "\(.*\)"/\1/p' src/rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
+          targets: ${{ matrix.target }}
+      - name: Read the version
+        id: version
+        shell: bash
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' src/Cargo.toml | head -1)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building Clovercut $version for ${{ matrix.target }}"
+      - uses: taiki-e/cache-cargo-install-action@7447f04c51f2ba27ca35e7f1e28fab848c5b3ba7
+        with:
+          tool: cargo-apk
+
+      - name: System libraries
+        run: sudo apt-get update && sudo apt-get install -y cmake libclang-dev
+
+      - name: FFmpeg for Android (cached)
+        id: ffmpeg
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: src/vendor/ffmpeg/${{ matrix.target }}
+          key: ffmpeg-${{ matrix.target }}-${{ hashFiles('src/scripts/ffmpeg-mobile.sh') }}
+      - name: FFmpeg for Android
+        if: steps.ffmpeg.outputs.cache-hit != 'true'
+        run: src/scripts/ffmpeg-mobile.sh ${{ matrix.target }}
+      - name: FFmpeg for Android (save)
+        if: steps.ffmpeg.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: src/vendor/ffmpeg/${{ matrix.target }}
+          key: ${{ steps.ffmpeg.outputs.cache-primary-key }}
+
+      - name: sherpa-onnx for Android
+        run: src/scripts/sherpa-mobile.sh ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          workspaces: src
+          key: ${{ matrix.target }}
+
+      - name: A key for the run
+        run: |
+          set -euo pipefail
+          keystore=$RUNNER_TEMP/run.keystore
+          keytool -genkeypair -v -keystore "$keystore" -storepass clovercut -keypass clovercut \
+            -alias clovercut -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Clovercut, O=Clovercut" >/dev/null 2>&1
+          echo "CARGO_APK_RELEASE_KEYSTORE=$keystore" >> "$GITHUB_ENV"
+          echo "CARGO_APK_RELEASE_KEYSTORE_PASSWORD=clovercut" >> "$GITHUB_ENV"
+
+      - name: Build the APK
+        working-directory: src
+        run: |
+          set -o pipefail
+          eval "$(scripts/mobile-env.sh ${{ matrix.target }})"
+          cargo apk build --release -p concat-android --target ${{ matrix.target }} 2>&1 | tee build.log
+
+      - name: Stage
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir stage
+          if [ -f src/target/release/apk/Clovercut.apk ]; then
+            cp src/target/release/apk/Clovercut.apk "stage/Clovercut-$VERSION-android-${{ matrix.abi }}.apk"
+          else
+            cp src/target/release/apk/Concat.apk "stage/Clovercut-$VERSION-android-${{ matrix.abi }}.apk"
+          fi
+          ls -l stage
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: Clovercut-android-${{ matrix.abi }}
+          path: stage/Clovercut-*-android-${{ matrix.abi }}.apk
+          if-no-files-found: error

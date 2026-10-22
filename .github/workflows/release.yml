@@ -114,6 +114,9 @@ jobs:
           "Clovercut-${VERSION}-windows-x86_64-setup.exe"
           "Clovercut-${VERSION}-windows-x86_64-portable.zip"
         )
+        if [ -f "Clovercut-${VERSION}-android-arm64.apk" ]; then
+          expected+=("Clovercut-${VERSION}-android-arm64.apk")
+        fi
         for file in "${expected[@]}"; do test -s "$file"; done
         sha256sum -- "${expected[@]}" manifest.json > SHA256SUMS
     - name: Write the notes
