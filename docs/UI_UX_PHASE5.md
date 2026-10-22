@@ -574,3 +574,28 @@ Task 5.3 was executed incrementally across all 7 planned component families whil
 | `12_editor_workspace_light_1080p.png` | Workspace Light theme verification | `1390×701` | Full Light theme (`Theme.dark = false`) contrast, borders, and Lime active states verified |
 | `13_editor_workspace_narrow_927x1025.png` | Narrow window verification | `1390×701` | Responsive layout with overflow menu and unclipped Inspector/Timeline |
 
+---
+
+## 9. Tasks 5.4 & 5.5 Verification — Editing Semantics, Shortcuts, Selection Feedback & Fresh-Cache Art (Audit U1)
+
+### 9.1 Task 5.4 — Inspector Controls, Shortcuts, Selection Feedback & Phase 3 Interaction Regression
+- **Unit & Integration Test Suite (`concat --lib`):** All **171** library unit tests pass (`0 failed`, `0.50s`), covering:
+  - `dock::tests`: 13 passed (including `default_dock_lays_out_three_upper_panels_and_full_width_lower_timeline` and `default_dock_enforces_minimum_seat_widths_down_to_narrow_desktop`).
+  - `keymap::tests`: All default bindings, custom overrides, conflict resolution, reset, and `docs/KEYBOARD_SHORTCUTS.md` parity tests pass.
+  - `format::tests` & `i18n::tests`: All numeric/timecode/rate formatting and 24-locale translation lookups pass; `python3 scripts/locales.py --check` exits `0` (`0 missing, 0 stale`).
+  - `studio::tests`, `masking::tests`, `speed_ramp::tests`, `timeline_time::tests`: All Inspector property commits (`SetClipTransform`, `UpdateClip`, `SetClipKey`, batch volume, position keyframe pairs, color wheels/curves, speed ramps, mask grips) preserve exact command & undo/redo semantics.
+- **Phase 3 Timeline Precision Regressions (`studio::phase3_timeline_tests --ignored`):** All **5** graphical/GPU timeline precision tests pass (`0 failed`, `7.46s`):
+  - `cut_and_gesture_rounding_characterization ... ok`
+  - `drag_history_restores_exact_state_without_roundtrip_drift ... ok`
+  - `mixed_selection_locks_placement_and_origin_boundary ... ok`
+  - `published_geometry_keeps_a_long_clip_tail_in_the_correct_frame ... ok`
+  - `transport_clock_matches_decoded_and_published_frame ... ok`
+
+### 9.2 Task 5.5 — Fresh-Cache Effect-Card Thumbnails & Loading/Error State Verification (Audit U1)
+- **Root Cause & Fix Verified:** In Phase 1 (Audit U1), `package_art()` (`src/crates/concat/src/studio.rs:1220`), `image_at()` (`host.rs:433`), and `speech.rs` called `slint::Image::load_from_path(path)` before checking `path.is_file()`, emitting 37 missing-card `os error 2` diagnostics on cold-cache first publish before falling back to `bundled_card(id)`.
+- **Verification in Fresh XDG Cache:**
+  - `studio::tests::every_built_in_picture_package_ships_a_card ... ok`: Confirms every built-in effect, transition, and filter package has a valid bundled fallback card image compiled into the binary, so no effect card is ever blank on cold start.
+  - `source::tests::new_project_library_and_timeline_playback --ignored --nocapture ... ok` (`0.59s`): Executed in a brand-new isolated `XDG_CONFIG_HOME` / `XDG_DATA_HOME` / `XDG_CACHE_HOME` / `XDG_STATE_HOME` directory; emitted **0** `Error loading image` diagnostics (down from 37 in Phase 1).
+  - `studio::save_durability_ui_tests::committed_warning_preserves_edits_and_allows_close --ignored --nocapture ... ok` (`0.39s`): Confirmed save failure toast and durability modal recovery in a fresh XDG environment with **0** missing-image errors.
+
+
