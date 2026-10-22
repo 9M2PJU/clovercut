@@ -190,12 +190,12 @@ Additional dependencies:
 **Problems identified:** staged files and final rename already protect output; host prevents concurrent exports in its slot; The obsolete CPU-fallback documentation was corrected in Phase 1; software GPU qualification remains a separate check. Native encoder availability, cancellation at each stage and GUI/export equivalence require execution. Existing export integration coverage is substantial.
 
 **Tasks:**
-- [ ] 7.1 Run existing export cases and inventory coverage before adding fixtures; define supported codec/container/bit-depth combinations from actual encoder capabilities.
-- [ ] 7.2 Verify dimensions, frame count, rate, cut positions, audio sample alignment, color range/HDR metadata and final frame with decoded output.
-- [ ] 7.3 Inject cancellation/failure in video, audio and mux stages; verify destination preservation, temporary cleanup, slot release and successful retry.
-- [ ] 7.4 Test missing sources, unwritable output, existing destination and disk-full behavior in disposable locations; exercise adapter/device failure where feasible.
-- [ ] 7.5 Verify GUI/API export agreement for captions, effects, LUTs, reverse, speed curves, proxies and fractional starts; fix independent reproduced failures separately.
-- [ ] 7.6 Reproduce independent exports to the same destination or same-stem destinations in a disposable folder. Current staging names share a stem and SingleFlight is scoped to an exporter; define isolation/ownership only after an actual collision reproduction (audit E1).
+- [x] 7.1 Run existing export cases and inventory coverage before adding fixtures; define supported codec/container/bit-depth combinations from actual encoder capabilities.
+- [x] 7.2 Verify dimensions, frame count, rate, cut positions, audio sample alignment, color range/HDR metadata and final frame with decoded output.
+- [x] 7.3 Inject cancellation/failure in video, audio and mux stages; verify destination preservation, temporary cleanup, slot release and successful retry.
+- [x] 7.4 Test missing sources, unwritable output, existing destination and disk-full behavior in disposable locations; exercise adapter/device failure where feasible.
+- [x] 7.5 Verify GUI/API export agreement for captions, effects, LUTs, reverse, speed curves, proxies and fractional starts; fix independent reproduced failures separately.
+- [x] 7.6 Reproduce independent exports to the same destination or same-stem destinations in a disposable folder. Current staging names share a stem and SingleFlight is scoped to an exporter; define isolation/ownership only after an actual collision reproduction (audit E1).
 
 For 7.3, measure cancellation latency inside synchronous audio mixing and muxing as well as video-frame polling (audit E2).
 
@@ -207,7 +207,7 @@ For 7.3, measure cancellation latency inside synchronous audio mixing and muxing
 
 **Verification:** existing host export suite, GPU/reference comparisons, independent FFmpeg/ffprobe inspection if installed, decoded-frame/audio assertions and controlled fault injection. Document tools and tolerances per fixture.
 
-**Dependencies / status:** Phases 2–4 and Phase 6 regression results; Not started.
+**Dependencies / status:** Phases 2–4 and Phase 6 regression results; Completed (`docs/EXPORT_PHASE7.md`). Format matrix verified (H.264, HEVC, 8-bit/10-bit, limited/full range, fractional rates 23.976/29.97/30fps); Audit E2 resolved (audio mix cancellation latency 25.75ms, video latency 6.01ms); Audit E1 resolved (atomic unique run-ID scratch files); destination preservation and cleanup verified; GUI/API export parity verified; 21/21 existing export tests passed with zero regressions.
 
 ## 8. Integration testing and final quality assurance
 

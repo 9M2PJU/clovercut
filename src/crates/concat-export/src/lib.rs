@@ -1219,9 +1219,15 @@ pub fn render_on(
             directory.display()
         ));
     }
-    let silent = directory.join(format!(".{stem}.concat-video.mp4"));
-    let mixed = directory.join(format!(".{stem}.concat-audio.m4a"));
-    let muxed = directory.join(format!(".{stem}.concat-muxed.mp4"));
+    static RUN_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    let run_id = format!(
+        "{}-{}",
+        std::process::id(),
+        RUN_COUNTER.fetch_add(1, Ordering::Relaxed)
+    );
+    let silent = directory.join(format!(".{stem}.concat-{run_id}-video.mp4"));
+    let mixed = directory.join(format!(".{stem}.concat-{run_id}-audio.m4a"));
+    let muxed = directory.join(format!(".{stem}.concat-{run_id}-muxed.mp4"));
 
     // The output path is touched once, by the rename at the end, whichever
     // way the file was made. The mux used to write it directly, and a mux
@@ -1245,11 +1251,13 @@ pub fn render_on(
             reporter.cancelled()?;
             reporter.emit(0, total_frames, "mixing audio");
             let mix: Vec<AudioClip> = sound.iter().flat_map(|clip| audio_pieces(clip)).collect();
-            audio::mix_to_file(&mix, timeline_end, &mixed).map_err(|error| error.to_string())?;
+            audio::mix_to_file_cancelling(&mix, timeline_end, &mixed, Some(reporter.cancel))
+                .map_err(|error| error.to_string())?;
 
             reporter.cancelled()?;
             reporter.emit(total_frames, total_frames, "muxing");
-            audio::mux(&silent, &mixed, &muxed).map_err(|error| error.to_string())?;
+            audio::mux_cancelling(&silent, &mixed, &muxed, Some(reporter.cancel))
+                .map_err(|error| error.to_string())?;
             &muxed
         };
         std::fs::rename(finished, &output)

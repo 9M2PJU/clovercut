@@ -13,6 +13,7 @@
 //! `Clip::source_time_at` is the one definition for picture.
 
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use concat_core::animate::Track;
 use concat_core::time::Rational;
@@ -443,6 +444,17 @@ impl MixInput {
 ///
 /// Every clip's file must contain an audio stream; see [`mix_graph`].
 pub fn mix_to_file(clips: &[AudioClip], duration: f64, destination: &Path) -> Result<()> {
+    mix_to_file_cancelling(clips, duration, destination, None)
+}
+
+/// [`mix_to_file`] checking `cancel` between sample chunks and aborting with
+/// [`Error::Cancelled`] as soon as it is flagged.
+pub fn mix_to_file_cancelling(
+    clips: &[AudioClip],
+    duration: f64,
+    destination: &Path,
+    cancel: Option<&AtomicBool>,
+) -> Result<()> {
     ffi::init();
     // A bad chain is refused before any file is opened.
     for clip in clips {
@@ -653,6 +665,9 @@ pub fn mix_to_file(clips: &[AudioClip], duration: f64, destination: &Path) -> Re
             .map_err(|error| ffi::fail("filter", &inputs[index].path, error))?;
     }
     'mix: loop {
+        if cancel.is_some_and(|c| c.load(Ordering::Relaxed)) {
+            return Err(Error::Cancelled);
+        }
         // Pull everything the sink has.
         loop {
             let mut mixed = Audio::empty();
@@ -753,6 +768,17 @@ pub fn mix_to_file(clips: &[AudioClip], duration: f64, destination: &Path) -> Re
 /// asked, and a second pass would cost time and a generation of quality.
 /// The result ends with the shorter of the two.
 pub fn mux(video: &Path, audio: &Path, output: &Path) -> Result<()> {
+    mux_cancelling(video, audio, output, None)
+}
+
+/// [`mux`] checking `cancel` between interleaved packet writes and aborting
+/// with [`Error::Cancelled`] as soon as it is flagged.
+pub fn mux_cancelling(
+    video: &Path,
+    audio: &Path,
+    output: &Path,
+    cancel: Option<&AtomicBool>,
+) -> Result<()> {
     ffi::init();
     let video_in = ffmpeg::format::input(video).map_err(|error| ffi::fail("open", video, error))?;
     let audio_in = ffmpeg::format::input(audio).map_err(|error| ffi::fail("open", audio, error))?;
@@ -812,6 +838,9 @@ pub fn mux(video: &Path, audio: &Path, output: &Path) -> Result<()> {
         Feed::new(audio_in, audio_index, audio_tb, out_audio_tb, 1, audio),
     ];
     loop {
+        if cancel.is_some_and(|c| c.load(Ordering::Relaxed)) {
+            return Err(Error::Cancelled);
+        }
         for feed in &mut feeds {
             feed.fill()?;
         }

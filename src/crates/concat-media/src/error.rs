@@ -97,4 +97,8 @@ pub enum Error {
         /// Its name.
         name: String,
     },
+
+    /// The operation was cancelled before completion.
+    #[error("export cancelled")]
+    Cancelled,
 }
