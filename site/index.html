@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clovercut — The Fast, Open-Source Video Editor Built with Rust</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.25; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(1.08); }
+    }
+    .animate-glow {
+      animation: pulseGlow 8s ease-in-out infinite;
+    }
+    .clover-gradient {
+      background: linear-gradient(135deg, #0bbb68 0%, #24d47a 50%, #46d9ee 100%);
+    }
+    .clover-text-gradient {
+      background: linear-gradient(135deg, #24d47a 0%, #46d9ee 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .card-glass {
+      background: rgba(18, 24, 38, 0.75);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .tab-active {
+      background: rgba(36, 212, 122, 0.15);
+      border-color: #24d47a;
+      color: #24d47a;
+    }
+  </style>
+</head>
+<body class="bg-[#0b0f17] text-slate-100 font-sans antialiased selection:bg-[#0bbb68] selection:text-white">
+
+  <!-- Background Decorative Ambient Glows -->
+  <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    <div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[720px] h-[480px] bg-[#0bbb68]/20 rounded-full blur-[130px] animate-glow"></div>
+    <div class="absolute top-[45%] -left-32 w-[520px] h-[520px] bg-[#13c5df]/15 rounded-full blur-[140px] animate-glow" style="animation-delay: -3s;"></div>
+    <div class="absolute bottom-10 right-0 w-[600px] h-[600px] bg-[#24d47a]/15 rounded-full blur-[160px] animate-glow" style="animation-delay: -5s;"></div>
+  </div>
+
+  <div class="relative z-10">
+
+    <!-- Top Navigation -->
+    <header class="sticky top-0 z-50 border-b border-white/5 bg-[#0b0f17]/80 backdrop-blur-md">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <a href="#hero" class="flex items-center gap-3 group">
+          <div class="w-9 h-9 rounded-xl clover-gradient flex items-center justify-center p-1.5 shadow-lg shadow-[#0bbb68]/20 group-hover:scale-105 transition-transform">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="w-6 h-6 text-[#0b0f17]">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
+            </svg>
+          </div>
+          <span class="text-xl font-bold tracking-tight text-white flex items-center gap-1">
+            Clover<span class="text-[#24d47a]">cut</span>
+          </span>
+          <span class="text-[12px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full">v0.1.3</span>
+        </a>
+
+        <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
+          <a href="#features" class="hover:text-emerald-400 transition-colors">Features</a>
+          <a href="#workspace" class="hover:text-emerald-400 transition-colors">Interface</a>
+          <a href="#performance" class="hover:text-emerald-400 transition-colors">Rust Performance</a>
+          <a href="#downloads" class="hover:text-emerald-400 transition-colors">Download</a>
+        </nav>
+
+        <div class="flex items-center gap-3">
+          <a href="https://github.com/tulcoturo/clovercut" target="_blank" class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-white/10 text-slate-200 transition-colors">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+            </svg>
+            <span>GitHub</span>
+          </a>
+          <a href="#downloads" class="px-4 py-2 text-xs font-semibold rounded-lg clover-gradient text-slate-950 font-bold hover:shadow-lg hover:shadow-emerald-500/25 transition-all">
+            Get Clovercut
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="hero" class="pt-20 pb-16 lg:pt-28 lg:pb-24 text-center px-4 max-w-5xl mx-auto">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium mb-6">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        <span>Version 0.1.3 Released — CapCut-style workflow, fully open source</span>
+      </div>
+
+      <h1 class="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white mb-6 leading-[1.1]">
+        The Fast, Private Video Editor <br>
+        <span class="clover-text-gradient">Built with Rust</span>
+      </h1>
+
+      <p class="text-lg sm:text-xl text-slate-300 max-w-3xl mx-auto mb-10 leading-relaxed font-normal">
+        A lightweight, local-first alternative to CapCut. Experience fluid 60 FPS scrubbing, 
+        smart magnetic tracks, local Whisper AI auto-captions, and instant GPU shaders — with 
+        <strong>zero watermarks, zero accounts, and zero cloud uploads</strong>.
+      </p>
+
+      <!-- Dynamic Download CTA -->
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+        <a id="smart-download-btn" href="https://github.com/tulcoturo/clovercut/releases/tag/v0.1.3" 
+           class="w-full sm:w-auto px-8 py-4 rounded-xl clover-gradient text-slate-950 font-bold text-base shadow-xl shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3">
+          <svg class="w-5 h-5 text-slate-950" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          <span id="smart-download-label">Download for Windows (.exe)</span>
+        </a>
+
+        <a href="#downloads" class="w-full sm:w-auto px-6 py-4 rounded-xl card-glass hover:bg-slate-800/80 text-slate-200 font-semibold text-base transition-all border border-white/10 flex items-center justify-center gap-2">
+          <span>All Platforms</span>
+          <span class="text-xs text-slate-400">(Linux, Windows, Android)</span>
+        </a>
+      </div>
+
+      <div class="flex items-center justify-center gap-8 text-xs text-slate-400 font-medium">
+        <div class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+          <span>100% Free & Open Source</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+          <span>No Telemetry or Ads</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+          <span>Offline First</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Workspace Preview Showcase -->
+    <section id="workspace" class="max-w-6xl mx-auto px-4 mb-28">
+      <div class="flex flex-col items-center mb-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-white mb-2">Designed for Effortless Video Creation</h2>
+        <p class="text-sm text-slate-400">Familiar desktop NLE layouts optimized for speed, precision, and clarity</p>
+      </div>
+
+      <!-- Tab Switcher -->
+      <div class="flex justify-center mb-6">
+        <div class="inline-flex p-1.5 rounded-xl card-glass gap-1">
+          <button onclick="switchTab('editor')" id="tab-btn-editor" class="tab-btn tab-active px-4 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            <span>Timeline Editor</span>
+          </button>
+          <button onclick="switchTab('captions')" id="tab-btn-captions" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
+            <span>Auto-Captions (Whisper)</span>
+          </button>
+          <button onclick="switchTab('export')" id="tab-btn-export" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            <span>High-Res Export</span>
+          </button>
+          <button onclick="switchTab('start')" id="tab-btn-start" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            <span>Start Hub</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Window Frame mockup -->
+      <div class="rounded-2xl border border-white/10 bg-[#121826] shadow-2xl shadow-black/80 overflow-hidden">
+        <!-- Title Bar Simulation -->
+        <div class="h-10 bg-[#0e131f] border-b border-white/5 flex items-center justify-between px-4 select-none">
+          <div class="flex items-center gap-2">
+            <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+            <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+            <div class="w-3 h-3 rounded-full bg-emerald-500/80"></div>
+          </div>
+          <div class="text-xs font-medium text-slate-400 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span id="window-title-text">Clovercut — Project Studio</span>
+          </div>
+          <div class="w-12 text-right text-xs text-slate-500">60 FPS</div>
+        </div>
+
+        <!-- Screenshot Container -->
+        <div class="relative aspect-[16/10] bg-slate-950 flex items-center justify-center overflow-hidden">
+          <img id="preview-image" src="site_assets/editor-workspace.png" alt="Clovercut Workspace" class="w-full h-full object-cover transition-opacity duration-300">
+        </div>
+      </div>
+    </section>
+
+    <!-- Core Features Grid -->
+    <section id="features" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-28">
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <h2 class="text-xs font-bold uppercase tracking-widest text-emerald-400 mb-3">Engineered for Creators</h2>
+        <h3 class="text-3xl sm:text-4xl font-extrabold text-white">Why creators switch to Clovercut</h3>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Feature 1 -->
+        <div class="card-glass rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <h4 class="text-lg font-bold text-white mb-2">Native Rust & WGSL Speed</h4>
+          <p class="text-sm text-slate-300 leading-relaxed">
+            Zero Electron overhead. Built entirely in Rust with native Slint UI and WGSL GPU compute shaders for instantaneous frame seeking and smooth playback.
+          </p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="card-glass rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
+          <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z"/></svg>
+          </div>
+          <h4 class="text-lg font-bold text-white mb-2">Single-Key Cut (<kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-[11px] font-mono border border-slate-700">Ctrl+B</kbd>)</h4>
+          <p class="text-sm text-slate-300 leading-relaxed">
+            CapCut-faithful single track cutting. Split clips right beneath your playhead instantly without clicking tools or losing your creative momentum.
+          </p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="card-glass rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
+          <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"/></svg>
+          </div>
+          <h4 class="text-lg font-bold text-white mb-2">On-Device Whisper AI Captions</h4>
+          <p class="text-sm text-slate-300 leading-relaxed">
+            Accurate, automated transcription in 90+ languages right on your machine. No monthly subscriptions, no limits, and your recordings never leave your drive.
+          </p>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="card-glass rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          </div>
+          <h4 class="text-lg font-bold text-white mb-2">1:1 Square Previews & Stills</h4>
+          <p class="text-sm text-slate-300 leading-relaxed">
+            Beautiful CapCut-style square shelf cards with Sunset and City preview stills, making effects, color filters, and transitions intuitive to browse.
+          </p>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="card-glass rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
+          <div class="w-12 h-12 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+          </div>
+          <h4 class="text-lg font-bold text-white mb-2">Adjustment Layers & Masks</h4>
+          <p class="text-sm text-slate-300 leading-relaxed">
+            Non-destructive color grading and effects stacked above video tracks with strict timeline constraints to keep your edit tree organized and reliable.
+          </p>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="card-glass rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
+          <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          </div>
+          <h4 class="text-lg font-bold text-white mb-2">Desktop & Mobile Parity</h4>
+          <p class="text-sm text-slate-300 leading-relaxed">
+            One pure Rust core compiled across Windows, Linux AppImage (x86_64 and ARM64), and Android smartphones/tablets.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Downloads Matrix Section -->
+    <section id="downloads" class="max-w-5xl mx-auto px-4 mb-24">
+      <div class="card-glass rounded-3xl p-8 sm:p-12 border border-white/10 relative overflow-hidden">
+        <div class="text-center max-w-2xl mx-auto mb-10">
+          <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Ready to Edit?</span>
+          <h2 class="text-3xl font-extrabold text-white mt-2 mb-3">Download Clovercut v0.1.3</h2>
+          <p class="text-sm text-slate-300">Choose the build optimized for your operating system.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- Windows Card -->
+          <div class="rounded-2xl bg-slate-900/80 border border-white/5 p-6 flex flex-col justify-between hover:border-emerald-500/40 transition-all">
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <span class="text-lg font-bold text-white">Windows</span>
+                <span class="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium">10 / 11 64-bit</span>
+              </div>
+              <p class="text-xs text-slate-400 mb-6">Standard NSIS Setup Installer with desktop shortcut or standalone portable zip.</p>
+            </div>
+            <div class="space-y-2">
+              <a href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-win64-setup.exe" class="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all">
+                <span>Setup Installer (.exe)</span>
+              </a>
+              <a href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-win64.zip" class="w-full py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-center gap-2 border border-white/5 transition-all">
+                <span>Portable (.zip)</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Linux Card -->
+          <div class="rounded-2xl bg-slate-900/80 border border-white/5 p-6 flex flex-col justify-between hover:border-emerald-500/40 transition-all">
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <span class="text-lg font-bold text-white">Linux</span>
+                <span class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">AppImage</span>
+              </div>
+              <p class="text-xs text-slate-400 mb-6">Self-contained portable AppImage for Ubuntu, Fedora, Arch, Debian, and other distros.</p>
+            </div>
+            <div class="space-y-2">
+              <a href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-linux-x86_64.AppImage" class="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all">
+                <span>AppImage (x86_64)</span>
+              </a>
+              <a href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-linux-aarch64.AppImage" class="w-full py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-center gap-2 border border-white/5 transition-all">
+                <span>AppImage (ARM64)</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Android Card -->
+          <div class="rounded-2xl bg-slate-900/80 border border-white/5 p-6 flex flex-col justify-between hover:border-emerald-500/40 transition-all">
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <span class="text-lg font-bold text-white">Android</span>
+                <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">ARM64 APK</span>
+              </div>
+              <p class="text-xs text-slate-400 mb-6">Direct APK package compatible with Android 8.0+ smartphones and tablets.</p>
+            </div>
+            <div class="space-y-2">
+              <a href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-android-arm64.apk" class="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all">
+                <span>Universal APK (.apk)</span>
+              </a>
+              <div class="py-2 text-center text-[12px] text-slate-500">16 KB Page aligned</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-8 text-center">
+          <a href="https://github.com/tulcoturo/clovercut/releases" target="_blank" class="text-xs text-slate-400 hover:text-emerald-400 transition-colors inline-flex items-center gap-1">
+            <span>View SHA-256 Checksums and Full Changelogs on GitHub Releases</span>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/5 py-12 px-4 max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6 text-xs text-slate-500">
+      <div class="flex items-center gap-3">
+        <span class="font-bold text-slate-300">Clovercut</span>
+        <span>•</span>
+        <span>Open Source Video Editor</span>
+      </div>
+
+      <div class="flex items-center gap-6">
+        <a href="https://github.com/tulcoturo/clovercut" target="_blank" class="hover:text-slate-300 transition-colors">GitHub Repository</a>
+        <a href="https://github.com/tulcoturo/clovercut/blob/main/docs/releases/0.1.3.md" target="_blank" class="hover:text-slate-300 transition-colors">Release Notes</a>
+        <a href="https://github.com/tulcoturo/clovercut/issues" target="_blank" class="hover:text-slate-300 transition-colors">Report an Issue</a>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // Tab switching logic for preview showcase
+    const tabs = {
+      editor: {
+        img: 'site_assets/editor-workspace.png',
+        title: 'Clovercut — Timeline Editor & Layouts'
+      },
+      captions: {
+        img: 'site_assets/clovercut-captions.png',
+        title: 'Clovercut — Automated Speech-to-Text with Whisper'
+      },
+      export: {
+        img: 'site_assets/export-dialog.png',
+        title: 'Clovercut — Export Studio (MP4, ProRes, AV1)'
+      },
+      start: {
+        img: 'site_assets/start-screen.png',
+        title: 'Clovercut — Projects & Start Screen'
+      }
+    };
+
+    function switchTab(name) {
+      const data = tabs[name];
+      if (!data) return;
+
+      const img = document.getElementById('preview-image');
+      const title = document.getElementById('window-title-text');
+
+      img.style.opacity = '0';
+      setTimeout(() => {
+        img.src = data.img;
+        title.innerText = data.title;
+        img.style.opacity = '1';
+      }, 150);
+
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('tab-active');
+        btn.classList.add('text-slate-300');
+      });
+
+      const activeBtn = document.getElementById('tab-btn-' + name);
+      if (activeBtn) {
+        activeBtn.classList.add('tab-active');
+        activeBtn.classList.remove('text-slate-300');
+      }
+    }
+
+    // Dynamic OS detection for hero download button
+    (function detectOS() {
+      const ua = navigator.userAgent || '';
+      const platform = navigator.platform || '';
+      const btn = document.getElementById('smart-download-btn');
+      const label = document.getElementById('smart-download-label');
+
+      if (/Android/i.test(ua)) {
+        label.innerText = 'Download for Android (.apk)';
+        btn.href = 'https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-android-arm64.apk';
+      } else if (/Linux/i.test(platform) || /Linux/i.test(ua)) {
+        label.innerText = 'Download for Linux (.AppImage)';
+        btn.href = 'https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-linux-x86_64.AppImage';
+      } else {
+        // Windows default
+        label.innerText = 'Download for Windows (.exe)';
+        btn.href = 'https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-win64-setup.exe';
+      }
+    })();
+  </script>
+</body>
+</html>
