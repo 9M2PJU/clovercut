@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Clovercut — The Fast, Open-Source Video Editor Built with Rust</title>
+  <title>Clovercut — The Open-Source Video Editor with Built-in Creative Libraries & AI</title>
   <link rel="icon" type="image/x-icon" href="site_assets/favicon.ico">
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
     @keyframes pulseGlow {
-      0%, 100% { opacity: 0.25; transform: scale(1); }
+      0%, 100% { opacity: 0.22; transform: scale(1); }
       50% { opacity: 0.45; transform: scale(1.08); }
     }
     @keyframes float {
       0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-8px); }
+      50% { transform: translateY(-7px); }
     }
     .animate-glow {
       animation: pulseGlow 8s ease-in-out infinite;
@@ -30,12 +30,12 @@
       -webkit-text-fill-color: transparent;
     }
     .card-glass {
-      background: rgba(18, 24, 38, 0.75);
+      background: rgba(18, 24, 38, 0.78);
       backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.08);
     }
     .tab-active {
-      background: rgba(36, 212, 122, 0.15);
+      background: rgba(36, 212, 122, 0.16);
       border-color: #24d47a;
       color: #24d47a;
     }
@@ -43,7 +43,7 @@
 </head>
 <body class="bg-[#0b0f17] text-slate-100 font-sans antialiased selection:bg-[#0bbb68] selection:text-white">
 
-  <!-- Background Decorative Ambient Glows -->
+  <!-- Ambient Glows -->
   <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
     <div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[760px] h-[500px] bg-[#0bbb68]/20 rounded-full blur-[140px] animate-glow"></div>
     <div class="absolute top-[40%] -left-32 w-[540px] h-[540px] bg-[#13c5df]/15 rounded-full blur-[150px] animate-glow" style="animation-delay: -3s;"></div>
@@ -62,9 +62,9 @@
         </a>
 
         <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
+          <a href="#differentiators" class="hover:text-emerald-400 transition-colors">What Sets Us Apart</a>
+          <a href="#showcase" class="hover:text-emerald-400 transition-colors">Interactive Tour</a>
           <a href="#features" class="hover:text-emerald-400 transition-colors">Features</a>
-          <a href="#workspace" class="hover:text-emerald-400 transition-colors">Interface</a>
-          <a href="#performance" class="hover:text-emerald-400 transition-colors">Rust Engine</a>
           <a href="#downloads" class="hover:text-emerald-400 transition-colors">Download</a>
         </nav>
 
@@ -83,31 +83,30 @@
     </header>
 
     <!-- Hero Section -->
-    <section id="hero" class="pt-16 pb-16 lg:pt-24 lg:pb-24 text-center px-4 max-w-5xl mx-auto">
-      <!-- Badge -->
+    <section id="hero" class="pt-16 pb-14 lg:pt-22 lg:pb-20 text-center px-4 max-w-5xl mx-auto">
       <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium mb-8">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-        <span>Version 0.1.3 Released — CapCut-style workflow, 100% open source</span>
+        <span>Version 0.1.3 Released — CapCut workflow meets Open-Source Freedom</span>
       </div>
 
-      <!-- Prominent Official Vector Brand Presentation -->
-      <div class="flex flex-col items-center justify-center mb-8">
-        <img src="site_assets/applogo.svg" alt="Clovercut Vector Logo" class="w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-[0_0_32px_rgba(11,187,104,0.55)] animate-float mb-6">
+      <!-- Vector Brand Logo + Typography Presentation -->
+      <div class="flex flex-col items-center justify-center mb-6">
+        <img src="site_assets/applogo.svg" alt="Clovercut Vector Logo" class="w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-[0_0_32px_rgba(11,187,104,0.55)] animate-float mb-5">
         <img src="site_assets/typography.svg" alt="Clovercut" class="h-12 sm:h-16 lg:h-20 w-auto max-w-[85vw] object-contain drop-shadow-[0_8px_30px_rgba(0,0,0,0.7)]">
       </div>
 
       <h1 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-slate-200 mb-6">
-        The Fast, Private Video Editor <span class="clover-text-gradient">Built with Rust</span>
+        The Open-Source Video Editor with <span class="clover-text-gradient">Integrated Stock & AI</span>
       </h1>
 
       <p class="text-base sm:text-lg lg:text-xl text-slate-300 max-w-3xl mx-auto mb-10 leading-relaxed font-normal">
-        A lightweight, local-first alternative to CapCut. Experience fluid 60 FPS scrubbing, 
-        smart magnetic tracks, local Whisper AI auto-captions, and instant GPU shaders — with 
-        <strong class="text-white">zero watermarks, zero accounts, and zero cloud uploads</strong>.
+        Why pay monthly fees for CapCut Pro? Clovercut gives you <strong>on-device Whisper AI captions</strong>, 
+        direct in-app <strong>GIPHY stickers</strong>, and a built-in <strong>royalty-free music library</strong> — completely free, 
+        with zero tracking and blazing-fast native Rust performance.
       </p>
 
       <!-- Dynamic Download CTA -->
-      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
         <a id="smart-download-btn" href="https://github.com/tulcoturo/clovercut/releases/tag/v0.1.3" 
            class="w-full sm:w-auto px-8 py-4 rounded-xl clover-gradient text-slate-950 font-bold text-base shadow-xl shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3">
           <svg class="w-5 h-5 text-slate-950" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
@@ -118,47 +117,121 @@
 
         <a href="#downloads" class="w-full sm:w-auto px-6 py-4 rounded-xl card-glass hover:bg-slate-800/80 text-slate-200 font-semibold text-base transition-all border border-white/10 flex items-center justify-center gap-2">
           <span>All Platforms</span>
-          <span class="text-xs text-slate-400">(Linux, Windows, Android)</span>
+          <span class="text-xs text-slate-400">(Windows, Linux, Android)</span>
         </a>
       </div>
 
       <div class="flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-xs text-slate-400 font-medium">
         <div class="flex items-center gap-1.5">
           <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
-          <span>100% Free & Open Source</span>
+          <span>No Cloud / 100% Offline AI</span>
         </div>
         <div class="flex items-center gap-1.5">
           <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
-          <span>No Telemetry or Ads</span>
+          <span>Built-in CC0 Music & GIPHY</span>
         </div>
         <div class="flex items-center gap-1.5">
           <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
-          <span>100% Offline First</span>
+          <span>No Watermark or Paywalls</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Key Differentiators Section -->
+    <section id="differentiators" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-24">
+      <div class="text-center max-w-3xl mx-auto mb-14">
+        <h2 class="text-xs font-bold uppercase tracking-widest text-emerald-400 mb-2">Built Differently</h2>
+        <h3 class="text-3xl sm:text-4xl font-extrabold text-white">What makes Clovercut unique</h3>
+        <p class="text-sm text-slate-400 mt-2">Unlike traditional FOSS video editors that leave you hunting for assets online, Clovercut integrates everything inside the app.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Diff 1: On-Device Whisper AI -->
+        <div class="card-glass rounded-2xl p-7 hover:border-emerald-500/40 transition-all flex flex-col justify-between">
+          <div>
+            <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mb-5">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"/></svg>
+            </div>
+            <span class="text-xs font-bold uppercase tracking-wider text-purple-400">100% Local Intelligence</span>
+            <h4 class="text-xl font-bold text-white mt-1 mb-3">On-Device Whisper Captions</h4>
+            <p class="text-sm text-slate-300 leading-relaxed">
+              Generate synchronized subtitles in seconds using OpenAI Whisper speech-to-text directly on your CPU/GPU. No credit cards, no subscriptions, and your personal audio is never uploaded to the cloud.
+            </p>
+          </div>
+          <div class="mt-6 pt-4 border-t border-white/5 flex items-center gap-2 text-xs font-medium text-purple-300">
+            <span>90+ languages supported • SRT Import/Export</span>
+          </div>
+        </div>
+
+        <!-- Diff 2: GIPHY Stickers -->
+        <div class="card-glass rounded-2xl p-7 hover:border-emerald-500/40 transition-all flex flex-col justify-between">
+          <div>
+            <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mb-5">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <span class="text-xs font-bold uppercase tracking-wider text-cyan-400">Native In-App Search</span>
+            <h4 class="text-xl font-bold text-white mt-1 mb-3">Integrated GIPHY Library</h4>
+            <p class="text-sm text-slate-300 leading-relaxed">
+              Direct access to millions of trending animated stickers and memes powered by GIPHY. Search, preview with transparency, and drop them directly onto video tracks without ever opening a web browser.
+            </p>
+          </div>
+          <div class="mt-6 pt-4 border-t border-white/5 flex items-center gap-2 text-xs font-medium text-cyan-300">
+            <span>Instant search • Drag & Drop to Timeline</span>
+          </div>
+        </div>
+
+        <!-- Diff 3: CC0 Royalty-Free Audio -->
+        <div class="card-glass rounded-2xl p-7 hover:border-emerald-500/40 transition-all flex flex-col justify-between">
+          <div>
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-5">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+            </div>
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Zero Copyright Strikes</span>
+            <h4 class="text-xl font-bold text-white mt-1 mb-3">Royalty-Free Audio & SFX</h4>
+            <p class="text-sm text-slate-300 leading-relaxed">
+              Built-in OpenGameArt and CC0 music library with instant wave previews. Add background soundtracks and sound effects safely to commercial, YouTube, and TikTok video edits without licensing headaches.
+            </p>
+          </div>
+          <div class="mt-6 pt-4 border-t border-white/5 flex items-center gap-2 text-xs font-medium text-emerald-300">
+            <span>Waveform audio scrub • CC0 Public Domain</span>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- Interactive Workspace Preview Showcase -->
-    <section id="workspace" class="max-w-6xl mx-auto px-4 mb-28">
-      <div class="flex flex-col items-center mb-6">
-        <h2 class="text-2xl sm:text-3xl font-bold text-white mb-2">Designed for Effortless Video Creation</h2>
-        <p class="text-sm text-slate-400">Familiar desktop NLE layouts optimized for speed, precision, and clarity</p>
+    <section id="showcase" class="max-w-6xl mx-auto px-4 mb-28">
+      <div class="text-center max-w-3xl mx-auto mb-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-white mb-2">Explore the Clovercut Interface</h2>
+        <p class="text-sm text-slate-400">Click through real screenshots of Clovercut running on the desktop</p>
       </div>
 
       <!-- Tab Switcher -->
-      <div class="flex justify-center mb-6 overflow-x-auto">
+      <div class="flex justify-center mb-6 overflow-x-auto pb-2">
         <div class="inline-flex p-1.5 rounded-xl card-glass gap-1">
-          <button onclick="switchTab('editor')" id="tab-btn-editor" class="tab-btn tab-active px-4 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 whitespace-nowrap">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-            <span>Timeline Editor</span>
-          </button>
-          <button onclick="switchTab('captions')" id="tab-btn-captions" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
+          <button onclick="switchTab('captions')" id="tab-btn-captions" class="tab-btn tab-active px-4 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 whitespace-nowrap">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
-            <span>Auto-Captions (Whisper)</span>
+            <span>AI Captions</span>
+          </button>
+          <button onclick="switchTab('giphy')" id="tab-btn-giphy" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>GIPHY Stickers</span>
+          </button>
+          <button onclick="switchTab('audio')" id="tab-btn-audio" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+            <span>Free CC0 Audio</span>
+          </button>
+          <button onclick="switchTab('transitions')" id="tab-btn-transitions" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+            <span>1:1 Transitions</span>
+          </button>
+          <button onclick="switchTab('style')" id="tab-btn-style" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            <span>Subtitle Styling</span>
           </button>
           <button onclick="switchTab('export')" id="tab-btn-export" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-            <span>High-Res Export</span>
+            <span>4K 60FPS Export</span>
           </button>
           <button onclick="switchTab('start')" id="tab-btn-start" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
@@ -169,32 +242,32 @@
 
       <!-- Window Frame mockup -->
       <div class="rounded-2xl border border-white/10 bg-[#121826] shadow-2xl shadow-black/80 overflow-hidden">
-        <!-- Title Bar Simulation -->
+        <!-- Title Bar -->
         <div class="h-10 bg-[#0e131f] border-b border-white/5 flex items-center justify-between px-4 select-none">
           <div class="flex items-center gap-2">
             <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
             <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
             <div class="w-3 h-3 rounded-full bg-emerald-500/80"></div>
           </div>
-          <div class="text-xs font-medium text-slate-400 flex items-center gap-2">
+          <div class="text-xs font-medium text-slate-300 flex items-center gap-2">
             <img src="site_assets/applogo.svg" class="w-3.5 h-3.5 object-contain">
-            <span id="window-title-text">Clovercut — Project Studio</span>
+            <span id="window-title-text">Clovercut — On-Device Whisper AI Captions</span>
           </div>
-          <div class="w-12 text-right text-xs text-slate-500">60 FPS</div>
+          <div class="text-xs text-emerald-400 font-mono">3840×2160 · 60 FPS</div>
         </div>
 
         <!-- Screenshot Container -->
         <div class="relative aspect-[16/10] bg-slate-950 flex items-center justify-center overflow-hidden">
-          <img id="preview-image" src="site_assets/editor-workspace.png" alt="Clovercut Workspace" class="w-full h-full object-cover transition-opacity duration-300">
+          <img id="preview-image" src="site_assets/auto-captions.png" alt="Clovercut Interface" class="w-full h-full object-cover transition-opacity duration-200">
         </div>
       </div>
     </section>
 
-    <!-- Core Features Grid -->
+    <!-- Detailed Features Grid -->
     <section id="features" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-28">
       <div class="text-center max-w-3xl mx-auto mb-16">
-        <h2 class="text-xs font-bold uppercase tracking-widest text-emerald-400 mb-3">Engineered for Creators</h2>
-        <h3 class="text-3xl sm:text-4xl font-extrabold text-white">Why creators switch to Clovercut</h3>
+        <h2 class="text-xs font-bold uppercase tracking-widest text-emerald-400 mb-2">Full Creative Toolkit</h2>
+        <h3 class="text-3xl sm:text-4xl font-extrabold text-white">Everything creators need to cut, polish & share</h3>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -205,7 +278,7 @@
           </div>
           <h4 class="text-lg font-bold text-white mb-2">Native Rust & WGSL Speed</h4>
           <p class="text-sm text-slate-300 leading-relaxed">
-            Zero Electron overhead. Built entirely in Rust with native Slint UI and WGSL GPU compute shaders for instantaneous frame seeking and smooth playback.
+            Zero Electron lag. Written from scratch in Rust with Slint UI and hardware-accelerated WGSL shaders for instant 60 FPS timeline response.
           </p>
         </div>
 
@@ -214,53 +287,53 @@
           <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z"/></svg>
           </div>
-          <h4 class="text-lg font-bold text-white mb-2">Single-Key Cut (<kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-[11px] font-mono border border-slate-700">Ctrl+B</kbd>)</h4>
+          <h4 class="text-lg font-bold text-white mb-2">Active Track Slice (<kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-[11px] font-mono border border-slate-700">Ctrl+B</kbd>)</h4>
           <p class="text-sm text-slate-300 leading-relaxed">
-            CapCut-faithful single track cutting. Split clips right beneath your playhead instantly without clicking tools or losing your creative momentum.
+            CapCut-faithful single track cutting. Split clips right beneath your playhead instantly without losing your creative flow.
           </p>
         </div>
 
         <!-- Feature 3 -->
         <div class="card-glass rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
           <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"/></svg>
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           </div>
-          <h4 class="text-lg font-bold text-white mb-2">On-Device Whisper AI Captions</h4>
+          <h4 class="text-lg font-bold text-white mb-2">1:1 Square Previews & Stills</h4>
           <p class="text-sm text-slate-300 leading-relaxed">
-            Accurate, automated transcription in 90+ languages right on your machine. No monthly subscriptions, no limits, and your recordings never leave your drive.
+            CapCut-style square shelf cards with Sunset and City preview stills, making effects, filters, and 7 new transitions intuitive to audition.
           </p>
         </div>
 
         <!-- Feature 4 -->
         <div class="card-glass rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
-          <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <div class="w-12 h-12 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
           </div>
-          <h4 class="text-lg font-bold text-white mb-2">1:1 Square Previews & Stills</h4>
+          <h4 class="text-lg font-bold text-white mb-2">Adjustment Layers & Stacking</h4>
           <p class="text-sm text-slate-300 leading-relaxed">
-            Beautiful CapCut-style square shelf cards with Sunset and City preview stills, making effects, color filters, and transitions intuitive to browse.
+            Non-destructive color grading and effects stacked above video tracks with strict timeline constraints to keep your edit tree pristine.
           </p>
         </div>
 
         <!-- Feature 5 -->
-        <div class="card-glass rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
-          <div class="w-12 h-12 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
-          </div>
-          <h4 class="text-lg font-bold text-white mb-2">Adjustment Layers & Masks</h4>
-          <p class="text-sm text-slate-300 leading-relaxed">
-            Non-destructive color grading and effects stacked above video tracks with strict timeline constraints to keep your edit tree organized and reliable.
-          </p>
-        </div>
-
-        <!-- Feature 6 -->
         <div class="card-glass rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
           <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
           </div>
           <h4 class="text-lg font-bold text-white mb-2">Desktop & Mobile Parity</h4>
           <p class="text-sm text-slate-300 leading-relaxed">
-            One pure Rust core compiled across Windows, Linux AppImage (x86_64 and ARM64), and Android smartphones/tablets.
+            One pure Rust core compiled natively across Windows, Linux AppImage (x86_64 & ARM64), and Android smartphones/tablets.
+          </p>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="card-glass rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          </div>
+          <h4 class="text-lg font-bold text-white mb-2">Absolute Privacy</h4>
+          <p class="text-sm text-slate-300 leading-relaxed">
+            Your footage, voice recordings, and project files never touch external cloud servers. Zero telemetry, zero tracking, 100% private.
           </p>
         </div>
       </div>
@@ -361,21 +434,33 @@
   <script>
     // Tab switching logic for preview showcase
     const tabs = {
-      editor: {
-        img: 'site_assets/editor-workspace.png',
-        title: 'Clovercut — Timeline Editor & Layouts'
-      },
       captions: {
-        img: 'site_assets/clovercut-captions.png',
-        title: 'Clovercut — Automated Speech-to-Text with Whisper'
+        img: 'site_assets/auto-captions.png',
+        title: 'Clovercut — On-Device Whisper AI Speech-to-Text'
+      },
+      giphy: {
+        img: 'site_assets/giphy-stickers.png',
+        title: 'Clovercut — Built-in Animated Stickers Powered by GIPHY'
+      },
+      audio: {
+        img: 'site_assets/audio-library.png',
+        title: 'Clovercut — Integrated CC0 Royalty-Free Music & Sound Effects'
+      },
+      transitions: {
+        img: 'site_assets/transitions-shelf.png',
+        title: 'Clovercut — Real-Time WGSL GPU Transitions (1:1 Square Previews)'
+      },
+      style: {
+        img: 'site_assets/caption-styling.png',
+        title: 'Clovercut — Subtitle Typography, Colors & Custom Presets'
       },
       export: {
         img: 'site_assets/export-dialog.png',
-        title: 'Clovercut — Export Studio (MP4, ProRes, AV1)'
+        title: 'Clovercut — 4K 60FPS High-Bitrate Export (H.264, ProRes, AV1)'
       },
       start: {
         img: 'site_assets/start-screen.png',
-        title: 'Clovercut — Projects & Start Screen'
+        title: 'Clovercut — Fast Start Hub & Recent Projects'
       }
     };
 
