@@ -378,9 +378,15 @@ pub fn apply_profile(prefs: &mut Preferences, profile: ShortcutProfile) {
             prefs.keybinds.insert("split-tool".into(), "b".into());
             prefs.keybinds.insert("snap".into(), "n".into());
             prefs.keybinds.insert("mute".into(), "d".into());
-            prefs.keybinds.insert("ripple-delete".into(), "shift+backspace".into());
-            prefs.keybinds.insert("delete-left".into(), "ctrl+shift+[".into());
-            prefs.keybinds.insert("delete-right".into(), "ctrl+shift+]".into());
+            prefs
+                .keybinds
+                .insert("ripple-delete".into(), "shift+backspace".into());
+            prefs
+                .keybinds
+                .insert("delete-left".into(), "ctrl+shift+[".into());
+            prefs
+                .keybinds
+                .insert("delete-right".into(), "ctrl+shift+]".into());
             prefs.shortcut_profile = Some("davinci".to_string());
         }
         ShortcutProfile::Custom => {

@@ -51,9 +51,7 @@ mod masking;
 use masking::{MaskFrame, MaskGrip};
 use slint::{Model, ModelRc, SharedString, VecModel};
 
-use crate::dock::{
-    Dock, DockLayout, SEAT_GAP, default_dock, lay_out, row_at, row_top,
-};
+use crate::dock::{Dock, DockLayout, SEAT_GAP, default_dock, lay_out, row_at, row_top};
 use crate::format::{
     WAVE_BAR, WAVE_PITCH, colour_of, frames_timecode, hex_of, hex_with_alpha, rate_label,
     running_time, wave_columns, wave_path, when_phrase,
@@ -4394,13 +4392,14 @@ impl Studio {
         let main_row = lanes - 1 - main_b as i32;
         let is_main_track = target.row == main_row;
 
-        let overlaps = !target.new_track && self.row_track(target.row).is_some_and(|t| {
-            self.timeline().clips.iter().any(|c| {
-                c.track_id == t.id
-                    && c.start < plan.start + plan.duration
-                    && c.start + c.duration > plan.start
-            })
-        });
+        let overlaps = !target.new_track
+            && self.row_track(target.row).is_some_and(|t| {
+                self.timeline().clips.iter().any(|c| {
+                    c.track_id == t.id
+                        && c.start < plan.start + plan.duration
+                        && c.start + c.duration > plan.start
+                })
+            });
 
         if target.new_track {
             plan.new_track = true;
@@ -6090,31 +6089,30 @@ impl Studio {
                             self.clip(&orig.clip)
                                 .is_some_and(concat_project::captions::is_caption)
                         });
-                        let caption_track_id = if has_captions
-                            && track_kind == model::TrackKind::Video
-                        {
-                            self.timeline()
-                                .tracks
-                                .iter()
-                                .find(|t| self.track_kind(t) == model::TrackKind::Captions)
-                                .map(|t| t.id.clone())
-                                .or_else(|| {
-                                    let new_track_b = self
-                                        .timeline()
-                                        .tracks
-                                        .iter()
-                                        .position(|t| t.id == new_track_id)
-                                        .unwrap_or(0);
-                                    let cap_insert = Some(new_track_b + 1);
-                                    self.apply(Command::AddTrack {
-                                        bottom: false,
-                                        kind: Some(model::TrackKind::Captions),
-                                        insert_at: cap_insert,
+                        let caption_track_id =
+                            if has_captions && track_kind == model::TrackKind::Video {
+                                self.timeline()
+                                    .tracks
+                                    .iter()
+                                    .find(|t| self.track_kind(t) == model::TrackKind::Captions)
+                                    .map(|t| t.id.clone())
+                                    .or_else(|| {
+                                        let new_track_b = self
+                                            .timeline()
+                                            .tracks
+                                            .iter()
+                                            .position(|t| t.id == new_track_id)
+                                            .unwrap_or(0);
+                                        let cap_insert = Some(new_track_b + 1);
+                                        self.apply(Command::AddTrack {
+                                            bottom: false,
+                                            kind: Some(model::TrackKind::Captions),
+                                            insert_at: cap_insert,
+                                        })
                                     })
-                                })
-                        } else {
-                            None
-                        };
+                            } else {
+                                None
+                            };
 
                         let moves: Vec<ClipMove> = origins
                             .iter()
@@ -10267,6 +10265,21 @@ impl Studio {
                 Err(error) => studio.notify(&error, true),
             },
         );
+    }
+
+    /// Whether a sheet covers the editor - Export, Settings, the project
+    /// sheet, a relink or a question - so the editor's keys are not its
+    /// own. The tool cards are not sheets: the timeline is worked beside
+    /// them.
+    pub fn sheet_open(&self) -> bool {
+        self.export.open
+            || self.settings.open
+            || self.project_sheet.open
+            || self.relink.open
+            || self.confirm.is_some()
+            || self.captions.open
+            || self.speech.open
+            || self.start.composing
     }
 
     // ── notices ──

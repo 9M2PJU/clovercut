@@ -74,10 +74,12 @@ fn request(url: &str) -> Result<String, String> {
         std::thread::sleep(Duration::from_secs(10).saturating_sub(at.elapsed()));
     }
     *last = Some(Instant::now());
-    let response = ureq::AgentBuilder::new()
-        .user_agent("Clovercut/0.0.1 (+https://github.com/tulcoturo/clovercut)")
-        .timeout_connect(Duration::from_secs(15))
-        .timeout_read(Duration::from_secs(30))
+    let response = crate::net::agent_builder(Duration::from_secs(15), Duration::from_secs(30))
+        .user_agent(concat!(
+            "Clovercut/",
+            env!("CARGO_PKG_VERSION"),
+            " (+https://github.com/tulcoturo/clovercut)"
+        ))
         .build()
         .get(url)
         .call()

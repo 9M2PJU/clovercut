@@ -322,7 +322,12 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     let mut studio = Studio::new(host);
     studio.set_phone(phone);
     if safe {
-        studio.notify(&i18n::t("start.safeMode"), false);
+        let notice = if cfg!(target_os = "android") {
+            i18n::t("start.safeModePhone")
+        } else {
+            i18n::t("start.safeMode")
+        };
+        studio.notify(&notice, false);
     }
     studio.reload_packages(false);
     studio.watch_packages();
@@ -1809,6 +1814,17 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
             let Some(action) = action else {
                 return;
             };
+            // Save is the one chord that means the same in a field, under a
+            // sheet and on the timeline. Every other chord is the editor's,
+            // and a key that came out of a text field or past a sheet was
+            // never meant for it: Slint's TextInput turns away the Ctrl
+            // chords it has no use for, and a read-only one every key, so
+            // Ctrl+B in a title split the clip and Backspace in a path field
+            // deleted it; and Delete or Q with Export or Settings open cut
+            // the timeline nobody could see.
+            if action != "save" && (typing(&app) || shell.studio.borrow().sheet_open()) {
+                return;
+            }
             handled = true;
             match action {
                 // The playhead, straight: these were never menu rows and
@@ -2745,6 +2761,19 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     leave(0);
 }
 
+/// Whether a text field has the focus, read or write. Slint says it only
+/// through its own window internals: the keystroke that reaches the keymap
+/// carries no target, and a flag each field kept would stay set when a
+/// sheet closed with its field still focused.
+fn typing(app: &App) -> bool {
+    use slint::private_unstable_api::re_exports::{TextInput, WindowInner};
+    WindowInner::from_pub(app.window())
+        .focus_item
+        .borrow()
+        .upgrade()
+        .is_some_and(|item| item.downcast::<TextInput>().is_some())
+}
+
 /// Adds a pane of `kind` beside the largest seat: to its right when that
 /// seat is wide enough to halve across, else below it.
 fn add_pane(state: &mut Studio, kind: PaneKind) {
@@ -2830,11 +2859,13 @@ const SAFE_AFTER: std::time::Duration = std::time::Duration::from_secs(15);
 /// The next build tries the GPU again: 0.2.8 kept the CPU for good, and a
 /// Task Manager kill or a crash an update fixed left fast machines drawing
 /// every hover on it (#476). Settings > General's GPU switch goes back
-/// sooner. Only on Windows and Linux, which have a software rasteriser to
-/// draw on; a Mac has none, and a phone's backend picks its own way to
-/// draw.
+/// sooner. On Windows and Linux, which have a software rasteriser to draw
+/// on, and on Android, where the safe way is OpenGL ES in place of Vulkan:
+/// a phone whose Vulkan driver dies on the first frame closed on every
+/// launch, and the backend's fall back to OpenGL ES only catches a surface
+/// that fails to open (#507). A Mac has neither.
 fn safe_start() -> (Option<concat_host::jobs::Tripwire>, bool) {
-    if !cfg!(any(windows, target_os = "linux")) {
+    if !cfg!(any(windows, target_os = "linux", target_os = "android")) {
         return (None, false);
     }
     let Ok(dirs) = concat_host::AppDirs::locate() else {
@@ -2847,8 +2878,11 @@ fn safe_start() -> (Option<concat_host::jobs::Tripwire>, bool) {
         preferences.save(&dirs);
     }
     if preferences.draws_in_software() && std::env::var_os("CONCAT_GPU").is_none() {
-        // SAFETY: the process is single-threaded here, as for the scale
-        // above: nothing reads the environment concurrently.
+        // SAFETY: on a desk the process is single-threaded here, as for the
+        // scale above. On Android the activity's glue thread is running, but
+        // it is Java's and reads no environment; Rust's own readers take
+        // the same lock this does. On Android the variable means OpenGL ES
+        // in place of Vulkan (the Skia patch reads it), not the CPU.
         unsafe { std::env::set_var("CONCAT_GPU", "software") };
     }
     // Said on every launch it holds, not only the first: the person on

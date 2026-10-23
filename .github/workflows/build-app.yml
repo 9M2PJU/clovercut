@@ -643,6 +643,11 @@ jobs:
           fi
           ls -l stage
 
+      - name: Verify Android libraries support 16 KB pages
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: python3 scripts/ci/check-16k-pages.py "stage/Clovercut-$VERSION-android-${{ matrix.abi }}.apk"
+
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: Clovercut-android-${{ matrix.abi }}

@@ -451,7 +451,17 @@ mod tests {
             std::fs::write(&manifest, &before).unwrap();
             let mut session = Session::open_info(&info).unwrap();
             assert!(!session.can_undo(), "opening must not invent an edit");
-            assert_eq!(session.project().active().tracks.len(), 4);
+            assert_eq!(
+                session
+                    .project()
+                    .active()
+                    .tracks
+                    .iter()
+                    .filter(|track| track.is_main)
+                    .count(),
+                1,
+                "the current project has one fixed main track"
+            );
             assert_eq!(session.video().width, 1280);
             assert_eq!(session.video().rate_num, 25);
             assert_eq!(

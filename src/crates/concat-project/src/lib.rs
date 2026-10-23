@@ -1281,7 +1281,10 @@ mod tests {
         assert_eq!(editor.project().timelines.len(), 1);
         assert_eq!(editor.project().active().tracks.len(), 1);
         assert!(editor.project().active().tracks[0].is_main);
-        assert_eq!(editor.project().active().tracks[0].kind, crate::model::TrackKind::Video);
+        assert_eq!(
+            editor.project().active().tracks[0].kind,
+            crate::model::TrackKind::Video
+        );
     }
 
     #[test]
@@ -4465,20 +4468,30 @@ mod tests {
         let (mut editor, media_id, _) = fixture();
         // Main track cannot be removed
         let main_id = editor.project().active().tracks[0].id.clone();
-        assert!(editor.apply(Command::RemoveTrack { track_id: main_id }).is_err());
+        assert!(
+            editor
+                .apply(Command::RemoveTrack { track_id: main_id })
+                .is_err()
+        );
 
         // Add a secondary track with a clip
-        let extra_track = editor.apply(Command::AddTrack {
-            bottom: false,
-            kind: Some(crate::model::TrackKind::Video),
-            insert_at: None,
-        }).expect("adds").created_id.expect("id");
-        editor.apply(Command::AddClip {
-            media_id,
-            track_id: extra_track.clone(),
-            start: 0.0,
-            ripple: false,
-        }).expect("clip");
+        let extra_track = editor
+            .apply(Command::AddTrack {
+                bottom: false,
+                kind: Some(crate::model::TrackKind::Video),
+                insert_at: None,
+            })
+            .expect("adds")
+            .created_id
+            .expect("id");
+        editor
+            .apply(Command::AddClip {
+                media_id,
+                track_id: extra_track.clone(),
+                start: 0.0,
+                ripple: false,
+            })
+            .expect("clip");
         assert_eq!(editor.project().active().tracks.len(), 5);
 
         editor
@@ -4496,7 +4509,9 @@ mod tests {
 
         // An unknown id is the tolerated no-op, not an error.
         let outcome = editor
-            .apply(Command::RemoveTrack { track_id: extra_track })
+            .apply(Command::RemoveTrack {
+                track_id: extra_track,
+            })
             .expect("tolerated");
         assert!(!outcome.applied);
     }

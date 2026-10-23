@@ -306,25 +306,193 @@ impl Preferences {
 
     /// Reads the file, or the defaults when there is none.
     pub fn load(dirs: &AppDirs) -> Self {
-        std::fs::read(dirs.config.join(FILE))
-            .ok()
-            .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-            .unwrap_or_default()
+        let path = dirs.config.join(FILE);
+        let Ok(bytes) = std::fs::read(&path) else {
+            return Self::default();
+        };
+        if let Ok(preferences) = serde_json::from_slice(&bytes) {
+            return preferences;
+        }
+        // One value of the wrong shape - a field an older or newer build
+        // wrote differently, a hand edit - failed the whole file, and every
+        // setting went back to its default at once. The ones that still
+        // read are kept, and the file as it was is set aside rather than
+        // overwritten by the next save.
+        let _ = write_private(&path.with_extension("json.unreadable"), &bytes);
+        let preferences = salvage(&bytes);
+        log::warn!(
+            "settings: {} did not read whole; kept what did",
+            path.display()
+        );
+        preferences
     }
 
     /// Writes the file. Best effort: a preference that did not stick is
-    /// not worth interrupting anyone over.
+    /// not worth interrupting anyone over. Written beside the file and
+    /// moved over it, so a crash or a second window saving at the same
+    /// moment leaves one whole file, never half of one; and readable by
+    /// this account alone where the platform has the notion, since it
+    /// holds the remote API's token.
     pub fn save(&self, dirs: &AppDirs) {
         let _ = std::fs::create_dir_all(&dirs.config);
-        if let Ok(encoded) = serde_json::to_vec_pretty(self) {
-            let _ = std::fs::write(dirs.config.join(FILE), encoded);
+        let Ok(encoded) = serde_json::to_vec_pretty(self) else {
+            return;
+        };
+        let path = dirs.config.join(FILE);
+        let _ = write_private(&path, &encoded);
+    }
+}
+
+/// The fields of a settings file that read, on the defaults: each top-level
+/// value is laid over them in turn and kept only if the whole still reads.
+fn salvage(bytes: &[u8]) -> Preferences {
+    let Ok(serde_json::Value::Object(found)) = serde_json::from_slice(bytes) else {
+        return Preferences::default();
+    };
+    let Ok(serde_json::Value::Object(mut kept)) = serde_json::to_value(Preferences::default())
+    else {
+        return Preferences::default();
+    };
+    for (key, value) in found {
+        let before = kept.insert(key.clone(), value);
+        if serde_json::from_value::<Preferences>(serde_json::Value::Object(kept.clone())).is_err() {
+            match before {
+                Some(before) => kept.insert(key, before),
+                None => kept.remove(&key),
+            };
         }
     }
+    serde_json::from_value(serde_json::Value::Object(kept)).unwrap_or_default()
+}
+
+/// Writes a new file only this account can read, on Unix; elsewhere as
+/// the platform makes files, which on Windows is the profile's own folder.
+fn write_private(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static TICKET: AtomicU64 = AtomicU64::new(0);
+    let ticket = TICKET.fetch_add(1, Ordering::Relaxed);
+    let staging = path.with_extension(format!("{}.{}.part", std::process::id(), ticket));
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    let result = (|| {
+        let mut file = options.open(&staging)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        drop(file);
+        std::fs::rename(&staging, path)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&staging);
+    }
+    result
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn simultaneous_saves_leave_a_complete_private_file() {
+        let root = std::env::temp_dir().join(format!(
+            "clovercut-settings-concurrent-{}",
+            std::process::id()
+        ));
+        let dirs = AppDirs::under(&root);
+        std::fs::create_dir_all(&dirs.config).unwrap();
+        let mut writers = Vec::new();
+        for n in 0..8 {
+            let root = root.clone();
+            writers.push(std::thread::spawn(move || {
+                let dirs = AppDirs::under(&root);
+                for _ in 0..8 {
+                    let preferences = Preferences {
+                        giphy_library: true,
+                        opengameart_library: true,
+                        shortcut_profile: Some(format!("profile-{n}")),
+                        ..Preferences::default()
+                    };
+                    preferences.save(&dirs);
+                    let bytes = std::fs::read(dirs.config.join(FILE)).unwrap();
+                    let read: Preferences = serde_json::from_slice(&bytes).unwrap();
+                    assert!(read.giphy_library && read.opengameart_library);
+                    assert!(read.shortcut_profile.unwrap().starts_with("profile-"));
+                }
+            }));
+        }
+        for writer in writers {
+            writer.join().unwrap();
+        }
+        assert!(std::fs::read_dir(&dirs.config).unwrap().all(|entry| {
+            !entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .ends_with(".part")
+        }));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    /// One value of the wrong shape costs that value, not every setting,
+    /// and the file is set aside before anything writes over it.
+    #[test]
+    fn a_settings_file_that_does_not_read_whole_keeps_what_does() {
+        let root =
+            std::env::temp_dir().join(format!("concat-settings-salvage-{}", std::process::id()));
+        let dirs = AppDirs {
+            config: root.join("config"),
+            data: root.join("data"),
+        };
+        std::fs::create_dir_all(&dirs.config).expect("a config folder");
+        std::fs::write(
+            dirs.config.join(FILE),
+            r#"{"magnetic": true, "dark": "very", "lastProjectLocation": "/films", "giphyLibrary": true, "opengameartLibrary": true, "shortcutProfile": "premiere"}"#,
+        )
+        .expect("a settings file");
+        let prefs = Preferences::load(&dirs);
+        assert!(prefs.magnetic);
+        assert!(prefs.giphy_library && prefs.opengameart_library);
+        assert_eq!(prefs.shortcut_profile.as_deref(), Some("premiere"));
+        assert_eq!(prefs.last_project_location.as_deref(), Some("/films"));
+        assert_eq!(
+            prefs.dark, None,
+            "the value that did not read is the default"
+        );
+        assert!(dirs.config.join("settings.json.unreadable").is_file());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                std::fs::metadata(dirs.config.join("settings.json.unreadable"))
+                    .unwrap()
+                    .permissions()
+                    .mode()
+                    & 0o077,
+                0
+            );
+        }
+
+        prefs.save(&dirs);
+        assert!(Preferences::load(&dirs).magnetic);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(dirs.config.join(FILE))
+                .expect("saved")
+                .permissions()
+                .mode();
+            assert_eq!(mode & 0o077, 0, "nobody else reads it");
+        }
+        let leftovers = std::fs::read_dir(&dirs.config)
+            .expect("listed")
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().ends_with(".part"))
+            .count();
+        assert_eq!(leftovers, 0);
+        let _ = std::fs::remove_dir_all(root);
+    }
 
     #[test]
     fn the_last_project_location_survives_loading_and_saving() {

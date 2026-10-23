@@ -35,6 +35,7 @@ pub mod machine;
 pub mod media;
 pub mod memory;
 pub mod models;
+pub mod net;
 pub mod opengameart;
 pub mod playback;
 pub mod preview;

@@ -122,9 +122,7 @@ fn parse(bytes: &[u8]) -> Result<Page, String> {
 }
 
 fn agent() -> ureq::Agent {
-    ureq::AgentBuilder::new()
-        .timeout_connect(Duration::from_secs(15))
-        .timeout_read(Duration::from_secs(30))
+    crate::net::agent_builder(Duration::from_secs(15), Duration::from_secs(30))
         .redirects(0)
         .build()
 }

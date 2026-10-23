@@ -28,6 +28,9 @@ concat-vision = { workspace = true, features = ["infer"] }
 # the detail.
 png = "0.17"
 ureq = "2"
+rustls = { version = "0.23", default-features = false, features = ["ring", "logging", "std", "tls12"] }
+webpki-roots = "0.26"
+rustls-native-certs = "0.8"
 # Parse the public OpenGameArt catalogue and encode search parameters.
 scraper = { version = "0.24", default-features = false }
 url = "2"
