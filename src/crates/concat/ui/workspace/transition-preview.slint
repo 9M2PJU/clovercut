@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Clovercut contributors
+export global TransitionPreview {
+    in property <string> id;
+    in property <[image]> frames;
+    callback request(id: string);
+}

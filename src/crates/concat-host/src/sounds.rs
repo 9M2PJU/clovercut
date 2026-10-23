@@ -344,16 +344,37 @@ pub struct Listed {
 
 impl Listed {
     /// Whether the entry can be offered: a plain file name, an id of the
-    /// shape the cache keys on, a digest to check against, and CC0.
+    /// shape the provider uses, a trusted download host, and its licence.
     pub fn is_offered(&self) -> bool {
+        let digest_ok = self.sha256.is_empty()
+            || (self.sha256.len() == 64 && self.sha256.chars().all(|c| c.is_ascii_hexdigit()));
+        if !is_plain_name(&self.file) || !digest_ok {
+            return false;
+        }
+        if let Some(id) = self.id.strip_prefix("ytal-") {
+            return !id.is_empty()
+                && id
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
+                && self.file == format!("{id}.mp3")
+                && self.source == "https://www.youtube.com/audiolibrary"
+                && crate::youtube_audio::is_audio(&self.download_url);
+        }
+        if let Some(id) = self.id.strip_prefix("fs-") {
+            return !id.is_empty()
+                && id.chars().all(|c| c.is_ascii_digit())
+                && self.file == format!("{id}.mp3")
+                && self.source == format!("https://freesound.org/s/{id}/")
+                && crate::freesound::is_audio(&self.download_url)
+                && !self.license.is_empty();
+        }
         let license = self.license.to_ascii_uppercase();
         !self.id.is_empty()
             && self
                 .id
                 .chars()
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
-            && is_plain_name(&self.file)
-            && ((self.sha256.len() == 64 && self.sha256.chars().all(|c| c.is_ascii_hexdigit()))
+            && ((self.sha256.len() == 64)
                 || (self.id.starts_with("oga-")
                     && crate::opengameart::is_source(&self.source)
                     && (self.download_url.is_empty()
@@ -410,17 +431,18 @@ pub fn search_catalogue_provider(
     page: usize,
     freesound_key: &str,
 ) -> Result<Option<Catalogue>, String> {
-    match provider {
-        1 => {
-            let catalogue = crate::youtube_audio::search(dirs, query, category, page)?;
-            Ok(Some(catalogue))
+    let mut catalogue = match provider {
+        1 => crate::youtube_audio::search(dirs, query, category, page)?,
+        2 => crate::freesound::search(dirs, query, category, page, freesound_key)?,
+        _ => return search_catalogue(dirs, query, category, page),
+    };
+    catalogue.sounds.retain(Listed::is_offered);
+    for sound in &mut catalogue.sounds {
+        if let Some(known) = resolved_sound(dirs, sound) {
+            *sound = known;
         }
-        2 => {
-            let catalogue = crate::freesound::search(dirs, query, category, page, freesound_key)?;
-            Ok(Some(catalogue))
-        }
-        _ => search_catalogue(dirs, query, category, page),
     }
+    Ok(Some(catalogue))
 }
 
 /// Search OpenGameArt directly, and cache only the metadata locally.
@@ -457,7 +479,7 @@ pub fn fetch_catalogue(dirs: &AppDirs) -> Result<Option<Catalogue>, String> {
 
 /// A previously resolved first-party attachment, including its observed digest.
 pub fn resolved_sound(dirs: &AppDirs, sound: &Listed) -> Option<Listed> {
-    if !sound.id.starts_with("oga-") || !sound.is_offered() {
+    if !sound.is_offered() {
         return None;
     }
     let known: Listed = serde_json::from_slice(
@@ -467,7 +489,12 @@ pub fn resolved_sound(dirs: &AppDirs, sound: &Listed) -> Option<Listed> {
     (known.id == sound.id
         && known.source == sound.source
         && known.is_offered()
-        && crate::opengameart::is_audio(&known.download_url))
+        && known.sha256.len() == 64
+        && (if sound.id.starts_with("oga-") {
+            crate::opengameart::is_audio(&known.download_url)
+        } else {
+            known.download_url == sound.download_url
+        }))
     .then_some(known)
 }
 
@@ -504,6 +531,8 @@ pub fn fetch_sound(
         return Err("invalid audio library entry".into());
     }
 
+    let known = resolved_sound(dirs, sound);
+    let sound = known.as_ref().unwrap_or(sound);
     let (mut sound, urls) = if sound.id.starts_with("oga-") {
         let resolved = match resolved_sound(dirs, sound) {
             Some(known) => known,
@@ -582,7 +611,7 @@ pub fn fetch_sound(
                 }
                 sound.sha256 = format!("{:x}", hash.finalize());
                 std::fs::rename(&partial, &target).map_err(|error| error.to_string())?;
-                if sound.id.starts_with("oga-") {
+                {
                     let path = dir.join(format!("{}.json", sound.id));
                     let metadata = serde_json::to_vec(&sound).map_err(|error| error.to_string())?;
                     let temporary = path.with_extension("json.partial");
@@ -602,6 +631,39 @@ pub fn fetch_sound(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn provider_audio_entries_validate_without_weakening_legacy_catalogues() {
+        let fs = Listed {
+            id: "fs-123".into(),
+            file: "123.mp3".into(),
+            name: "Rain".into(),
+            category: "Effects".into(),
+            duration: 1.0,
+            bytes: 0,
+            license: "https://creativecommons.org/licenses/by/4.0/".into(),
+            source: "https://freesound.org/s/123/".into(),
+            author: "Artist".into(),
+            sha256: String::new(),
+            download_url: "https://cdn.freesound.org/previews/123/123-hq.mp3".into(),
+        };
+        assert!(fs.is_offered());
+        let mut forged = fs.clone();
+        forged.download_url = "https://evilfreesound.org/audio.mp3".into();
+        assert!(!forged.is_offered());
+        forged = fs.clone();
+        forged.file = "../123.mp3".into();
+        assert!(!forged.is_offered());
+        let mut yt = fs;
+        yt.id = "ytal-AbC_123-x".into();
+        yt.file = "AbC_123-x.mp3".into();
+        yt.source = "https://www.youtube.com/audiolibrary".into();
+        yt.download_url =
+            "https://drive.usercontent.google.com/download?id=AbC_123-x&export=download".into();
+        assert!(yt.is_offered());
+        yt.download_url = "https://drive.usercontent.google.com.evil.test/download".into();
+        assert!(!yt.is_offered());
+    }
 
     fn scratch(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("concat-sounds-{name}-{}", std::process::id()));

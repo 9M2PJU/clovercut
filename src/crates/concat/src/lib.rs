@@ -1397,6 +1397,11 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         }));
     }
 
+    app.global::<crate::ui::TransitionPreview>()
+        .on_request(on_window!(|state, id: SharedString| {
+            panes::transition_preview::request(&mut state, &id);
+        }));
+
     editor.on_clip_set(on_lanes!(|state, field: ClipField, value: f32| {
         state.clip_set(field, value);
     }));

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Jareer and Concat contributors
 
+import { TransitionPreview } from "transition-preview.slint";
 import { I18n } from "../i18n.slint";
 import { Theme, Fmt, Glyph, Icon, Payload, Tip } from "../primitives/primitives.slint";
 import { Pane, PaneScroll } from "pane.slint";
@@ -1092,8 +1093,35 @@ component CatalogueCard inherits Rectangle {
     /// and a name in a box says it in a third of the room.
     in property <bool> compact;
 
-    property <float> sweep: card.has-hover ? 1.0 : 0.0;
-    animate sweep { duration: 1.2s; easing: ease-in-out; iteration-count: -1; }
+    property <bool> preview-pending;
+    property <bool> preview-requested;
+    property <int> preview-frame: 0;
+    property <bool> preview-hover: root.glyph == Glyph.transition && card.has-hover && !drag.dragging;
+    changed preview-hover => {
+        root.preview-pending = root.preview-hover;
+        root.preview-frame = 0;
+        if (!root.preview-hover && root.preview-requested) {
+            root.preview-requested = false;
+            TransitionPreview.request("");
+        }
+    }
+    Timer {
+        interval: 180ms;
+        running: root.preview-pending;
+        triggered => {
+            root.preview-pending = false;
+            root.preview-requested = true;
+            TransitionPreview.request(root.item.id);
+        }
+    }
+    Timer {
+        interval: 65ms;
+        running: root.preview-hover && TransitionPreview.id == root.item.id
+            && TransitionPreview.frames.length > 0;
+        triggered => {
+            root.preview-frame = Math.mod(root.preview-frame + 1, TransitionPreview.frames.length);
+        }
+    }
 
     property <float> shimmer: card.has-hover ? 1.0 : 0.0;
     animate shimmer { duration: 1.5s; easing: ease-in-out; iteration-count: -1; }
@@ -1166,35 +1194,21 @@ component CatalogueCard inherits Rectangle {
                     tint: Theme.fg-dim;
                 }
 
-                // Transitions: animated sweep line / wipe overlay across card image
-                if (root.glyph == Glyph.transition || root.item.glyph == Glyph.transition) && card.has-hover: Rectangle {
-                    x: 0;
-                    y: 0;
-                    width: parent.width * root.sweep;
+                if root.preview-hover && TransitionPreview.id == root.item.id
+                    && TransitionPreview.frames.length > 0: Image {
+                    width: parent.width;
                     height: parent.height;
-                    background: Theme.accent-soft;
-
-                    Rectangle {
-                        x: parent.width - 2px;
-                        y: 0;
-                        width: 2px;
-                        height: parent.height;
-                        background: Theme.accent;
-                    }
+                    source: TransitionPreview.frames[root.preview-frame];
+                    image-fit: cover;
                 }
 
-                // Effects: subtle live shimmer effect on hover across thumbnail
                 if (root.glyph == Glyph.sparkle || root.item.glyph == Glyph.sparkle) && card.has-hover: Rectangle {
                     x: -parent.width + (2 * parent.width * root.shimmer);
-                    y: 0;
                     width: parent.width;
                     height: parent.height;
                     background: @linear-gradient(90deg,
-                        transparent 0%,
-                        transparent 25%,
-                        Theme.accent-soft 50%,
-                        transparent 75%,
-                        transparent 100%);
+                        transparent 0%, transparent 25%, Theme.accent-soft 50%,
+                        transparent 75%, transparent 100%);
                 }
 
                 if !root.item.enabled: Rectangle {
@@ -2933,6 +2947,8 @@ export component MediaPane inherits Rectangle {
                 // Online audio sounds (OpenGameArt, YouTube Audio Library, Freesound):
                 // offered, not fetched, until asked for - nothing goes online at startup.
                 if root.tab == 8 && ((root.audio-category == 1 && ContentLibraries.audio-enabled) || (root.audio-category == 2 && ContentLibraries.youtube-audio-enabled) || (root.audio-category == 3 && ContentLibraries.freesound-enabled)): VerticalLayout {
+                    property <string> provider-name: Sounds.provider == 1 ? "YouTube Audio Library"
+                        : Sounds.provider == 2 ? "Freesound" : "OpenGameArt";
                     padding: 8px;
                     spacing: 8px;
 
@@ -2953,20 +2969,20 @@ export component MediaPane inherits Rectangle {
                         }
                     }
                     if Sounds.concat-state == 0 || Sounds.concat-state == 1: Text {
-                        text: I18n.t("sounds.loadConcatHint");
+                        text: I18n.t1("sounds.providerLoadHint", parent.provider-name);
                         color: Theme.fg-muted;
                         font-size: Theme.fs-sm;
                         wrap: word-wrap;
                     }
                     if Sounds.concat-state == 0: ImportButton {
-                        label: I18n.t("sounds.loadConcat");
+                        label: I18n.t1("sounds.browseProvider", parent.provider-name);
                         busy-label: I18n.t("sounds.loading");
                         busy: Sounds.concat-state == 1;
                         glyph: Glyph.music;
                         clicked => { Sounds.load-concat(); }
                     }
                     if Sounds.concat-state == 4: Text {
-                        text: I18n.t("sounds.offline");
+                        text: I18n.t1("sounds.providerOffline", parent.provider-name);
                         color: Theme.fg-muted;
                         font-size: Theme.fs-sm;
                         wrap: word-wrap;
@@ -2980,7 +2996,7 @@ export component MediaPane inherits Rectangle {
                         spacing: 8px;
                         Text {
                             horizontal-stretch: 1;
-                            text: I18n.t("sounds.concatHint");
+                            text: I18n.t("sounds.providerHint");
                             color: Theme.fg-muted;
                             font-size: Theme.fs-sm;
                             wrap: word-wrap;

@@ -89,7 +89,7 @@ pub enum SoundsMsg {
     /// Open the asset's original source and licence page.
     Source(String),
     /// The manifest's worker is done: the list, none yet, or why not.
-    ConcatLoaded(Result<Option<Catalogue>, String>),
+    ConcatLoaded(u64, Result<Option<Catalogue>, String>),
     /// A category of the Concat shelf picked: 0 All, then [`CATEGORIES`].
     ConcatCategory(i32),
     /// Provider picked: 0 OpenGameArt, 1 YouTube Audio, 2 Freesound.
@@ -115,12 +115,13 @@ pub struct SoundsPane {
     pub concat: ConcatState,
     /// Selected provider: 0 OpenGameArt, 1 YouTube Audio, 2 Freesound.
     pub provider: usize,
+    request_generation: u64,
     /// The category shown: 0 All, then a row of [`CATEGORIES`].
     pub category: usize,
     /// Search text last submitted to the source.
     pub query: String,
     /// Downloads running, by card: how far, and what to do once in.
-    fetching: HashMap<String, (f32, Then)>,
+    fetching: HashMap<String, (f32, Then, sounds::Listed)>,
     /// Stops the downloads when the window goes.
     cancel: Arc<AtomicBool>,
     /// Where the downloads go: the app's data folder.
@@ -183,9 +184,13 @@ impl SoundsPane {
                 let provider = (p.max(0) as usize).min(2);
                 if self.provider != provider {
                     self.provider = provider;
+                    self.concat = ConcatState::Idle;
+                    self.catalogue = Catalogue::default();
                     self.query.clear();
                     self.category = 0;
-                    self.load_page(0, studio);
+                    if provider != 0 {
+                        self.load_page(0, studio);
+                    }
                 }
             }
             SoundsMsg::LoadConcat => self.load_page(self.catalogue.page, studio),
@@ -217,7 +222,8 @@ impl SoundsPane {
                     studio.notify(&error, true);
                 }
             }
-            SoundsMsg::ConcatLoaded(result) => match result {
+            SoundsMsg::ConcatLoaded(generation, _) if generation != self.request_generation => {}
+            SoundsMsg::ConcatLoaded(_, result) => match result {
                 Ok(Some(catalogue)) => {
                     self.catalogue = catalogue;
                     self.concat = ConcatState::Ready;
@@ -233,8 +239,8 @@ impl SoundsPane {
                         self.concat = ConcatState::Ready;
                         self.category = self.catalogue.category;
                         self.query = self.catalogue.query.clone();
-                        studio.notify(&t("sounds.offline"), true);
                     }
+                    studio.notify(&error, true);
                 }
             },
             SoundsMsg::ConcatCategory(index) => {
@@ -244,23 +250,20 @@ impl SoundsPane {
                 }
             }
             SoundsMsg::Fetching(card, done) => {
-                if let Some((progress, _)) = self.fetching.get_mut(&card) {
+                if let Some((progress, _, _)) = self.fetching.get_mut(&card) {
                     *progress = done;
                 }
             }
             SoundsMsg::Fetched(card, result) => {
-                let Some((_, then)) = self.fetching.remove(&card) else {
+                let Some((_, then, listed)) = self.fetching.remove(&card) else {
                     return;
                 };
-                let name = self
-                    .listed(&card)
-                    .map(|sound| sound.name.clone())
-                    .unwrap_or_default();
+                let name = listed.name.clone();
                 match result {
                     Ok(path) => {
                         let mut name = name;
-                        if let (Some(dirs), Some(listed)) = (self.dirs.as_ref(), self.listed(&card))
-                            && let Some(resolved) = sounds::resolved_sound(dirs, listed)
+                        if let Some(dirs) = self.dirs.as_ref()
+                            && let Some(resolved) = sounds::resolved_sound(dirs, &listed)
                         {
                             name = resolved.name.clone();
                             if let Some(row) = self
@@ -404,11 +407,12 @@ impl SoundsPane {
         let (Some(sound), Some(dirs)) = (self.listed(card).cloned(), self.dirs.clone()) else {
             return;
         };
-        if let Some((_, held)) = self.fetching.get_mut(card) {
+        if let Some((_, held, _)) = self.fetching.get_mut(card) {
             *held = then;
             return;
         }
-        self.fetching.insert(card.to_owned(), (0.0, then));
+        self.fetching
+            .insert(card.to_owned(), (0.0, then, sound.clone()));
         let cancel = Arc::clone(&self.cancel);
         let (key, done) = (card.to_owned(), card.to_owned());
         crate::host::spawn(
@@ -437,14 +441,27 @@ impl SoundsPane {
         if self.concat == ConcatState::Loading {
             return;
         }
+        self.request_generation += 1;
+        let generation = self.request_generation;
         self.concat = ConcatState::Loading;
         let query = self.query.clone();
         let category = self.category;
         let provider = self.provider;
         let freesound_key = studio.prefs.freesound_api_key.clone();
         crate::host::spawn(
-            move || sounds::search_catalogue_provider(&dirs, provider, &query, category, page, &freesound_key),
-            |studio, _, _, result| studio.handle(Msg::Sounds(SoundsMsg::ConcatLoaded(result))),
+            move || {
+                sounds::search_catalogue_provider(
+                    &dirs,
+                    provider,
+                    &query,
+                    category,
+                    page,
+                    &freesound_key,
+                )
+            },
+            move |studio, _, _, result| {
+                studio.handle(Msg::Sounds(SoundsMsg::ConcatLoaded(generation, result)))
+            },
         );
     }
 
@@ -458,7 +475,7 @@ impl SoundsPane {
             .iter()
             .map(|sound| {
                 let card = format!("{CONCAT}{}", sound.id);
-                let progress = self.fetching.get(&card).map_or(-1.0, |(done, _)| *done);
+                let progress = self.fetching.get(&card).map_or(-1.0, |(done, _, _)| *done);
                 SoundCardData {
                     ready: sounds::cached_file(dirs, sound).is_file(),
                     id: card.into(),
@@ -469,9 +486,10 @@ impl SoundsPane {
                         "Music · Royalty Free · YouTube Audio Library".into()
                     } else if sound.id.starts_with("fs-") {
                         if sound.author.is_empty() {
-                            "Effects · Freesound".into()
+                            format!("Effects · {} · Freesound", sound.license).into()
                         } else {
-                            format!("Effects · {} · Freesound", sound.author).into()
+                            format!("Effects · {} · {} · Freesound", sound.author, sound.license)
+                                .into()
                         }
                     } else if sound.author.is_empty() {
                         format!("{} · CC0 · OpenGameArt", category_label(&sound.category)).into()

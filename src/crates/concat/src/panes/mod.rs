@@ -28,6 +28,7 @@ pub mod speech;
 pub mod start;
 pub mod stickers;
 pub mod timeline;
+pub mod transition_preview;
 pub mod voiceover;
 
 /// One thing that happened, to one pane.

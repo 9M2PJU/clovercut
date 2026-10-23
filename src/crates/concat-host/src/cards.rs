@@ -336,6 +336,18 @@ impl Painter {
         write_card(&frame, path)
     }
 
+    /// Draw one instant of a transition using the same shader as the timeline.
+    pub fn transition_frame(&mut self, card: &Card, progress: f32) -> Result<Frame, String> {
+        let Drawing::Cut(cut) = &card.drawing else {
+            return Err("not a transition card".into());
+        };
+        let mut animated = card.clone();
+        let mut cut = cut.clone();
+        cut.progress = progress.clamp(0.0, 1.0);
+        animated.drawing = Drawing::Cut(cut);
+        self.frame(&animated)
+    }
+
     /// `card` drawn, as an opaque frame the still's size.
     pub fn frame(&mut self, card: &Card) -> Result<Frame, String> {
         let (width, height) = (self.still.width(), self.still.height());
@@ -584,6 +596,37 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("a scratch folder");
         dir
+    }
+
+    #[test]
+    fn transition_thumbnail_frames_follow_the_shader_progress() {
+        let Some(gpu) = WgpuCompositor::new() else {
+            return;
+        };
+        if gpu.on_software_adapter() {
+            return;
+        }
+        let dir = scratch("transition-animation");
+        let still = still_in(&dir).unwrap();
+        let city = city_still_in(&dir).unwrap();
+        let mut painter = Painter::with_city(gpu, &still, Some(&city), 96, 54).unwrap();
+        let catalogue = Catalogue::builtin();
+        let card = Card::of(catalogue, catalogue.get("concat.dissolve").unwrap(), &dir).unwrap();
+        let start = painter.transition_frame(&card, 0.0).unwrap();
+        let middle = painter.transition_frame(&card, 0.5).unwrap();
+        let end = painter.transition_frame(&card, 1.0).unwrap();
+        let matches = |actual: &Frame, expected: &Frame| {
+            actual
+                .pixels()
+                .iter()
+                .zip(expected.pixels())
+                .all(|(a, b)| a.abs_diff(*b) <= 1)
+        };
+        assert!(matches(&start, &painter.still));
+        assert!(matches(&end, &painter.city));
+        assert_ne!(start, middle);
+        assert_ne!(middle, end);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     /// Every picture package has a card and every sound has none, each

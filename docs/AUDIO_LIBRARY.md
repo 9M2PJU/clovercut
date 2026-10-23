@@ -65,3 +65,33 @@ cargo test -p concat-host --lib live_search_download_and_offline_cache -- --igno
 
 It searches the live catalogue, downloads a known CC0 track, probes its audio,
 and verifies that its cached copy can be reused.
+
+## YouTube Audio Library and Freesound
+
+Enable these sources separately in **Settings → Content libraries**. YouTube
+uses the public community catalogue maintained by
+[YouTube-Free-Audio-Library-API](https://github.com/ThibaultJanBeyer/YouTube-Free-Audio-Library-API),
+with downloads from Google Drive. This is a community index, so individual
+tracks can disappear. The catalogue is refreshed after 24 hours.
+
+Freesound uses its [official API](https://freesound.org/docs/api/). Enter your
+API key in the Freesound settings; Clovercut saves it in your local preferences
+with private file permissions and sends it in the Authorization header.
+The key is never needed in source code or shared project files. Search and
+import use the high quality MP3 previews provided by Freesound. OAuth login
+and downloads of original uploads are not required for these previews.
+
+Freesound results retain their individual licences and authors. Use the source
+arrow to check attribution and usage terms; these results are not all CC0.
+Downloads from both sources use the same cancellation, audio validation,
+checksum cache and project copying as OpenGameArt.
+
+The opt-in end-to-end provider test searches both services, downloads one
+track from each, probes the audio and reuses its cached copy:
+
+```sh
+# Supply your Freesound token through the environment, never in a committed file.
+cargo test -p concat-host --test audio_providers_live -- --ignored
+```
+
+The test reads `CLOVERCUT_FREESOUND_KEY`.

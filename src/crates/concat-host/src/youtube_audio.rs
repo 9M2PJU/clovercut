@@ -16,7 +16,8 @@ use crate::dirs::AppDirs;
 use crate::sounds::{Catalogue, Listed};
 
 const API_URL: &str = "https://raw.githubusercontent.com/ThibaultJanBeyer/YouTube-Free-Audio-Library-API/master/api.json";
-const BACKUP_API_URL: &str = "https://thibaultjanbeyer.github.io/YouTube-Free-Audio-Library-API/api.json";
+const BACKUP_API_URL: &str =
+    "https://thibaultjanbeyer.github.io/YouTube-Free-Audio-Library-API/api.json";
 
 #[derive(Deserialize, Clone, Debug)]
 struct ApiEntry {
@@ -48,7 +49,9 @@ pub fn is_audio(value: &str) -> bool {
     Url::parse(value).is_ok_and(|url| {
         (url.host_str() == Some("drive.usercontent.google.com")
             || url.host_str() == Some("docs.google.com"))
-            && (url.scheme() == "https" || url.scheme() == "http")
+            && url.scheme() == "https"
+            && url.username().is_empty()
+            && url.password().is_none()
     })
 }
 
@@ -58,21 +61,27 @@ fn download_url(id: &str) -> String {
 
 fn load_entries(dirs: &AppDirs) -> Result<Vec<ApiEntry>, String> {
     let mut lock = CACHED_ENTRIES.lock().map_err(|e| e.to_string())?;
-    if let Some((when, ref entries)) = *lock {
-        if when.elapsed() < Duration::from_secs(3600 * 24) && !entries.is_empty() {
-            return Ok(entries.clone());
-        }
+    if let Some((when, ref entries)) = *lock
+        && when.elapsed() < Duration::from_secs(3600 * 24)
+        && !entries.is_empty()
+    {
+        return Ok(entries.clone());
     }
 
     let cache_dir = crate::sounds::cache_dir(dirs);
     let cache_file = cache_dir.join("youtube_audio_catalog.json");
-    if let Ok(content) = std::fs::read_to_string(&cache_file) {
-        if let Ok(parsed) = serde_json::from_str::<ApiResponse>(&content) {
-            if !parsed.all.is_empty() {
-                *lock = Some((Instant::now(), parsed.all.clone()));
-                return Ok(parsed.all);
-            }
-        }
+    let fresh = std::fs::metadata(&cache_file)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.elapsed().ok())
+        .is_some_and(|age| age < Duration::from_secs(86400));
+    if fresh
+        && let Ok(content) = std::fs::read_to_string(&cache_file)
+        && let Ok(parsed) = serde_json::from_str::<ApiResponse>(&content)
+        && !parsed.all.is_empty()
+    {
+        *lock = Some((Instant::now(), parsed.all.clone()));
+        return Ok(parsed.all);
     }
 
     // Fetch from API
@@ -99,8 +108,8 @@ fn load_entries(dirs: &AppDirs) -> Result<Vec<ApiEntry>, String> {
         .read_to_string(&mut body)
         .map_err(|e| e.to_string())?;
 
-    let parsed: ApiResponse = serde_json::from_str(&body)
-        .map_err(|e| format!("Invalid YouTube Audio catalog: {e}"))?;
+    let parsed: ApiResponse =
+        serde_json::from_str(&body).map_err(|e| format!("Invalid YouTube Audio catalog: {e}"))?;
     if parsed.all.is_empty() {
         return Err("YouTube Audio Library catalog is empty".into());
     }
@@ -124,7 +133,7 @@ pub fn search(
 
     let filtered: Vec<&ApiEntry> = entries
         .iter()
-        .filter(|e| q.is_empty() || e.name.to_lowercase().contains(&q))
+        .filter(|e| q.is_empty() || clean_name(&e.name).to_lowercase().contains(&q))
         .collect();
 
     let per_page = 24;

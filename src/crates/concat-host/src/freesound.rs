@@ -45,8 +45,11 @@ struct FreesoundResponse {
 /// Whether the given URL points to an audio resource hosted by Freesound.
 pub fn is_audio(value: &str) -> bool {
     Url::parse(value).is_ok_and(|url| {
-        url.host_str().is_some_and(|h| h.ends_with("freesound.org"))
-            && (url.scheme() == "https" || url.scheme() == "http")
+        url.host_str()
+            .is_some_and(|h| h == "freesound.org" || h.ends_with(".freesound.org"))
+            && url.scheme() == "https"
+            && url.username().is_empty()
+            && url.password().is_none()
     })
 }
 
@@ -60,10 +63,17 @@ pub fn search(
 ) -> Result<Catalogue, String> {
     let key = api_key.trim();
     if key.is_empty() {
-        return Err("Freesound requires an API key. Please add your free key in Settings > Libraries.".into());
+        return Err(
+            "Freesound requires an API key. Please add your free key in Settings > Libraries."
+                .into(),
+        );
     }
 
-    let q = if query.trim().is_empty() { "effect" } else { query.trim() };
+    let q = if query.trim().is_empty() {
+        "effect"
+    } else {
+        query.trim()
+    };
     let page_1_indexed = page + 1;
 
     let mut url = Url::parse(API_SEARCH).map_err(|e| e.to_string())?;
@@ -71,15 +81,23 @@ pub fn search(
         .append_pair("query", q)
         .append_pair("page", &page_1_indexed.to_string())
         .append_pair("page_size", "24")
-        .append_pair("fields", "id,name,previews,duration,username,license")
-        .append_pair("token", key);
+        .append_pair("fields", "id,name,previews,duration,username,license");
 
     let agent = crate::net::agent(Duration::from_secs(15), Duration::from_secs(30));
     let response = agent
         .get(url.as_str())
+        .set("Authorization", &format!("Token {key}"))
         .set("User-Agent", "Mozilla/5.0 (compatible; Clovercut/0.1)")
         .call()
-        .map_err(|e| format!("Freesound search failed: {e}"))?;
+        .map_err(|e| match e {
+            ureq::Error::Status(401 | 403, _) => {
+                "Freesound rejected the API key. Check Settings > Libraries.".to_string()
+            }
+            ureq::Error::Status(429, _) => {
+                "Freesound request limit reached. Please try again later.".to_string()
+            }
+            _ => format!("Freesound search failed: {e}"),
+        })?;
 
     let parsed: FreesoundResponse = serde_json::from_reader(response.into_reader())
         .map_err(|e| format!("Could not read Freesound response: {e}"))?;
@@ -87,6 +105,7 @@ pub fn search(
     let sounds = parsed
         .results
         .into_iter()
+        .filter(|item| item.previews.values().any(|url| is_audio(url)))
         .map(|item| {
             let id = format!("fs-{}", item.id);
             let download_url = item
