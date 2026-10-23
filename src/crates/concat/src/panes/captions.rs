@@ -1119,6 +1119,7 @@ fn wrap_caption(sentence: &str) -> Vec<String> {
     lines
 }
 
+#[cfg(test)]
 fn srt_commands(
     cues: Vec<concat_project::srt::Cue>,
     look: (f64, f64),
