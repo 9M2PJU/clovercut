@@ -7,20 +7,42 @@
   <link rel="icon" type="image/x-icon" href="site_assets/favicon.ico">
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
-    @keyframes pulseGlow {
-      0%, 100% { opacity: 0.22; transform: scale(1); }
-      50% { opacity: 0.45; transform: scale(1.08); }
+    @keyframes aurora1 {
+      0%, 100% { transform: translate(0px, 0px) scale(1); }
+      33% { transform: translate(30px, -50px) scale(1.1); }
+      66% { transform: translate(-20px, 20px) scale(0.95); }
     }
-    @keyframes float {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-7px); }
+    @keyframes aurora2 {
+      0%, 100% { transform: translate(0px, 0px) scale(1); }
+      33% { transform: translate(-40px, 40px) scale(1.15); }
+      66% { transform: translate(25px, -30px) scale(0.9); }
     }
-    .animate-glow {
-      animation: pulseGlow 8s ease-in-out infinite;
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-8px) rotate(0.5deg); }
     }
-    .animate-float {
-      animation: float 5s ease-in-out infinite;
+    @keyframes floatAlt {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(8px) rotate(-0.5deg); }
     }
+    @keyframes waveBar {
+      0%, 100% { height: 6px; }
+      50% { height: 18px; }
+    }
+
+    .animate-aurora-1 {
+      animation: aurora1 14s ease-in-out infinite alternate;
+    }
+    .animate-aurora-2 {
+      animation: aurora2 18s ease-in-out infinite alternate;
+    }
+    .animate-float-slow {
+      animation: floatSlow 6s ease-in-out infinite;
+    }
+    .animate-float-alt {
+      animation: floatAlt 7s ease-in-out infinite;
+    }
+
     .clover-gradient {
       background: linear-gradient(135deg, #0bbb68 0%, #24d47a 50%, #46d9ee 100%);
     }
@@ -29,25 +51,46 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
+    
+    /* Dynamic cursor spotlight glass card */
     .card-glass {
-      background: rgba(18, 24, 38, 0.78);
+      background: radial-gradient(450px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(36, 212, 122, 0.09), transparent 60%), rgba(18, 24, 38, 0.78);
       backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: border-color 0.25s ease, transform 0.25s ease;
     }
+    .card-glass:hover {
+      border-color: rgba(36, 212, 122, 0.35);
+    }
+
     .tab-active {
       background: rgba(36, 212, 122, 0.16);
       border-color: #24d47a;
       color: #24d47a;
     }
+
+    /* Tab progress bar */
+    .tab-progress {
+      width: 0%;
+      height: 2px;
+      background: #24d47a;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      transition: width 0.1s linear;
+    }
+    .tab-active .tab-progress {
+      display: block;
+    }
   </style>
 </head>
-<body class="bg-[#0b0f17] text-slate-100 font-sans antialiased selection:bg-[#0bbb68] selection:text-white">
+<body class="bg-[#0b0f17] text-slate-100 font-sans antialiased selection:bg-[#0bbb68] selection:text-white relative overflow-x-hidden">
 
-  <!-- Ambient Glows -->
+  <!-- Dynamic Ambient Glowing Meshes with Motion -->
   <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
-    <div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[760px] h-[500px] bg-[#0bbb68]/20 rounded-full blur-[140px] animate-glow"></div>
-    <div class="absolute top-[40%] -left-32 w-[540px] h-[540px] bg-[#13c5df]/15 rounded-full blur-[150px] animate-glow" style="animation-delay: -3s;"></div>
-    <div class="absolute bottom-10 right-0 w-[620px] h-[620px] bg-[#24d47a]/15 rounded-full blur-[160px] animate-glow" style="animation-delay: -5s;"></div>
+    <div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[760px] h-[520px] bg-[#0bbb68]/20 rounded-full blur-[140px] animate-aurora-1"></div>
+    <div class="absolute top-[35%] -left-32 w-[540px] h-[540px] bg-[#13c5df]/15 rounded-full blur-[150px] animate-aurora-2" style="animation-delay: -4s;"></div>
+    <div class="absolute bottom-10 right-0 w-[640px] h-[640px] bg-[#24d47a]/15 rounded-full blur-[160px] animate-aurora-1" style="animation-delay: -7s;"></div>
   </div>
 
   <div class="relative z-10">
@@ -63,8 +106,8 @@
 
         <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
           <a href="#differentiators" class="hover:text-emerald-400 transition-colors">Features</a>
-          <a href="#showcase" class="hover:text-emerald-400 transition-colors">Interface</a>
-          <a href="#performance" class="hover:text-emerald-400 transition-colors">Engine</a>
+          <a href="#showcase" class="hover:text-emerald-400 transition-colors">Interactive Tour</a>
+          <a href="#features" class="hover:text-emerald-400 transition-colors">Engine</a>
           <a href="#downloads" class="hover:text-emerald-400 transition-colors">Download</a>
         </nav>
 
@@ -83,15 +126,37 @@
     </header>
 
     <!-- Hero Section -->
-    <section id="hero" class="pt-16 pb-14 lg:pt-22 lg:pb-20 text-center px-4 max-w-5xl mx-auto">
+    <section id="hero" class="pt-16 pb-14 lg:pt-20 lg:pb-18 text-center px-4 max-w-5xl mx-auto relative">
+      
+      <!-- Floating Interactive Badges around Hero -->
+      <div class="hidden lg:block absolute -top-2 left-6 z-20 animate-float-slow">
+        <div class="px-3.5 py-1.5 rounded-full card-glass border border-emerald-500/30 text-xs font-medium text-emerald-300 shadow-xl flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          <span>🎙️ 100% offline Whisper AI</span>
+        </div>
+      </div>
+
+      <div class="hidden lg:block absolute top-20 right-6 z-20 animate-float-alt">
+        <div class="px-3.5 py-1.5 rounded-full card-glass border border-cyan-500/30 text-xs font-medium text-cyan-300 shadow-xl flex items-center gap-2">
+          <span>👾 In-app GIPHY search</span>
+        </div>
+      </div>
+
+      <div class="hidden lg:block absolute bottom-8 left-12 z-20 animate-float-slow" style="animation-delay: -2s;">
+        <div class="px-3.5 py-1.5 rounded-full card-glass border border-amber-500/30 text-xs font-medium text-amber-300 shadow-xl flex items-center gap-2">
+          <span>🎵 CC0 music & SFX built-in</span>
+        </div>
+      </div>
+
+      <!-- Release Announcement Pill -->
       <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium mb-8">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
         <span>Version 0.1.3 out now: free and open-source video editor</span>
       </div>
 
-      <!-- Vector Brand Logo + Typography -->
+      <!-- Vector Brand Logo + Typography with Levitation -->
       <div class="flex flex-col items-center justify-center mb-6">
-        <img src="site_assets/applogo.svg" alt="clovercut logo" class="w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-[0_0_32px_rgba(11,187,104,0.55)] animate-float mb-5">
+        <img src="site_assets/applogo.svg" alt="clovercut logo" class="w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-[0_0_36px_rgba(11,187,104,0.6)] animate-float-slow mb-5 hover:scale-105 transition-transform cursor-pointer">
         <img src="site_assets/typography.svg" alt="clovercut" class="h-12 sm:h-16 lg:h-20 w-auto max-w-[85vw] object-contain drop-shadow-[0_8px_30px_rgba(0,0,0,0.7)]">
       </div>
 
@@ -147,9 +212,9 @@
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Diff 1: On-Device Whisper AI -->
-        <div class="card-glass rounded-2xl p-7 hover:border-emerald-500/40 transition-all flex flex-col justify-between">
+        <div class="card-glass rounded-2xl p-7 flex flex-col justify-between group">
           <div>
-            <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mb-5">
+            <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"/></svg>
             </div>
             <span class="text-xs font-bold uppercase tracking-wider text-purple-400">Local AI Processing</span>
@@ -164,9 +229,9 @@
         </div>
 
         <!-- Diff 2: GIPHY Stickers -->
-        <div class="card-glass rounded-2xl p-7 hover:border-emerald-500/40 transition-all flex flex-col justify-between">
+        <div class="card-glass rounded-2xl p-7 flex flex-col justify-between group">
           <div>
-            <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mb-5">
+            <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             </div>
             <span class="text-xs font-bold uppercase tracking-wider text-cyan-400">In-App Search</span>
@@ -181,9 +246,9 @@
         </div>
 
         <!-- Diff 3: CC0 Royalty-Free Audio -->
-        <div class="card-glass rounded-2xl p-7 hover:border-emerald-500/40 transition-all flex flex-col justify-between">
+        <div class="card-glass rounded-2xl p-7 flex flex-col justify-between group">
           <div>
-            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-5">
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
             </div>
             <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Safe for Content Creators</span>
@@ -199,49 +264,56 @@
       </div>
     </section>
 
-    <!-- Interactive Showcase in Hyprland Tiled Style -->
+    <!-- Interactive Tour with Hyprland Tiled Window Frame & Auto-cycle Timer -->
     <section id="showcase" class="max-w-6xl mx-auto px-4 mb-28">
       <div class="text-center max-w-3xl mx-auto mb-6">
         <h2 class="text-2xl sm:text-3xl font-bold text-white mb-2">clovercut workspace preview</h2>
-        <p class="text-sm text-slate-400">Select any tab to see how clovercut looks in action</p>
+        <p class="text-sm text-slate-400">Interactive live tour: switches automatically or pick a tab below</p>
       </div>
 
-      <!-- Tab Switcher -->
+      <!-- Tab Switcher with Dynamic Progress Bar -->
       <div class="flex justify-center mb-6 overflow-x-auto pb-2">
-        <div class="inline-flex p-1.5 rounded-xl card-glass gap-1">
-          <button onclick="switchTab('captions')" id="tab-btn-captions" class="tab-btn tab-active px-4 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 whitespace-nowrap">
+        <div class="inline-flex p-1.5 rounded-xl card-glass gap-1 relative" id="tab-bar-container">
+          <button onclick="userSelectTab('captions')" id="tab-btn-captions" class="tab-btn tab-active relative overflow-hidden px-4 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 whitespace-nowrap">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
             <span>AI Captions</span>
+            <div class="tab-progress" id="prog-captions"></div>
           </button>
-          <button onclick="switchTab('giphy')" id="tab-btn-giphy" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
+          <button onclick="userSelectTab('giphy')" id="tab-btn-giphy" class="tab-btn relative overflow-hidden px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             <span>GIPHY Stickers</span>
+            <div class="tab-progress" id="prog-giphy"></div>
           </button>
-          <button onclick="switchTab('audio')" id="tab-btn-audio" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
+          <button onclick="userSelectTab('audio')" id="tab-btn-audio" class="tab-btn relative overflow-hidden px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
             <span>CC0 Audio</span>
+            <div class="tab-progress" id="prog-audio"></div>
           </button>
-          <button onclick="switchTab('transitions')" id="tab-btn-transitions" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
+          <button onclick="userSelectTab('transitions')" id="tab-btn-transitions" class="tab-btn relative overflow-hidden px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
             <span>Transitions</span>
+            <div class="tab-progress" id="prog-transitions"></div>
           </button>
-          <button onclick="switchTab('style')" id="tab-btn-style" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
+          <button onclick="userSelectTab('style')" id="tab-btn-style" class="tab-btn relative overflow-hidden px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             <span>Subtitle Styling</span>
+            <div class="tab-progress" id="prog-style"></div>
           </button>
-          <button onclick="switchTab('export')" id="tab-btn-export" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
+          <button onclick="userSelectTab('export')" id="tab-btn-export" class="tab-btn relative overflow-hidden px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
             <span>4K 60FPS Export</span>
+            <div class="tab-progress" id="prog-export"></div>
           </button>
-          <button onclick="switchTab('start')" id="tab-btn-start" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
+          <button onclick="userSelectTab('start')" id="tab-btn-start" class="tab-btn relative overflow-hidden px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
             <span>Start Screen</span>
+            <div class="tab-progress" id="prog-start"></div>
           </button>
         </div>
       </div>
 
-      <!-- Hyprland Style Tiled Frame -->
-      <div class="p-[2px] rounded-2xl bg-gradient-to-br from-emerald-500/60 via-teal-500/25 to-cyan-500/40 shadow-[0_0_40px_rgba(11,187,104,0.18)]">
+      <!-- Hyprland Style Tiled Frame with Hover Pause -->
+      <div id="showcase-frame" class="p-[2px] rounded-2xl bg-gradient-to-br from-emerald-500/60 via-teal-500/25 to-cyan-500/40 shadow-[0_0_50px_rgba(11,187,104,0.18)] transition-all">
         <div class="rounded-[14px] bg-[#0c1017] overflow-hidden">
           <!-- Hyprland Top Bar -->
           <div class="h-9 bg-[#0b0e14]/90 border-b border-white/5 flex items-center justify-between px-4 select-none text-xs">
@@ -253,14 +325,19 @@
               </div>
             </div>
             <div class="flex items-center gap-3 text-slate-400 font-mono text-[11px]">
+              <button id="tour-toggle-btn" onclick="toggleTour()" class="hover:text-emerald-400 flex items-center gap-1 transition-colors">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span id="tour-status-label">Auto-tour active</span>
+              </button>
+              <span class="hidden sm:inline text-slate-600">•</span>
               <span class="hidden sm:inline text-slate-500">tiled</span>
               <span class="text-emerald-400 font-semibold">3840x2160 @ 60fps</span>
             </div>
           </div>
 
-          <!-- Screenshot Container -->
+          <!-- Screenshot Container with Smooth Crossfade -->
           <div class="relative aspect-[16/10] bg-slate-950 flex items-center justify-center overflow-hidden">
-            <img id="preview-image" src="site_assets/auto-captions.png" alt="clovercut interface" class="w-full h-full object-cover transition-opacity duration-200">
+            <img id="preview-image" src="site_assets/auto-captions.png" alt="clovercut interface" class="w-full h-full object-cover transition-all duration-300 ease-out">
           </div>
         </div>
       </div>
@@ -275,69 +352,81 @@
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <!-- Feature 1 -->
-        <div class="card-glass rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
-          <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        <div class="card-glass rounded-2xl p-6 flex flex-col justify-between group">
+          <div>
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+            <h4 class="text-lg font-bold text-white mb-2">Native Rust & WGSL speed</h4>
+            <p class="text-sm text-slate-300 leading-relaxed">
+              Written in Rust with Slint UI and hardware-accelerated WGSL shaders for instant timeline scrubbing and 60 FPS playback.
+            </p>
           </div>
-          <h4 class="text-lg font-bold text-white mb-2">Native Rust & WGSL speed</h4>
-          <p class="text-sm text-slate-300 leading-relaxed">
-            Written in Rust with Slint UI and hardware-accelerated WGSL shaders for instant timeline scrubbing and 60 FPS playback.
-          </p>
         </div>
 
         <!-- Feature 2 -->
-        <div class="card-glass rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
-          <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z"/></svg>
+        <div class="card-glass rounded-2xl p-6 flex flex-col justify-between group">
+          <div>
+            <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z"/></svg>
+            </div>
+            <h4 class="text-lg font-bold text-white mb-2">Active track slice (<kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-[11px] font-mono border border-slate-700">Ctrl+B</kbd>)</h4>
+            <p class="text-sm text-slate-300 leading-relaxed">
+              Quick single track splitting right under the playhead without cutting unselected layers or losing timeline rhythm.
+            </p>
           </div>
-          <h4 class="text-lg font-bold text-white mb-2">Active track slice (<kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-[11px] font-mono border border-slate-700">Ctrl+B</kbd>)</h4>
-          <p class="text-sm text-slate-300 leading-relaxed">
-            Quick single track splitting right under the playhead without cutting unselected layers or losing timeline rhythm.
-          </p>
         </div>
 
         <!-- Feature 3 -->
-        <div class="card-glass rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
-          <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+        <div class="card-glass rounded-2xl p-6 flex flex-col justify-between group">
+          <div>
+            <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+            </div>
+            <h4 class="text-lg font-bold text-white mb-2">GPU transitions & effects</h4>
+            <p class="text-sm text-slate-300 leading-relaxed">
+              Real-time transitions, glitch effects, blurs, and color adjustments powered directly by GPU compute shaders.
+            </p>
           </div>
-          <h4 class="text-lg font-bold text-white mb-2">GPU transitions & effects</h4>
-          <p class="text-sm text-slate-300 leading-relaxed">
-            Real-time transitions, glitch effects, blurs, and color adjustments powered directly by GPU compute shaders.
-          </p>
         </div>
 
         <!-- Feature 4 -->
-        <div class="card-glass rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
-          <div class="w-12 h-12 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+        <div class="card-glass rounded-2xl p-6 flex flex-col justify-between group">
+          <div>
+            <div class="w-12 h-12 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+            </div>
+            <h4 class="text-lg font-bold text-white mb-2">Adjustment layers</h4>
+            <p class="text-sm text-slate-300 leading-relaxed">
+              Non-destructive color grading and effects stacked above video tracks with strict timeline constraints to keep your project organized.
+            </p>
           </div>
-          <h4 class="text-lg font-bold text-white mb-2">Adjustment layers</h4>
-          <p class="text-sm text-slate-300 leading-relaxed">
-            Non-destructive color grading and effects stacked above video tracks with strict timeline constraints to keep your project organized.
-          </p>
         </div>
 
         <!-- Feature 5 -->
-        <div class="card-glass rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
-          <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+        <div class="card-glass rounded-2xl p-6 flex flex-col justify-between group">
+          <div>
+            <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+            </div>
+            <h4 class="text-lg font-bold text-white mb-2">Cross-platform</h4>
+            <p class="text-sm text-slate-300 leading-relaxed">
+              Compiled natively for Linux (x86_64 and ARM64 AppImages), Windows (installer and portable), and Android.
+            </p>
           </div>
-          <h4 class="text-lg font-bold text-white mb-2">Cross-platform</h4>
-          <p class="text-sm text-slate-300 leading-relaxed">
-            Compiled natively for Linux (x86_64 and ARM64 AppImages), Windows (installer and portable), and Android.
-          </p>
         </div>
 
         <!-- Feature 6 -->
-        <div class="card-glass rounded-2xl p-6 hover:border-emerald-500/30 transition-all group">
-          <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        <div class="card-glass rounded-2xl p-6 flex flex-col justify-between group">
+          <div>
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            </div>
+            <h4 class="text-lg font-bold text-white mb-2">Private by default</h4>
+            <p class="text-sm text-slate-300 leading-relaxed">
+              Your media and voice data remain on your machine. Zero tracking, zero ads, and zero telemetry.
+            </p>
           </div>
-          <h4 class="text-lg font-bold text-white mb-2">Private by default</h4>
-          <p class="text-sm text-slate-300 leading-relaxed">
-            Your media and voice data remain on your machine. Zero tracking, zero ads, and zero telemetry.
-          </p>
         </div>
       </div>
     </section>
@@ -362,10 +451,10 @@
               <p class="text-xs text-slate-400 mb-6">Self-contained portable AppImage for Ubuntu, Arch, Fedora, Debian, and other distributions.</p>
             </div>
             <div class="space-y-2">
-              <a href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-x86_64.AppImage" class="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all">
+              <a href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-x86_64.AppImage" class="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]">
                 <span>AppImage (x86_64)</span>
               </a>
-              <a href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-aarch64.AppImage" class="w-full py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-center gap-2 border border-white/5 transition-all">
+              <a href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-aarch64.AppImage" class="w-full py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-center gap-2 border border-white/5 transition-all hover:scale-[1.02] active:scale-[0.98]">
                 <span>AppImage (ARM64)</span>
               </a>
             </div>
@@ -381,10 +470,10 @@
               <p class="text-xs text-slate-400 mb-6">Standard NSIS Setup installer with desktop shortcut or standalone portable zip.</p>
             </div>
             <div class="space-y-2">
-              <a href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-windows-x86_64-setup.exe" class="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all">
+              <a href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-windows-x86_64-setup.exe" class="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]">
                 <span>Setup Installer (.exe)</span>
               </a>
-              <a href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-windows-x86_64-portable.zip" class="w-full py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-center gap-2 border border-white/5 transition-all">
+              <a href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-windows-x86_64-portable.zip" class="w-full py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-center gap-2 border border-white/5 transition-all hover:scale-[1.02] active:scale-[0.98]">
                 <span>Portable (.zip)</span>
               </a>
             </div>
@@ -400,7 +489,7 @@
               <p class="text-xs text-slate-400 mb-6">Direct APK package compatible with Android 8.0+ devices with 16 KB page support.</p>
             </div>
             <div class="space-y-2">
-              <a href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-android-arm64.apk" class="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all">
+              <a href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-android-arm64.apk" class="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]">
                 <span>Universal APK (.apk)</span>
               </a>
               <div class="py-2 text-center text-[12px] text-slate-500">16 KB page aligned</div>
@@ -435,7 +524,7 @@
   </div>
 
   <script>
-    // Tab switching logic for preview showcase
+    // Tab switching data
     const tabs = {
       captions: {
         img: 'site_assets/auto-captions.png',
@@ -467,23 +556,37 @@
       }
     };
 
-    function switchTab(name) {
+    const tabKeys = Object.keys(tabs);
+    let currentIndex = 0;
+    let tourActive = true;
+    let progressTimer = null;
+    let currentProgress = 0;
+    const CYCLE_DURATION_MS = 4500;
+    const TICK_INTERVAL_MS = 50;
+
+    function renderTab(name) {
       const data = tabs[name];
       if (!data) return;
 
       const img = document.getElementById('preview-image');
       const title = document.getElementById('window-title-text');
 
-      img.style.opacity = '0';
+      img.style.opacity = '0.35';
+      img.style.transform = 'scale(0.995)';
       setTimeout(() => {
         img.src = data.img;
         title.innerText = data.title;
         img.style.opacity = '1';
-      }, 150);
+        img.style.transform = 'scale(1)';
+      }, 140);
 
       document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('tab-active');
         btn.classList.add('text-slate-300');
+      });
+
+      document.querySelectorAll('.tab-progress').forEach(p => {
+        p.style.width = '0%';
       });
 
       const activeBtn = document.getElementById('tab-btn-' + name);
@@ -492,6 +595,66 @@
         activeBtn.classList.remove('text-slate-300');
       }
     }
+
+    function userSelectTab(name) {
+      const idx = tabKeys.indexOf(name);
+      if (idx !== -1) {
+        currentIndex = idx;
+        currentProgress = 0;
+        renderTab(name);
+      }
+    }
+
+    function nextTab() {
+      currentIndex = (currentIndex + 1) % tabKeys.length;
+      currentProgress = 0;
+      renderTab(tabKeys[currentIndex]);
+    }
+
+    function toggleTour() {
+      tourActive = !tourActive;
+      const label = document.getElementById('tour-status-label');
+      label.innerText = tourActive ? 'Auto-tour active' : 'Paused (click to resume)';
+    }
+
+    // Auto-tour loop with dynamic progress bar
+    function startProgressLoop() {
+      progressTimer = setInterval(() => {
+        if (!tourActive) return;
+
+        currentProgress += (TICK_INTERVAL_MS / CYCLE_DURATION_MS) * 100;
+        const currentKey = tabKeys[currentIndex];
+        const progEl = document.getElementById('prog-' + currentKey);
+        if (progEl) {
+          progEl.style.width = Math.min(currentProgress, 100) + '%';
+        }
+
+        if (currentProgress >= 100) {
+          nextTab();
+        }
+      }, TICK_INTERVAL_MS);
+    }
+
+    // Pause on hover over showcase frame
+    const frame = document.getElementById('showcase-frame');
+    if (frame) {
+      frame.addEventListener('mouseenter', () => { tourActive = false; });
+      frame.addEventListener('mouseleave', () => { tourActive = true; });
+    }
+
+    // Dynamic mouse spotlight glow tracking on cards
+    document.querySelectorAll('.card-glass').forEach(card => {
+      card.addEventListener('mousemove', e => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        card.style.setProperty('--mouse-x', `${x}px`);
+        card.style.setProperty('--mouse-y', `${y}px`);
+      });
+    });
+
+    // Start tour
+    startProgressLoop();
 
     // Dynamic OS detection for hero download button
     (function detectOS() {
