@@ -5926,8 +5926,7 @@ impl Studio {
 
                 if is_new_track {
                     let anchor = origins.first().and_then(|orig| self.clip(&orig.clip));
-                    let is_caption =
-                        anchor.map_or(false, |c| concat_project::captions::is_caption(c));
+                    let is_caption = anchor.is_some_and(concat_project::captions::is_caption);
                     let track_kind = anchor.map_or(model::TrackKind::Video, |c| {
                         model::TrackKind::from_clip_kind(c.kind, is_caption)
                     });
