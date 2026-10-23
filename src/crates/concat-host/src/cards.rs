@@ -301,9 +301,12 @@ impl Painter {
 
         let city_frame = if let Some(city_path) = city {
             if city_path.is_file() {
-                Decoder::open(city_path, &DecodeOptions::default().scaled_to(width, height))
-                    .ok()
-                    .and_then(|mut dec| dec.next_frame().ok().flatten())
+                Decoder::open(
+                    city_path,
+                    &DecodeOptions::default().scaled_to(width, height),
+                )
+                .ok()
+                .and_then(|mut dec| dec.next_frame().ok().flatten())
             } else {
                 None
             }
@@ -338,7 +341,11 @@ impl Painter {
         let (width, height) = (self.still.width(), self.still.height());
         let moment = Rational::approximate(card.moment).ok_or("the moment is not a time")?;
         let frame = match &card.drawing {
-            Drawing::Picture { pass, screen, theme } => {
+            Drawing::Picture {
+                pass,
+                screen,
+                theme,
+            } => {
                 let base = match theme {
                     CardTheme::Abrupt => &self.city,
                     CardTheme::Calm => &self.still,
@@ -697,7 +704,8 @@ mod tests {
             .unwrap_or_else(|| scratch("draw"));
         let still = still_in(&dir).expect("the still");
         let city = city_still_in(&dir).ok();
-        let mut painter = Painter::with_city(compositor, &still, city.as_deref(), WIDTH, HEIGHT).expect("a painter");
+        let mut painter = Painter::with_city(compositor, &still, city.as_deref(), WIDTH, HEIGHT)
+            .expect("a painter");
         let mut idle = Vec::new();
         let mut failed = Vec::new();
         let cards = cards(Catalogue::builtin(), &dir);
@@ -715,10 +723,13 @@ mod tests {
                     screen: Some(colour),
                     theme,
                     ..
-                } => screened(match theme {
-                    CardTheme::Abrupt => &painter.city,
-                    CardTheme::Calm => &painter.still,
-                }, *colour),
+                } => screened(
+                    match theme {
+                        CardTheme::Abrupt => &painter.city,
+                        CardTheme::Calm => &painter.still,
+                    },
+                    *colour,
+                ),
                 Drawing::Picture { theme, .. } => match theme {
                     CardTheme::Abrupt => (*painter.city).clone(),
                     CardTheme::Calm => (*painter.still).clone(),

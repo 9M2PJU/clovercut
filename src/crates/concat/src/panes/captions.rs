@@ -636,8 +636,14 @@ impl CaptionsPane {
             let windows = (total_window / 30.0).ceil().max(1.0) as f32;
             let learned = self.timings.get(&model);
             let loaded = studio.host.transcriber.loaded_model().as_deref() == Some(model.as_str());
-            let load = if loaded { 0.0 } else { learned.load.unwrap_or(0.5 + megabytes / 400.0) };
-            let per_window = learned.per_unit.unwrap_or(0.3 + megabytes * WINDOW_SECONDS_PER_MB);
+            let load = if loaded {
+                0.0
+            } else {
+                learned.load.unwrap_or(0.5 + megabytes / 400.0)
+            };
+            let per_window = learned
+                .per_unit
+                .unwrap_or(0.3 + megabytes * WINDOW_SECONDS_PER_MB);
             self.pace = Pace::new(vec![
                 (Stage::Reading, 0.2 + total_window as f32 / 400.0),
                 (Stage::Loading, load),
@@ -1117,7 +1123,11 @@ fn wrap_caption(sentence: &str) -> Vec<String> {
 mod tests {
     use super::*;
 
-    fn srt_commands(cues: Vec<concat_project::srt::Cue>, look: (f64, f64), base: Option<&concat_project::model::TextStyle>) -> Vec<concat_project::Command> {
+    fn srt_commands(
+        cues: Vec<concat_project::srt::Cue>,
+        look: (f64, f64),
+        base: Option<&concat_project::model::TextStyle>,
+    ) -> Vec<concat_project::Command> {
         cues.into_iter()
             .filter(|cue| !cue.text.trim().is_empty())
             .map(|cue| {

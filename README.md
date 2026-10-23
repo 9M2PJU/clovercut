@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/tulcoturo/clovercut"><img src="https://img.shields.io/badge/Project-Clovercut-16b86a" alt="Clovercut project" /></a>
-  <a href="https://github.com/tulcoturo/clovercut/releases"><img src="https://img.shields.io/badge/Version-0.1.2-00bcd4" alt="Source version 0.1.2" /></a>
+  <a href="https://github.com/tulcoturo/clovercut/releases"><img src="https://img.shields.io/badge/Version-0.1.3-00bcd4" alt="Source version 0.1.3" /></a>
   <a href="https://github.com/tulcoturo/clovercut/issues"><img src="https://img.shields.io/badge/Feedback-Issues-blue" alt="Report bugs and suggest improvements" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-16b86a" alt="License: AGPL-3.0-or-later" /></a>
   <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-blueviolet" alt="Linux and Windows" />
@@ -29,19 +29,22 @@ Built with a high-performance **Rust** engine and a responsive **Slint** interfa
 
 ---
 
-## Current Version: 0.1.2
+## Current Version: 0.1.3
 
-The current version is **0.1.2**; see [Releases](https://github.com/tulcoturo/clovercut/releases) for available downloads across Linux (AppImage), Windows (installer and portable), and Android (APK).
+The current version is **0.1.3**; see [Releases](https://github.com/tulcoturo/clovercut/releases) for available downloads across Linux (AppImage), Windows (installer and portable), and Android (APK).
 
-Highlights in version 0.1.2 include:
+Highlights in version 0.1.3 include:
 
-- **CapCut-style Timeline Track Zones:** Fixed main video track, dedicated audio zone strictly below the main track, and dedicated visual overlays zone above the main track.
-- **Accurate Track Drag & Drop:** Clean glowing insertion indicator line with inline `+ Nova Pista` badge at `insert_y`.
-- **CapCut Workspace Layout Presets:** Dropdown layout switcher with Audio Editing (full-height center timeline), Vertical Video Right/Left (full-height 9:16 mobile player), Media Priority, and Inspector Priority.
-- **Professional NLE Shortcut Profiles:** Header keyboard button and presets for Clovercut/CapCut, Adobe Premiere Pro, Final Cut Pro, DaVinci Resolve, and Custom.
-- **Upstream Reliability:** Isolated shortcuts during sheet/input focus, atomic settings saves, and Android OpenGL ES safe start.
+- **Vector SVG UI Graphics:** Integrated `assets/applogo.svg` and `assets/typography.svg` directly in the UI for crisp anti-aliased presentation on all displays.
+- **Square 1:1 Preview Cards:** Modern CapCut-style 1:1 square tiles for Transitions, Effects, Filters, and Adjustments.
+- **Sunset & City Reference Stills:** Dual-theme preview stills (sunset for calm color/filters, city skyline for glitch/distortion/transitions).
+- **Expanded Built-in Transitions:** Added 7 new transition effects (Barn Door, Circle Close, Cover Left/Right, Wipe Up/Down, Pixelize).
+- **Full-Project Auto-Captions:** Continuous project-wide subtitle generation regardless of clip cuts.
+- **Single Active Track Playhead Cut:** Precision razor splitting (`Ctrl+B`) targeting only the selected track.
+- **Strict Visual Track Constraints:** Adjustment layers strictly bounded to visual zones on or above the main video lane.
+- **Complete English UI:** Full consistency across all timeline controls, badges, and contextual actions.
 
-See the [0.1.2 release notes](docs/releases/0.1.2.md) for the full release overview.
+See the [0.1.3 release notes](docs/releases/0.1.3.md) for the full release overview.
 
 ## Why Clovercut? Core Standout Features
 
@@ -113,8 +116,8 @@ chmod +x Clovercut-0.0.2-x86_64.AppImage
 - **Installer:** Download `Clovercut-0.0.2-windows-x86_64-setup.exe` and follow the guided setup.
 - **Portable:** Download `Clovercut-0.0.2-windows-x86_64-portable.zip`, extract to any directory, and run `clovercut.exe`.
 
-### Android ARM64 (0.1.2 packaging target)
-The 0.1.2 workflow includes `Clovercut-0.1.2-android-arm64.apk`. Check the release assets for availability; Android device testing is separate from desktop validation.
+### Android ARM64 (0.1.3 packaging target)
+The 0.1.3 workflow includes `Clovercut-0.1.3-android-arm64.apk`. Check the release assets for availability; Android device testing is separate from desktop validation.
 
 ### Safe Graphics Mode
 If a GPU driver issue causes window corruption or crashes on startup:

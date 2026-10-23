@@ -8824,7 +8824,10 @@ impl Studio {
                 let main_track_id = self.timeline().main_track().map(|t| t.id.clone());
                 let main_under: Vec<String> = under
                     .iter()
-                    .filter(|id| self.clip(id).is_some_and(|c| Some(&c.track_id) == main_track_id.as_ref()))
+                    .filter(|id| {
+                        self.clip(id)
+                            .is_some_and(|c| Some(&c.track_id) == main_track_id.as_ref())
+                    })
                     .cloned()
                     .collect();
                 if !main_under.is_empty() {
@@ -8837,7 +8840,10 @@ impl Studio {
             let main_track_id = self.timeline().main_track().map(|t| t.id.clone());
             let main_under: Vec<String> = under
                 .iter()
-                .filter(|id| self.clip(id).is_some_and(|c| Some(&c.track_id) == main_track_id.as_ref()))
+                .filter(|id| {
+                    self.clip(id)
+                        .is_some_and(|c| Some(&c.track_id) == main_track_id.as_ref())
+                })
                 .cloned()
                 .collect();
             if !main_under.is_empty() {

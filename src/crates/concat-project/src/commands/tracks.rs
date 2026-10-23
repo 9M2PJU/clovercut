@@ -48,7 +48,11 @@ pub(super) fn apply(
                 };
                 timeline.tracks.insert(clamp_idx, track);
             } else if bottom || is_audio {
-                let insert_idx = if is_audio { 0 } else { (main_idx + 1).min(timeline.tracks.len()) };
+                let insert_idx = if is_audio {
+                    0
+                } else {
+                    (main_idx + 1).min(timeline.tracks.len())
+                };
                 timeline.tracks.insert(insert_idx, track);
             } else {
                 timeline.tracks.push(track);
