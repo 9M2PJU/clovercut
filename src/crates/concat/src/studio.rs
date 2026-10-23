@@ -1033,6 +1033,7 @@ pub struct Studio {
     cards_drawn: u64,
     /// Whether cards are being drawn, and whether the catalogue changed
     /// while they were, which makes for another round when this one ends.
+    pub gl_transitions: crate::panes::gl_transitions::State,
     cards_busy: bool,
     cards_again: bool,
     /// The watch on the user's effects folder: a poll every couple of
@@ -1462,6 +1463,7 @@ struct ShelfStamp {
     views: Vec<(String, i32, bool, String)>,
     favourites: Vec<String>,
     gl_transitions: bool,
+    gl_entries: usize,
 }
 
 /// The built-in colour package's id; see `adjust_rows` and `Studio::adjust_set`.
@@ -2504,6 +2506,7 @@ impl Studio {
             look_art: std::cell::RefCell::new(HashMap::new()),
             card_paths: HashMap::new(),
             cards_drawn: 0,
+            gl_transitions: Default::default(),
             cards_busy: false,
             cards_again: false,
             packages_watch: slint::Timer::default(),
@@ -4500,8 +4503,8 @@ impl Studio {
                 .transition_drop_target(&track_id, plan.start, self.frame_seconds() / 2.0)
                 .map(|clip| clip.id.clone())
             {
-                self.apply_transition_to(&target, id);
                 self.selection = vec![target];
+                crate::panes::gl_transitions::apply(self, id);
             }
             return;
         }
@@ -12557,6 +12560,7 @@ impl Studio {
                 .collect(),
             favourites: starred.clone(),
             gl_transitions: self.prefs.gl_transitions_library,
+            gl_entries: self.gl_transitions.entries.len(),
         };
         if self.shelf_stamp.borrow().as_ref() != Some(&stamp) {
             // The looks made from tables are the Adjustments page's, not
@@ -12635,6 +12639,51 @@ impl Studio {
                     }
                 },
             );
+            let mut groups = groups;
+            let mut entries = entries;
+            if gl_transitions_enabled {
+                let group = groups
+                    .iter()
+                    .position(|g| g.as_str() == "GL Transitions")
+                    .unwrap_or_else(|| {
+                        groups.push("GL Transitions".into());
+                        groups.len() - 1
+                    });
+                let view = &self.library[3];
+                let query = view.query.trim().to_lowercase();
+                for remote in &self.gl_transitions.entries {
+                    let id = remote.id();
+                    if remote.legacy() || Catalogue::builtin().get(&id).is_some() {
+                        continue;
+                    }
+                    let favourite = starred.contains(&id);
+                    let description = format!(
+                        "{} — {} · {}",
+                        remote.description, remote.author, remote.license
+                    );
+                    let shown = if view.favourites {
+                        favourite
+                    } else if !query.is_empty() {
+                        remote.name.to_lowercase().contains(&query)
+                            || description.to_lowercase().contains(&query)
+                    } else if !view.category.is_empty() {
+                        view.category == "GL Transitions"
+                    } else {
+                        view.group < 0 || view.group == group as i32
+                    };
+                    if shown {
+                        entries.push(CatalogueEntryData {
+                            id: id.into(),
+                            name: remote.name.as_str().into(),
+                            category: "GL Transitions".into(),
+                            group: group as i32,
+                            description: description.into(),
+                            favourite,
+                            art: Default::default(),
+                        });
+                    }
+                }
+            }
             sync(&models.transition_groups, groups);
             sync(&models.catalogue_transitions, entries);
             *self.shelf_stamp.borrow_mut() = Some(stamp);

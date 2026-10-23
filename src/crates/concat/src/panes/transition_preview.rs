@@ -32,6 +32,7 @@ pub fn request(studio: &mut Studio, id: &str) {
     let dir = Studio::cards_dir(&studio.host.dirs);
     let catalogue = concat_effects::Catalogue::builtin();
     let Some(package) = catalogue.get(id) else {
+        super::gl_transitions::download(studio, id, Some(generation), None);
         return;
     };
     if package.transition().is_none() {
@@ -135,4 +136,11 @@ pub fn request(studio: &mut Studio, id: &str) {
         sender
     });
     let _ = sender.send((generation, card));
+}
+
+/// Resumes a downloaded preview only while its original hover is current.
+pub fn resume(studio: &mut Studio, id: &str, generation: u64) {
+    if GENERATION.load(Ordering::Relaxed) == generation {
+        request(studio, id);
+    }
 }

@@ -331,6 +331,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     }
     studio.reload_packages(false);
     studio.watch_packages();
+    panes::gl_transitions::start(&mut studio);
     let dark = studio.prefs.dark.unwrap_or(true);
     app.global::<Theme>().set_dark(dark);
     // The accent is remembered by name and the names live on the Theme
@@ -979,7 +980,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         state.apply_catalogue(id.as_str(), false);
     }));
     editor.on_library_apply_transition(on_window!(|state, id: SharedString| {
-        state.apply_transition(id.as_str());
+        panes::gl_transitions::apply(&mut state, id.as_str());
     }));
     editor.on_library_save_template(on_window!(|state| {
         state.save_template();
@@ -1962,6 +1963,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         libraries.on_enable_gl_transitions(on_window!(|state, enabled: bool| {
             state.prefs.gl_transitions_library = enabled;
             state.prefs.save(&state.host.dirs);
+            if enabled {
+                panes::gl_transitions::start(&mut state);
+            }
         }));
     }
     app.on_open_settings(on_window!(|state| {

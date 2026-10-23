@@ -29,6 +29,7 @@ pub mod enhance;
 pub mod export;
 pub mod freesound;
 pub mod giphy;
+pub mod gl_transitions;
 pub mod jobs;
 pub mod lock;
 pub mod logs;

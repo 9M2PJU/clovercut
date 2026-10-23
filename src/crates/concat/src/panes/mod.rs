@@ -16,6 +16,7 @@
 
 pub mod captions;
 pub mod export;
+pub mod gl_transitions;
 pub mod glide;
 pub mod media_bin;
 pub mod monitor;
