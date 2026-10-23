@@ -52,7 +52,7 @@ use masking::{MaskFrame, MaskGrip};
 use slint::{Model, ModelRc, SharedString, VecModel};
 
 use crate::dock::{
-    Dock, DockLayout, SEAT_GAP, default_dock, lay_out, nearest_row, row_at, row_top,
+    Dock, DockLayout, SEAT_GAP, default_dock, lay_out, row_at, row_top,
 };
 use crate::format::{
     WAVE_BAR, WAVE_PITCH, colour_of, frames_timecode, hex_of, hex_with_alpha, rate_label,
@@ -605,6 +605,32 @@ pub struct DropPlan {
     pub duration: f64,
     pub row: i32,
     pub new_track: bool,
+    pub insert_at: usize,
+    pub insert_y: f32,
+}
+
+impl DropPlan {
+    pub fn new(kind: ClipKind, label: String, media: String, duration: f64) -> Self {
+        Self {
+            kind,
+            label,
+            media,
+            start: 0.0,
+            duration,
+            row: 0,
+            new_track: false,
+            insert_at: 0,
+            insert_y: 0.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TrackTarget {
+    pub new_track: bool,
+    pub row: i32,
+    pub insert_at: usize,
+    pub insert_y: f32,
 }
 
 /// Every model the window is handed, kept for its lifetime rather than
@@ -929,6 +955,7 @@ pub struct Studio {
 
     // ── the workspace ──
     pub dock: Dock,
+    pub current_layout_preset: crate::dock::LayoutPreset,
     /// The dock not showing: the compact one while the window is wide,
     /// the wide one while it is compact. Swapped with `dock` as the
     /// window crosses `COMPACT_WIDTH`, so each keeps its shape.
@@ -2456,6 +2483,7 @@ impl Studio {
             lengths: HashMap::new(),
             project_name: t("common.untitledProject"),
             dock: default_dock(),
+            current_layout_preset: crate::dock::LayoutPreset::Default,
             dock_aside: crate::dock::compact_dock(),
             compact: false,
             workspace: (0.0, 0.0),
@@ -2709,8 +2737,171 @@ impl Studio {
         }
     }
 
+    /// Resolves target track and insertion parameters based on the element kind and mouse Y.
+    /// Strictly maintains CapCut-style zones: visual tracks on/above main video track,
+    /// audio tracks strictly below main video track.
+    pub fn resolve_track_target(&self, item_kind: model::TrackKind, stack_y: f32) -> TrackTarget {
+        let tracks = &self.timeline().tracks;
+        let heights = self.lane_heights();
+        let count = tracks.len();
+        if count == 0 {
+            return TrackTarget {
+                new_track: true,
+                row: 0,
+                insert_at: 0,
+                insert_y: 0.0,
+            };
+        }
+
+        let main_b = self.timeline().main_track_index().min(count - 1);
+        let main_row = (count - 1 - main_b) as i32;
+        let main_top = row_top(&heights, main_row);
+        let main_h = heights[main_row as usize];
+        let main_bot = main_top + main_h;
+        let is_audio = item_kind == model::TrackKind::Audio;
+        let edge_thresh = 14.0_f32;
+
+        if is_audio {
+            // Audio zone is strictly below the main track (UI rows > main_row).
+            if main_row == (count - 1) as i32 {
+                return TrackTarget {
+                    new_track: true,
+                    row: main_row,
+                    insert_at: main_b,
+                    insert_y: main_bot,
+                };
+            }
+
+            let clamped_y = stack_y.max(main_bot);
+            let r = row_at(&heights, clamped_y).clamp(main_row + 1, (count - 1) as i32);
+            let r_top = row_top(&heights, r);
+            let r_h = heights[r as usize];
+            let r_mid = r_top + r_h / 2.0;
+            let b = count - 1 - r as usize;
+
+            if clamped_y < r_top + edge_thresh {
+                let insert_at = (b + 1).min(main_b);
+                TrackTarget {
+                    new_track: true,
+                    row: r,
+                    insert_at,
+                    insert_y: r_top,
+                }
+            } else if clamped_y > r_top + r_h - edge_thresh {
+                TrackTarget {
+                    new_track: true,
+                    row: r,
+                    insert_at: b,
+                    insert_y: r_top + r_h,
+                }
+            } else {
+                let track = &tracks[b];
+                if self.track_kind(track) == model::TrackKind::Audio {
+                    TrackTarget {
+                        new_track: false,
+                        row: r,
+                        insert_at: b,
+                        insert_y: r_top,
+                    }
+                } else if clamped_y < r_mid {
+                    TrackTarget {
+                        new_track: true,
+                        row: r,
+                        insert_at: (b + 1).min(main_b),
+                        insert_y: r_top,
+                    }
+                } else {
+                    TrackTarget {
+                        new_track: true,
+                        row: r,
+                        insert_at: b,
+                        insert_y: r_top + r_h,
+                    }
+                }
+            }
+        } else {
+            // Visual zone: strictly on or above the main track (UI rows 0..=main_row).
+            let clamped_y = stack_y.min(main_bot - 1.0).max(0.0);
+            let r = row_at(&heights, clamped_y).clamp(0, main_row);
+            let r_top = row_top(&heights, r);
+            let r_h = heights[r as usize];
+            let r_mid = r_top + r_h / 2.0;
+            let b = count - 1 - r as usize;
+
+            if r == main_row {
+                if item_kind == model::TrackKind::Video {
+                    if clamped_y < r_top + edge_thresh {
+                        TrackTarget {
+                            new_track: true,
+                            row: r,
+                            insert_at: main_b + 1,
+                            insert_y: r_top,
+                        }
+                    } else {
+                        TrackTarget {
+                            new_track: false,
+                            row: r,
+                            insert_at: main_b,
+                            insert_y: r_top,
+                        }
+                    }
+                } else {
+                    TrackTarget {
+                        new_track: true,
+                        row: r,
+                        insert_at: main_b + 1,
+                        insert_y: r_top,
+                    }
+                }
+            } else {
+                let track = &tracks[b];
+                let track_k = self.track_kind(track);
+
+                if clamped_y < r_top + edge_thresh {
+                    TrackTarget {
+                        new_track: true,
+                        row: r,
+                        insert_at: b + 1,
+                        insert_y: r_top,
+                    }
+                } else if clamped_y > r_top + r_h - edge_thresh {
+                    let insert_at = b.max(main_b + 1);
+                    TrackTarget {
+                        new_track: true,
+                        row: r,
+                        insert_at,
+                        insert_y: r_top + r_h,
+                    }
+                } else if track_k == item_kind {
+                    TrackTarget {
+                        new_track: false,
+                        row: r,
+                        insert_at: b,
+                        insert_y: r_top,
+                    }
+                } else if clamped_y < r_mid {
+                    TrackTarget {
+                        new_track: true,
+                        row: r,
+                        insert_at: b + 1,
+                        insert_y: r_top,
+                    }
+                } else {
+                    let insert_at = b.max(main_b + 1);
+                    TrackTarget {
+                        new_track: true,
+                        row: r,
+                        insert_at,
+                        insert_y: r_top + r_h,
+                    }
+                }
+            }
+        }
+    }
+
     /// Finds the preferred insertion index (in the bottom-to-top track stack)
     /// to keep tracks of the same kind grouped together.
+    #[allow(dead_code)]
     pub fn insertion_index_for_track_kind(&self, kind: model::TrackKind) -> Option<usize> {
         let tracks = &self.timeline().tracks;
         if tracks.is_empty() {
@@ -4008,26 +4199,22 @@ impl Studio {
         match sort {
             "media" => {
                 let item = self.media.by_row(self.project(), id.parse().ok()?)?;
-                Some(DropPlan {
-                    kind: match item.kind {
+                let duration = if item.kind == model::MediaKind::Image {
+                    f64::from(LAYER_DURATION)
+                } else {
+                    item.duration.unwrap_or(5.0)
+                }
+                .max(f64::from(MIN_DURATION));
+                Some(DropPlan::new(
+                    match item.kind {
                         model::MediaKind::Audio => ClipKind::Audio,
                         model::MediaKind::Image => ClipKind::Image,
                         model::MediaKind::Video => ClipKind::Video,
                     },
-                    label: item.name.clone(),
-                    media: item.id.clone(),
-                    start: 0.0,
-                    // A still has no length of its own; a file with no stated
-                    // duration gets the engine's own fallback.
-                    duration: if item.kind == model::MediaKind::Image {
-                        f64::from(LAYER_DURATION)
-                    } else {
-                        item.duration.unwrap_or(5.0)
-                    }
-                    .max(f64::from(MIN_DURATION)),
-                    row: 0,
-                    new_track: false,
-                })
+                    item.name.clone(),
+                    item.id.clone(),
+                    duration,
+                ))
             }
             // A title: the preset's id rides where a file's media id would,
             // "default" for the plain one.
@@ -4038,109 +4225,83 @@ impl Studio {
                     .iter()
                     .find(|source| source.id == id)?;
                 let cues = concat_project::srt::parse(&source.srt).ok()?;
-                Some(DropPlan {
-                    kind: ClipKind::Text,
-                    label: source.name.clone(),
-                    media: format!("caption:{id}"),
-                    start: 0.0,
-                    duration: cues
-                        .iter()
-                        .map(|cue| cue.end)
-                        .fold(0.0_f64, f64::max)
-                        .max(f64::from(MIN_DURATION)),
-                    row: 0,
-                    new_track: false,
-                })
+                let duration = cues
+                    .iter()
+                    .map(|cue| cue.end)
+                    .fold(0.0_f64, f64::max)
+                    .max(f64::from(MIN_DURATION));
+                Some(DropPlan::new(
+                    ClipKind::Text,
+                    source.name.clone(),
+                    format!("caption:{id}"),
+                    duration,
+                ))
             }
-            "text" => Some(DropPlan {
-                kind: ClipKind::Text,
-                label: label.to_owned(),
-                media: id.to_owned(),
-                start: 0.0,
-                duration: f64::from(LAYER_DURATION),
-                row: 0,
-                new_track: false,
-            }),
+            "text" => Some(DropPlan::new(
+                ClipKind::Text,
+                label.to_owned(),
+                id.to_owned(),
+                f64::from(LAYER_DURATION),
+            )),
             // A figure from the Stickers page: the shape's name rides
             // where a file's media id would, and the label is what the
             // lane will call it.
-            "shape" => Some(DropPlan {
-                kind: ClipKind::Shape,
-                label: label.to_owned(),
-                media: model::ShapeKind::parse(id)?.id().to_owned(),
-                start: 0.0,
-                duration: f64::from(LAYER_DURATION),
-                row: 0,
-                new_track: false,
-            }),
+            "shape" => Some(DropPlan::new(
+                ClipKind::Shape,
+                label.to_owned(),
+                model::ShapeKind::parse(id)?.id().to_owned(),
+                f64::from(LAYER_DURATION),
+            )),
             // A sound from the Audio page: not in the bin yet, so its card
             // rides in `media` behind `sound:`, and the drop imports it.
             "sticker" => {
                 let sticker = self.stickers.get(id)?;
-                Some(DropPlan {
-                    kind: ClipKind::Video,
-                    label: sticker.title.clone(),
-                    media: format!("sticker:{id}"),
-                    start: 0.0,
-                    duration: 3.0,
-                    row: 0,
-                    new_track: false,
-                })
+                Some(DropPlan::new(
+                    ClipKind::Video,
+                    sticker.title.clone(),
+                    format!("sticker:{id}"),
+                    3.0,
+                ))
             }
             "sound" => {
                 let (name, duration) = self.sound_summary(id)?;
-                Some(DropPlan {
-                    kind: ClipKind::Audio,
-                    label: name,
-                    media: format!("sound:{id}"),
-                    start: 0.0,
-                    duration: duration.max(f64::from(MIN_DURATION)),
-                    row: 0,
-                    new_track: false,
-                })
+                Some(DropPlan::new(
+                    ClipKind::Audio,
+                    name,
+                    format!("sound:{id}"),
+                    duration.max(f64::from(MIN_DURATION)),
+                ))
             }
             // A look dragged from the Filters page: a layer over a span.
             // The package id rides in `media`, there being no file.
-            "effect" | "clip-filter" | "lut" => Some(DropPlan {
-                kind: ClipKind::Filter,
-                label: label.to_owned(),
-                media: format!("{sort}:{id}"),
-                start: 0.0,
-                duration: f64::from(LAYER_DURATION),
-                row: 0,
-                new_track: false,
-            }),
-            "transition" | "audio-effect" => Some(DropPlan {
-                kind: if sort == "audio-effect" {
+            "effect" | "clip-filter" | "lut" => Some(DropPlan::new(
+                ClipKind::Filter,
+                label.to_owned(),
+                format!("{sort}:{id}"),
+                f64::from(LAYER_DURATION),
+            )),
+            "transition" | "audio-effect" => Some(DropPlan::new(
+                if sort == "audio-effect" {
                     ClipKind::Audio
                 } else {
                     ClipKind::Video
                 },
-                label: label.to_owned(),
-                media: format!("{sort}:{id}"),
-                start: 0.0,
-                duration: 0.5,
-                row: 0,
-                new_track: false,
-            }),
-            "effect-layer" => Some(DropPlan {
-                kind: ClipKind::Filter,
-                label: label.to_owned(),
-                media: format!("layer:{id}"),
-                start: 0.0,
-                duration: f64::from(LAYER_DURATION),
-                row: 0,
-                new_track: false,
-            }),
-            "filter" => Some(DropPlan {
-                kind: ClipKind::Filter,
-                label: label.to_owned(),
-                media: id.to_owned(),
-                start: 0.0,
-                duration: f64::from(LAYER_DURATION),
-                row: 0,
-                new_track: false,
-            }),
+                label.to_owned(),
+                format!("{sort}:{id}"),
+                0.5,
+            )),
+            "effect-layer" => Some(DropPlan::new(
+                ClipKind::Filter,
+                label.to_owned(),
+                format!("layer:{id}"),
+                f64::from(LAYER_DURATION),
+            )),
+            "filter" => Some(DropPlan::new(
+                ClipKind::Filter,
+                label.to_owned(),
+                id.to_owned(),
+                f64::from(LAYER_DURATION),
+            )),
             _ => None,
         }
     }
@@ -4228,39 +4389,40 @@ impl Studio {
             model::TrackKind::Video
         };
 
-        let (target_row, is_new_track) = if self.drop.as_ref().is_some_and(|d| d.new_track) {
-            if y < 60.0 {
-                (0, true)
-            } else {
-                let adj_row = row_at(&self.lane_heights(), y - 60.0).clamp(0, lanes - 1);
-                let track = self.row_track(adj_row);
-                let incompatible = track.is_some_and(|t| self.track_kind(t) != item_track_kind);
-                let overlaps = track.is_some_and(|t| {
-                    self.timeline().clips.iter().any(|c| {
-                        c.track_id == t.id
-                            && c.start < plan.start + plan.duration
-                            && c.start + c.duration > plan.start
-                    })
-                });
-                (adj_row, overlaps || incompatible)
-            }
-        } else {
-            let in_top = row == 0 && y < 35.0;
-            let target = row.clamp(0, lanes - 1);
-            let track = self.row_track(target);
-            let incompatible = track.is_some_and(|t| self.track_kind(t) != item_track_kind);
-            let overlaps = track.is_some_and(|t| {
-                self.timeline().clips.iter().any(|c| {
-                    c.track_id == t.id
-                        && c.start < plan.start + plan.duration
-                        && c.start + c.duration > plan.start
-                })
-            });
-            (target, in_top || overlaps || incompatible)
-        };
+        let target = self.resolve_track_target(item_track_kind, y);
+        let main_b = self.timeline().main_track_index();
+        let main_row = lanes - 1 - main_b as i32;
+        let is_main_track = target.row == main_row;
 
-        plan.row = target_row;
-        plan.new_track = is_new_track;
+        let overlaps = !target.new_track && self.row_track(target.row).is_some_and(|t| {
+            self.timeline().clips.iter().any(|c| {
+                c.track_id == t.id
+                    && c.start < plan.start + plan.duration
+                    && c.start + c.duration > plan.start
+            })
+        });
+
+        if target.new_track {
+            plan.new_track = true;
+            plan.row = target.row;
+            plan.insert_at = target.insert_at;
+            plan.insert_y = target.insert_y;
+        } else if overlaps && (!is_main_track || !self.prefs.magnetic) {
+            plan.new_track = true;
+            plan.row = target.row;
+            let b = (lanes - 1 - target.row) as usize;
+            plan.insert_at = if item_track_kind == model::TrackKind::Audio {
+                (b + 1).min(main_b)
+            } else {
+                b + 1
+            };
+            plan.insert_y = row_top(&self.lane_heights(), target.row);
+        } else {
+            plan.new_track = false;
+            plan.row = target.row;
+            plan.insert_at = target.insert_at;
+            plan.insert_y = target.insert_y;
+        }
 
         if !plan.new_track {
             if self
@@ -4367,29 +4529,13 @@ impl Studio {
             model::TrackKind::Video
         };
 
-        let target_incompatible = self
-            .timeline()
-            .tracks
-            .iter()
-            .find(|t| t.id == track_id)
-            .is_some_and(|t| self.track_kind(t) != item_track_kind);
-
-        // If the drop plan requested a new track, or the target track is incompatible
-        // or already has an overlapping clip, mint a new track so the element layers over it.
-        let will_make_new_track = plan.new_track
-            || target_incompatible
-            || self.timeline().clips.iter().any(|c| {
-                c.track_id == track_id
-                    && c.start < plan.start + plan.duration
-                    && c.start + c.duration > plan.start
-            });
+        let will_make_new_track = plan.new_track;
         if will_make_new_track {
             let bottom = item_track_kind == model::TrackKind::Audio;
-            let insert_at = self.insertion_index_for_track_kind(item_track_kind);
             if let Some(new_track) = self.apply(Command::AddTrack {
                 bottom,
                 kind: Some(item_track_kind),
-                insert_at,
+                insert_at: Some(plan.insert_at),
             }) {
                 track_id = new_track;
             }
@@ -4453,6 +4599,9 @@ impl Studio {
         };
         if let Some(id) = created {
             self.selection = vec![id];
+        }
+        if will_make_new_track {
+            self.prune_empty_tracks();
         }
     }
 
@@ -5711,23 +5860,18 @@ impl Studio {
                     .fold(f64::INFINITY, f64::min);
                 let shift = (seconds + self.snap_shift(&edges, threshold, &moving)).max(-earliest);
                 let current_y = row_top(lanes, anchor.row) + pixels;
-                let count = self.timeline().tracks.len() as i32;
-                let rows = nearest_row(lanes, current_y) - anchor.row;
-                let candidate_row = (anchor.row + rows).clamp(0, count - 1);
-                let candidate_track = self.row_track(candidate_row);
                 let anchor_clip = self.clip(&anchor.clip).cloned();
 
-                let is_incompatible_row = if let Some(clip) = anchor_clip.as_ref() {
+                let anchor_track_kind = if let Some(clip) = anchor_clip.as_ref() {
                     let is_caption = concat_project::captions::is_caption(clip);
-                    let clip_track_kind = model::TrackKind::from_clip_kind(clip.kind, is_caption);
-                    candidate_track.is_some_and(|t| self.track_kind(t) != clip_track_kind)
+                    model::TrackKind::from_clip_kind(clip.kind, is_caption)
                 } else {
-                    false
+                    model::TrackKind::Video
                 };
 
-                // Trigger new track preview if dragged above top lane (< 15px) or dragged onto an incompatible track kind
-                let is_new_track_target = current_y < 15.0 || is_incompatible_row;
-                if is_new_track_target {
+                let target = self.resolve_track_target(anchor_track_kind, current_y);
+
+                if target.new_track {
                     if let Some(clip) = anchor_clip.as_ref() {
                         let ui_kind = match clip.kind {
                             model::ClipKind::Audio => crate::ui::ClipKind::Audio,
@@ -5743,8 +5887,10 @@ impl Studio {
                             label: clip.name.clone(),
                             start: (anchor.start + shift).max(0.0),
                             duration: clip.duration,
-                            row: candidate_row,
+                            row: target.row,
                             new_track: true,
+                            insert_at: target.insert_at,
+                            insert_y: target.insert_y,
                         });
                     }
                 } else if self
@@ -5755,7 +5901,7 @@ impl Studio {
                     self.drop = None;
                 }
 
-                let rows = nearest_row(lanes, current_y) - anchor.row;
+                let rows = target.row - anchor.row;
                 let count = self.timeline().tracks.len() as i32;
                 let moves: Vec<ClipMove> = origins
                     .iter()
@@ -5906,6 +6052,9 @@ impl Studio {
         ) {
             self.gesture = Gesture::None;
             self.echo = None;
+            if self.drop.as_ref().is_some_and(|d| d.media.is_empty()) {
+                self.drop = None;
+            }
             self.request_preview();
         }
     }
@@ -5918,20 +6067,20 @@ impl Studio {
         };
         match gesture {
             Gesture::Move { origins, .. } => {
-                let is_new_track = self
-                    .drop
+                let drop_plan = self.drop.take();
+                let is_new_track = drop_plan
                     .as_ref()
                     .is_some_and(|d| d.new_track && d.media.is_empty());
-                self.drop = None;
 
                 if is_new_track {
+                    let drop = drop_plan.unwrap();
                     let anchor = origins.first().and_then(|orig| self.clip(&orig.clip));
                     let is_caption = anchor.is_some_and(concat_project::captions::is_caption);
                     let track_kind = anchor.map_or(model::TrackKind::Video, |c| {
                         model::TrackKind::from_clip_kind(c.kind, is_caption)
                     });
                     let bottom = track_kind == model::TrackKind::Audio;
-                    let insert_at = self.insertion_index_for_track_kind(track_kind);
+                    let insert_at = Some(drop.insert_at);
                     if let Some(new_track_id) = self.apply(Command::AddTrack {
                         bottom,
                         kind: Some(track_kind),
@@ -5950,8 +6099,13 @@ impl Studio {
                                 .find(|t| self.track_kind(t) == model::TrackKind::Captions)
                                 .map(|t| t.id.clone())
                                 .or_else(|| {
-                                    let cap_insert = self
-                                        .insertion_index_for_track_kind(model::TrackKind::Captions);
+                                    let new_track_b = self
+                                        .timeline()
+                                        .tracks
+                                        .iter()
+                                        .position(|t| t.id == new_track_id)
+                                        .unwrap_or(0);
+                                    let cap_insert = Some(new_track_b + 1);
                                     self.apply(Command::AddTrack {
                                         bottom: false,
                                         kind: Some(model::TrackKind::Captions),
@@ -8778,15 +8932,17 @@ impl Studio {
         }
     }
 
-    /// Removes any tracks that contain zero clips, preserving at least one track.
+    /// Removes any tracks that contain zero clips, preserving at least one track and never pruning the main track.
     pub fn prune_empty_tracks(&mut self) {
         if self.timeline().tracks.len() <= 1 {
             return;
         }
+        let main_id = self.timeline().main_track().map(|t| t.id.clone());
         let empty_track_ids: Vec<String> = self
             .timeline()
             .tracks
             .iter()
+            .filter(|track| !track.is_main && Some(&track.id) != main_id.as_ref())
             .filter(|track| !self.timeline().clips.iter().any(|c| c.track_id == track.id))
             .map(|t| t.id.clone())
             .collect();
@@ -10155,13 +10311,24 @@ impl Studio {
         self.publish_dock(app, models);
     }
 
-    pub fn publish_dock(&self, _app: &App, models: &Models) {
+    pub fn publish_dock(&self, app: &App, models: &Models) {
         let out = self.dock_layout();
         sync(&models.seats, out.seats);
         sync(&models.dividers, out.dividers);
+        app.global::<Editor>()
+            .set_active_layout_preset(self.current_layout_preset.to_index());
         // A timeline put back while something plays brings its meters
         // with it; one taken away stops them at their next tick.
         self.wake_meters();
+    }
+
+    pub fn set_layout_preset(&mut self, preset: crate::dock::LayoutPreset) {
+        self.current_layout_preset = preset;
+        self.dock = preset.build_dock();
+    }
+
+    pub fn reset_current_layout(&mut self) {
+        self.dock = self.current_layout_preset.build_dock();
     }
 
     /// The window is a phone's: the lanes keep the playhead at their middle
@@ -10271,6 +10438,7 @@ impl Studio {
                         muted: lane.muted,
                         locked: self.locked(&lane.id),
                         kind,
+                        is_main: lane.is_main,
                         size: self.lane_size(&lane.id),
                         height,
                         top,
@@ -10383,6 +10551,7 @@ impl Studio {
                 duration: plan.duration as f32,
                 row: plan.row,
                 new_track: plan.new_track,
+                insert_y: plan.insert_y,
             },
             None => DropData::default(),
         });

@@ -809,6 +809,18 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         };
         state.dock.remove_leaf(&path);
     }));
+    editor.on_select_layout_preset(on_dock!(|state, index: i32| {
+        let preset = crate::dock::LayoutPreset::from_index(index);
+        state.set_layout_preset(preset);
+    }));
+    editor.on_reset_current_layout(on_dock!(|state| {
+        state.reset_current_layout();
+    }));
+    editor.on_open_shortcuts(on_window!(|state| {
+        use crate::panes::settings::{SHORTCUTS_PAGE, SettingsMsg};
+        state.handle(Msg::Settings(SettingsMsg::Open));
+        state.handle(Msg::Settings(SettingsMsg::PageChanged(SHORTCUTS_PAGE)));
+    }));
     editor.on_divider_pressed(on_dock!(|state, index: i32| {
         let index = index.max(0) as usize;
         state.divider_press = match (state.split_ratio(index), state.split_extent(index)) {

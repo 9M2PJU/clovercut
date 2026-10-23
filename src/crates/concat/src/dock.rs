@@ -303,6 +303,141 @@ pub fn lay_out(node: &Dock, (x, y, w, h): (f32, f32, f32, f32), out: &mut DockLa
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LayoutPreset {
+    #[default]
+    Default = 0,
+    Audio = 1,
+    VerticalRight = 2,
+    VerticalLeft = 3,
+    InspectorPriority = 4,
+    MediaPriority = 5,
+}
+
+impl LayoutPreset {
+    pub fn from_index(index: i32) -> Self {
+        match index {
+            0 => Self::Default,
+            1 => Self::Audio,
+            2 => Self::VerticalRight,
+            3 => Self::VerticalLeft,
+            4 => Self::InspectorPriority,
+            5 => Self::MediaPriority,
+            _ => Self::Default,
+        }
+    }
+
+    pub fn to_index(self) -> i32 {
+        self as i32
+    }
+
+    pub fn build_dock(self) -> Dock {
+        match self {
+            Self::Default => default_dock(),
+            Self::Audio => audio_dock(),
+            Self::VerticalRight => vertical_right_dock(),
+            Self::VerticalLeft => vertical_left_dock(),
+            Self::InspectorPriority => inspector_priority_dock(),
+            Self::MediaPriority => media_priority_dock(),
+        }
+    }
+}
+
+pub fn audio_dock() -> Dock {
+    Dock::Split {
+        columns: false,
+        ratio: 0.34,
+        first: Box::new(Dock::Split {
+            columns: true,
+            ratio: 0.72,
+            first: Box::new(Dock::Split {
+                columns: true,
+                ratio: 0.389,
+                first: Dock::leaf(PaneKind::Media),
+                second: Dock::leaf(PaneKind::Preview),
+            }),
+            second: Dock::leaf(PaneKind::Inspector),
+        }),
+        second: Dock::leaf(PaneKind::Timeline),
+    }
+}
+
+pub fn vertical_right_dock() -> Dock {
+    Dock::Split {
+        columns: false,
+        ratio: 0.58,
+        first: Box::new(Dock::Split {
+            columns: true,
+            ratio: 0.65,
+            first: Box::new(Dock::Split {
+                columns: true,
+                ratio: 0.46,
+                first: Dock::leaf(PaneKind::Media),
+                second: Dock::leaf(PaneKind::Inspector),
+            }),
+            second: Dock::leaf(PaneKind::Preview),
+        }),
+        second: Dock::leaf(PaneKind::Timeline),
+    }
+}
+
+pub fn vertical_left_dock() -> Dock {
+    Dock::Split {
+        columns: false,
+        ratio: 0.58,
+        first: Box::new(Dock::Split {
+            columns: true,
+            ratio: 0.35,
+            first: Dock::leaf(PaneKind::Preview),
+            second: Box::new(Dock::Split {
+                columns: true,
+                ratio: 0.46,
+                first: Dock::leaf(PaneKind::Media),
+                second: Dock::leaf(PaneKind::Inspector),
+            }),
+        }),
+        second: Dock::leaf(PaneKind::Timeline),
+    }
+}
+
+pub fn inspector_priority_dock() -> Dock {
+    Dock::Split {
+        columns: false,
+        ratio: 0.56,
+        first: Box::new(Dock::Split {
+            columns: true,
+            ratio: 0.55,
+            first: Box::new(Dock::Split {
+                columns: true,
+                ratio: 0.45,
+                first: Dock::leaf(PaneKind::Media),
+                second: Dock::leaf(PaneKind::Preview),
+            }),
+            second: Dock::leaf(PaneKind::Inspector),
+        }),
+        second: Dock::leaf(PaneKind::Timeline),
+    }
+}
+
+pub fn media_priority_dock() -> Dock {
+    Dock::Split {
+        columns: false,
+        ratio: 0.56,
+        first: Box::new(Dock::Split {
+            columns: true,
+            ratio: 0.45,
+            first: Dock::leaf(PaneKind::Media),
+            second: Box::new(Dock::Split {
+                columns: true,
+                ratio: 0.55,
+                first: Dock::leaf(PaneKind::Preview),
+                second: Dock::leaf(PaneKind::Inspector),
+            }),
+        }),
+        second: Dock::leaf(PaneKind::Timeline),
+    }
+}
+
 /// The arrangement the editor opens with: a three-panel upper workspace
 /// (Media Library, Preview Monitor, and Inspector side by side across the top)
 /// and the Timeline spanning the full width of the lower portion of the window.
@@ -365,6 +500,7 @@ pub fn row_at(heights: &[f32], y: f32) -> i32 {
 /// What a *move* wants, and not the same question as `row_at`: dragging a clip
 /// halfway into the lane below should put it there, which is the rounding the
 /// old `delta / lane-height` did for free back when every lane was one height.
+#[allow(dead_code)]
 pub fn nearest_row(heights: &[f32], y: f32) -> i32 {
     let (mut top, mut best, mut best_distance) = (0.0_f32, 0_i32, f32::MAX);
     for (row, height) in heights.iter().enumerate() {

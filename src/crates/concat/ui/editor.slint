@@ -67,6 +67,12 @@ export global Editor {
     callback divider-pressed(index: int);
     callback divider-dragged(index: int, delta: length);
 
+    // ── layout presets & shortcuts ──
+    in-out property <int> active-layout-preset: 0;
+    callback select-layout-preset(int);
+    callback reset-current-layout();
+    callback open-shortcuts();
+
     // ── the library ──
     in-out property <[MediaItemData]> media;
     in-out property <int> media-count-all;

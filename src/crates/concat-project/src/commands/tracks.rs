@@ -31,6 +31,7 @@ pub(super) fn apply(
                 } else {
                     TrackKind::Video
                 }),
+                is_main: false,
                 extra: Default::default(),
             };
             // The stack is stored bottom first: the last track is the lane
@@ -52,6 +53,9 @@ pub(super) fn apply(
         Command::RemoveTrack { track_id } => {
             let timeline = project.active_mut();
             if timeline.tracks.len() <= 1 {
+                return Err(CommandError::LastTrack);
+            }
+            if timeline.track(&track_id).is_some_and(|t| t.is_main) {
                 return Err(CommandError::LastTrack);
             }
             let track_count = timeline.tracks.len();

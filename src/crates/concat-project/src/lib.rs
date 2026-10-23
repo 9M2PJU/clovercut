@@ -378,6 +378,15 @@ mod tests {
             .expect("adds")
             .created_id
             .expect("id");
+        for _ in 0..2 {
+            editor
+                .apply(Command::AddTrack {
+                    bottom: false,
+                    kind: Some(crate::model::TrackKind::Video),
+                    insert_at: None,
+                })
+                .expect("track");
+        }
         let tracks: Vec<String> = editor
             .project()
             .active()
@@ -570,6 +579,15 @@ mod tests {
     /// Editor with one media item and one clip at [0, 10) on track one.
     fn fixture() -> (Editor, String, String) {
         let mut editor = Editor::new();
+        for _ in 0..3 {
+            editor
+                .apply(Command::AddTrack {
+                    bottom: false,
+                    kind: Some(crate::model::TrackKind::Video),
+                    insert_at: None,
+                })
+                .expect("adds");
+        }
         let media_id = editor
             .apply(media("/a.mp4", 10.0, true))
             .expect("adds")
@@ -1258,10 +1276,12 @@ mod tests {
     }
 
     #[test]
-    fn a_new_project_has_one_timeline_and_four_lanes() {
+    fn a_new_project_has_one_timeline_and_one_main_lane() {
         let editor = Editor::new();
         assert_eq!(editor.project().timelines.len(), 1);
-        assert_eq!(editor.project().active().tracks.len(), 4);
+        assert_eq!(editor.project().active().tracks.len(), 1);
+        assert!(editor.project().active().tracks[0].is_main);
+        assert_eq!(editor.project().active().tracks[0].kind, crate::model::TrackKind::Video);
     }
 
     #[test]
@@ -3867,6 +3887,15 @@ mod tests {
             .expect("adds")
             .created_id
             .expect("id");
+        for _ in 0..2 {
+            editor
+                .apply(Command::AddTrack {
+                    bottom: false,
+                    kind: Some(crate::model::TrackKind::Video),
+                    insert_at: None,
+                })
+                .expect("track");
+        }
         let video_track = editor.project().active().tracks[2].id.clone();
         editor
             .apply(Command::AddClip {
@@ -3920,6 +3949,15 @@ mod tests {
             .expect("adds")
             .created_id
             .expect("id");
+        for _ in 0..2 {
+            editor
+                .apply(Command::AddTrack {
+                    bottom: false,
+                    kind: Some(crate::model::TrackKind::Video),
+                    insert_at: None,
+                })
+                .expect("track");
+        }
         let video_track = editor.project().active().tracks[2].id.clone();
         editor
             .apply(Command::AddClip {
@@ -3993,6 +4031,15 @@ mod tests {
             .expect("adds")
             .created_id
             .expect("id");
+        for _ in 0..2 {
+            editor
+                .apply(Command::AddTrack {
+                    bottom: false,
+                    kind: Some(crate::model::TrackKind::Video),
+                    insert_at: None,
+                })
+                .expect("track");
+        }
         let video_track = editor.project().active().tracks[2].id.clone();
         editor
             .apply(Command::AddClip {
@@ -4415,38 +4462,43 @@ mod tests {
 
     #[test]
     fn removing_a_track_takes_its_clips_and_stops_at_the_floor_of_one() {
-        let (mut editor, _, _) = fixture();
-        let track_id = editor.project().active().tracks[0].id.clone();
+        let (mut editor, media_id, _) = fixture();
+        // Main track cannot be removed
+        let main_id = editor.project().active().tracks[0].id.clone();
+        assert!(editor.apply(Command::RemoveTrack { track_id: main_id }).is_err());
+
+        // Add a secondary track with a clip
+        let extra_track = editor.apply(Command::AddTrack {
+            bottom: false,
+            kind: Some(crate::model::TrackKind::Video),
+            insert_at: None,
+        }).expect("adds").created_id.expect("id");
+        editor.apply(Command::AddClip {
+            media_id,
+            track_id: extra_track.clone(),
+            start: 0.0,
+            ripple: false,
+        }).expect("clip");
+        assert_eq!(editor.project().active().tracks.len(), 5);
+
         editor
             .apply(Command::RemoveTrack {
-                track_id: track_id.clone(),
+                track_id: extra_track.clone(),
             })
             .expect("removes");
         let timeline = editor.project().active();
-        assert_eq!(timeline.tracks.len(), 3);
-        assert!(
-            timeline.clips.is_empty(),
-            "the clip on the removed track went with it"
+        assert_eq!(timeline.tracks.len(), 4);
+        assert_eq!(
+            timeline.clips.len(),
+            1,
+            "only the clip on the removed secondary track went with it"
         );
 
         // An unknown id is the tolerated no-op, not an error.
         let outcome = editor
-            .apply(Command::RemoveTrack { track_id })
+            .apply(Command::RemoveTrack { track_id: extra_track })
             .expect("tolerated");
         assert!(!outcome.applied);
-
-        while editor.project().active().tracks.len() > 1 {
-            let next = editor.project().active().tracks[0].id.clone();
-            editor
-                .apply(Command::RemoveTrack { track_id: next })
-                .expect("removes");
-        }
-        let last = editor.project().active().tracks[0].id.clone();
-        let refused = editor.apply(Command::RemoveTrack { track_id: last });
-        assert_eq!(
-            refused.unwrap_err().to_string(),
-            "A timeline needs at least one track."
-        );
     }
 
     #[test]

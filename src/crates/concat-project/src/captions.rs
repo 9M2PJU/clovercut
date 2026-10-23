@@ -87,11 +87,20 @@ mod tests {
         let first = editor.project().active().clips[0].id.clone();
         assert_eq!(editor.project().active().clip(&first).unwrap().start, 6.0);
         assert!((editor.project().active().clip(&first).unwrap().duration - 0.3).abs() < 1e-6);
+        let t2 = editor
+            .apply(Command::AddTrack {
+                bottom: false,
+                kind: Some(crate::model::TrackKind::Captions),
+                insert_at: None,
+            })
+            .unwrap()
+            .created_id
+            .unwrap();
         editor
             .apply(Command::PlaceCaptionSource {
                 source_id: source.clone(),
                 start: 10.0,
-                track_id: Some("T2".into()),
+                track_id: Some(t2),
             })
             .unwrap();
         let scope = style_targets(editor.project().active(), &[first]);

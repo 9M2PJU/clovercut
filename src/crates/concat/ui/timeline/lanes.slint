@@ -1261,7 +1261,6 @@ export component Lanes inherits Rectangle {
     /// The answer to the last hover. `active` is also the verdict — false is
     /// how the drag is refused, and the cursor says so.
     in property <DropData> drop;
-    property <length> new-track-h: (root.drop.active && root.drop.new-track) ? 60px : 0px;
 
     property <int> previous-origin;
     changed time-origin => {
@@ -1383,7 +1382,7 @@ export component Lanes inherits Rectangle {
     }
     /// The top of a row inside the lane area, scroll included.
     pure function row-y(row: int) -> length {
-        return root.ruler-height + root.new-track-h + root.tracks[row].top - root.track-scroll;
+        return root.ruler-height + root.tracks[row].top - root.track-scroll;
     }
 
     // The ruler's tick ladder, from Rust. Zero means unbound, which draws no
@@ -1477,28 +1476,15 @@ export component Lanes inherits Rectangle {
             return EventResult.accept;
         }
 
-        // ── preview new track lane ──────────────────────────────────────
-        if root.new-track-h > 0px: Rectangle {
+        // ── preview new track insertion line ──────────────────────────────────────
+        if root.drop.active && root.drop.new-track && (landing.has-drag || root.clip-dragging): Rectangle {
             x: 0;
-            y: root.ruler-height;
+            y: root.ruler-height + root.drop.insert-y - root.track-scroll - 1.5px;
             width: parent.width;
-            height: root.new-track-h - 2px;
-            background: Theme.lane.brighter(0.06);
-            border-width: 1.5px;
-            border-color: Theme.accent.with-alpha(0.8);
-            border-radius: Theme.r-sm;
-
-            HorizontalLayout {
-                padding-left: 16px;
-                alignment: start;
-                Text {
-                    text: "+ Nova Pista (largar para adicionar como overlay)";
-                    color: Theme.accent;
-                    font-size: 11px;
-                    font-weight: 600;
-                    vertical-alignment: center;
-                }
-            }
+            height: 3px;
+            background: Theme.accent;
+            border-radius: 1.5px;
+            visible: self.y >= root.ruler-height && self.y <= root.height;
         }
 
         // ── banded lanes ─────────────────────────────────────────────────
@@ -1751,18 +1737,19 @@ export component Lanes inherits Rectangle {
         // ── the ghost ────────────────────────────────────────────────────
         //
         // The clip the drop will make, drawn where it will make it. Gated on
-        // `has-drag` as well as on Rust's verdict: a drag that leaves the
+        // `has-drag` or `clip-dragging` as well as on Rust's verdict: a drag that leaves the
         // lanes gets an Exit and no further hover, so without it the ghost
         // would sit there after the pointer had gone.
-        if root.drop.active && (landing.has-drag || root.drop.new-track): Rectangle {
+        if root.drop.active && (landing.has-drag || root.clip-dragging): Rectangle {
             x: root.at(root.drop.start);
             y: root.drop.new-track
-                ? root.ruler-height + 4px
-                : root.row-y(root.drop.row) + 4px;
+                ? (root.ruler-height + root.drop.insert-y - root.track-scroll + 2px)
+                : (root.row-y(root.drop.row) + 4px);
             width: Math.max(2px, root.drop.duration * root.px-per-second);
             height: root.drop.new-track
-                ? Math.max(2px, root.new-track-h - 10px)
+                ? 36px
                 : Math.max(2px, root.tracks[root.drop.row].height - 10px);
+            visible: self.y + self.height > root.ruler-height && self.y < root.height;
             border-radius: Theme.r-sm;
             // Alpha in the paints, not `opacity`: it makes Slint flatten
             // this element into an offscreen layer (as a rounded `clip` did

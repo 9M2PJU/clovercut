@@ -73,11 +73,12 @@ pub(super) fn apply(
                         Some(track) => track.id.clone(),
                         None => {
                             let id = mint.next("t");
-                            timeline.tracks.push(Track {
+                            timeline.tracks.insert(0, Track {
                                 id: id.clone(),
                                 visible: true,
                                 muted: false,
                                 kind: TrackKind::Audio,
+                                is_main: false,
                                 extra: Default::default(),
                             });
                             id

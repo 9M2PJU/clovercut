@@ -874,6 +874,7 @@ fn fresh_track(timeline: &mut Timeline, mint: &mut IdMint) -> String {
         visible: true,
         muted: false,
         kind: TrackKind::Video,
+        is_main: false,
         extra: Default::default(),
     });
     id

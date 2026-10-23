@@ -5,6 +5,8 @@ import { I18n } from "i18n.slint";
 import { Theme } from "theme/theme.slint";
 import { Glyph, Icon } from "icons.slint";
 import { AddPaneButton, PaneKind } from "workspace/pane-switcher.slint";
+import { Tip } from "primitives/tooltip.slint";
+import { Editor } from "editor.slint";
 
 // The custom title bar.
 //
@@ -80,6 +82,7 @@ component MenuLabel inherits Rectangle {
 
 component HeaderIconButton inherits Rectangle {
     in property <Glyph> glyph;
+    in property <string> tip: "";
 
     callback clicked();
 
@@ -101,6 +104,177 @@ component HeaderIconButton inherits Rectangle {
     touch := TouchArea {
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
+    }
+
+    if root.tip != "": Tip {
+        text: root.tip;
+        active: touch.has-hover;
+    }
+}
+
+component LayoutMenuItem inherits Rectangle {
+    in property <string> text;
+    in property <bool> checked: false;
+    callback clicked();
+
+    height: 28px;
+    border-radius: Theme.r-sm;
+    background: touch.has-hover ? Theme.field : Colors.transparent;
+
+    animate background { duration: 80ms; }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 8px;
+        alignment: start;
+
+        Rectangle {
+            width: 14px;
+            height: 14px;
+            y: (parent.height - self.height) / 2;
+            if root.checked: Icon {
+                x: 0;
+                y: 0;
+                width: 14px;
+                height: 14px;
+                glyph: Glyph.check;
+                size: 13px;
+                weight: 2.0;
+                tint: Theme.accent;
+            }
+        }
+
+        Text {
+            text: root.text;
+            color: root.checked ? Theme.accent : Theme.fg;
+            font-size: Theme.fs;
+            font-weight: root.checked ? Theme.weight-title : 400;
+            vertical-alignment: center;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component LayoutSwitcherButton inherits Rectangle {
+    property <length> menu-w: 210px;
+    property <length> menu-h: 7 * 28px + 17px;
+
+    width: 24px;
+    height: 24px;
+    border-radius: Theme.r-sm;
+    background: touch.has-hover ? Theme.field : Colors.transparent;
+
+    animate background { duration: 100ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+
+    Icon {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        glyph: Glyph.slot;
+        size: 14px;
+        tint: touch.has-hover ? Theme.fg : Theme.fg-muted;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { menu.show(); }
+    }
+
+    Tip {
+        text: I18n.t("layout.switcher");
+        active: touch.has-hover;
+    }
+
+    menu := PopupWindow {
+        x: root.width - root.menu-w;
+        y: root.height + 4px;
+        width: root.menu-w;
+        height: root.menu-h;
+        close-policy: close-on-click-outside;
+
+        Rectangle {
+            background: Theme.panel;
+            border-width: 1px;
+            border-color: Theme.line-strong;
+            border-radius: Theme.r;
+            drop-shadow-blur: 12px;
+            drop-shadow-color: Colors.black.with-alpha(0.35);
+            drop-shadow-offset-y: 4px;
+            clip: true;
+
+            VerticalLayout {
+                padding: 4px;
+                spacing: 1px;
+
+                LayoutMenuItem {
+                    text: I18n.t("layout.default");
+                    checked: Editor.active-layout-preset == 0;
+                    clicked => {
+                        menu.close();
+                        Editor.select-layout-preset(0);
+                    }
+                }
+                LayoutMenuItem {
+                    text: I18n.t("layout.audio");
+                    checked: Editor.active-layout-preset == 1;
+                    clicked => {
+                        menu.close();
+                        Editor.select-layout-preset(1);
+                    }
+                }
+                LayoutMenuItem {
+                    text: I18n.t("layout.verticalRight");
+                    checked: Editor.active-layout-preset == 2;
+                    clicked => {
+                        menu.close();
+                        Editor.select-layout-preset(2);
+                    }
+                }
+                LayoutMenuItem {
+                    text: I18n.t("layout.verticalLeft");
+                    checked: Editor.active-layout-preset == 3;
+                    clicked => {
+                        menu.close();
+                        Editor.select-layout-preset(3);
+                    }
+                }
+                LayoutMenuItem {
+                    text: I18n.t("layout.inspectorPriority");
+                    checked: Editor.active-layout-preset == 4;
+                    clicked => {
+                        menu.close();
+                        Editor.select-layout-preset(4);
+                    }
+                }
+                LayoutMenuItem {
+                    text: I18n.t("layout.mediaPriority");
+                    checked: Editor.active-layout-preset == 5;
+                    clicked => {
+                        menu.close();
+                        Editor.select-layout-preset(5);
+                    }
+                }
+
+                // Divider
+                Rectangle {
+                    height: 1px;
+                    background: Theme.line;
+                }
+
+                LayoutMenuItem {
+                    text: I18n.t("layout.resetCurrent");
+                    checked: false;
+                    clicked => {
+                        menu.close();
+                        Editor.reset-current-layout();
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -275,29 +449,27 @@ export component TitleBar inherits Rectangle {
 
         Rectangle { horizontal-stretch: 1; }
 
-        // Beside Settings, because it is the same sort of thing: neither one
-        // is about the project, both are about the window you are looking at
-        // it through. A seat's own corner button changes or closes that seat;
-        // this is the only place a seat can be brought into existence, which
-        // is why it lives on the window and not in a pane.
+        // CapCut-style top-right header actions:
+        // Layout Switcher | Keyboard Shortcuts | Settings | Export
         if !root.minimal: VerticalLayout {
             alignment: center;
-            AddPaneButton {
-                added(kind) => { root.add-pane(kind); }
+            LayoutSwitcherButton {}
+        }
+
+        if !root.minimal: VerticalLayout {
+            alignment: center;
+            HeaderIconButton {
+                glyph: Glyph.keyboard;
+                tip: I18n.t("settings.shortcuts");
+                clicked => { Editor.open-shortcuts(); }
             }
         }
 
-        // The one control that is on both screens, and the theme's sun and
-        // moon gave it the job when they moved into Settings > Appearance.
-        // Nothing behind this gear needs a project — a theme, a transcriber
-        // model, a voice, a version number are all facts about the
-        // application — so the launch screen has no reason to be shut out of
-        // it, and every reason not to be: it is now the only way through to
-        // the theme.
         VerticalLayout {
             alignment: center;
             HeaderIconButton {
                 glyph: Glyph.settings;
+                tip: I18n.t("settings.title");
                 clicked => { root.open-settings(); }
             }
         }

@@ -256,6 +256,9 @@ pub struct Track {
     /// The type of content this track carries.
     #[serde(default)]
     pub kind: TrackKind,
+    /// Whether this is the fixed main video track (never pruned, primary anchor).
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub is_main: bool,
     /// Fields this build does not know, kept so they round-trip.
     #[serde(flatten, default, skip_serializing_if = "Map::is_empty")]
     pub extra: Map<String, Value>,
@@ -268,6 +271,7 @@ impl Default for Track {
             visible: true,
             muted: false,
             kind: TrackKind::Video,
+            is_main: false,
             extra: Map::new(),
         }
     }
@@ -2959,12 +2963,14 @@ impl Project {
                 name: "Timeline 1".to_owned(),
                 video,
                 background: Background::None,
-                tracks: (1..=4)
-                    .map(|number| Track {
-                        id: format!("T{number}"),
-                        ..Track::default()
-                    })
-                    .collect(),
+                tracks: vec![Track {
+                    id: "T1".to_owned(),
+                    visible: true,
+                    muted: false,
+                    kind: TrackKind::Video,
+                    is_main: true,
+                    extra: Map::new(),
+                }],
                 clips: Vec::new(),
                 extra: Map::new(),
             })],
@@ -3084,6 +3090,24 @@ impl Timeline {
     /// The track with this id, or None if it was removed.
     pub fn track(&self, track_id: &str) -> Option<&Track> {
         self.tracks.iter().find(|track| track.id == track_id)
+    }
+
+    /// The main video track: the fixed anchor lane.
+    pub fn main_track(&self) -> Option<&Track> {
+        self.tracks
+            .iter()
+            .find(|t| t.is_main)
+            .or_else(|| self.tracks.iter().find(|t| t.kind == TrackKind::Video))
+            .or_else(|| self.tracks.first())
+    }
+
+    /// The index in `self.tracks` of the main video track (in bottom-first order).
+    pub fn main_track_index(&self) -> usize {
+        self.tracks
+            .iter()
+            .position(|t| t.is_main)
+            .or_else(|| self.tracks.iter().position(|t| t.kind == TrackKind::Video))
+            .unwrap_or(0)
     }
 
     /// The lane whose pictures have a background: the lowest lane holding a

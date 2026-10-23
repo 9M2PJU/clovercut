@@ -263,13 +263,15 @@ component Header inherits Rectangle {
                     width: 24px;
                     height: 24px;
                     border-radius: Theme.r-sm;
-                    background: Theme.line.with-alpha(0.18);
+                    background: root.track.is-main ? Theme.accent.with-alpha(0.25) : Theme.line.with-alpha(0.18);
+                    border-width: root.track.is-main ? 1px : 0px;
+                    border-color: Theme.accent.with-alpha(0.6);
                     Icon {
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                         glyph: root.kind-glyph(root.track.kind);
                         size: 13px;
-                        tint: Theme.fg-muted;
+                        tint: root.track.is-main ? Theme.accent : Theme.fg-muted;
                     }
                 }
             }
@@ -335,7 +337,7 @@ component Header inherits Rectangle {
             VerticalLayout {
                 alignment: start;
                 MoreMenu {
-                    removable: root.removable;
+                    removable: !root.track.is-main && root.removable;
                     removed => { root.removed(); }
                 }
             }
@@ -354,7 +356,6 @@ export component TrackHeaders inherits Rectangle {
     /// and two answers to one question is one answer too many.
     in property <length> overflow;
     in property <DropData> drop;
-    property <length> new-track-h: root.drop.active && root.drop.new-track ? 60px : 0px;
 
     /// The bar was dragged, or the column wheeled. Absolute, and already
     /// inside 0..overflow.
@@ -385,31 +386,29 @@ export component TrackHeaders inherits Rectangle {
         }
 
         if root.drop.active && root.drop.new-track: Rectangle {
-            x: 0;
-            y: root.ruler-height;
-            width: parent.width;
-            height: root.new-track-h - 2px;
-            background: Theme.lane.brighter(0.04);
-            border-width: 1.5px;
-            border-color: Theme.accent.with-alpha(0.8);
+            x: 6px;
+            y: root.ruler-height + root.drop.insert-y - root.track-scroll - 10px;
+            width: parent.width - 12px;
+            height: 20px;
             border-radius: Theme.r-sm;
+            background: Theme.accent.with-alpha(0.18);
+            border-width: 1px;
+            border-color: Theme.accent;
+            visible: self.y + self.height > root.ruler-height && self.y < root.height;
 
-            HorizontalLayout {
-                padding-left: 12px;
-                alignment: start;
-                Text {
-                    text: "+ Nova Pista";
-                    color: Theme.accent;
-                    font-size: 11px;
-                    font-weight: 600;
-                    vertical-alignment: center;
-                }
+            Text {
+                text: "+ Nova Pista";
+                color: Theme.accent;
+                font-size: 10px;
+                font-weight: 600;
+                vertical-alignment: center;
+                horizontal-alignment: center;
             }
         }
 
         for track[index] in root.tracks: Header {
             x: 0;
-            y: root.ruler-height + root.new-track-h + track.top - root.track-scroll;
+            y: root.ruler-height + track.top - root.track-scroll;
             width: parent.width;
             height: track.height;
             // Clipped to the stack rather than allowed to ride over the ruler,

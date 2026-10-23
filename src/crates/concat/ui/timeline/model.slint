@@ -61,6 +61,7 @@ export struct TrackData {
     visible: bool,
     muted: bool,
     kind: TrackKind,
+    is-main: bool,
     /// What the header's dropdown shows, and what `height` was resolved from.
     size: TrackSize,
     /// The lane's drawn height, and its top edge measured down the stack from
@@ -166,6 +167,7 @@ export struct DropData {
     duration: float,
     row: int,
     new-track: bool,
+    insert-y: length,
 }
 
 /// Which axis the alignment segmented control is on. Mirrors TextAlign.

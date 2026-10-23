@@ -24,15 +24,14 @@ pub(super) fn apply(
                     .iter()
                     .map(|timeline| timeline.name.clone()),
             );
-            let tracks = (1..=4)
-                .map(|_| Track {
-                    id: mint.next("t"),
-                    visible: true,
-                    muted: false,
-                    kind: TrackKind::Video,
-                    extra: Default::default(),
-                })
-                .collect();
+            let tracks = vec![Track {
+                id: mint.next("t"),
+                visible: true,
+                muted: false,
+                kind: TrackKind::Video,
+                is_main: true,
+                extra: Default::default(),
+            }];
             // Born at the frame of the timeline you were looking at: the
             // likeliest second timeline is another cut of the same picture,
             // and the one that is not is a sheet away from being told so.
