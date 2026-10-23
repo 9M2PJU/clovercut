@@ -151,6 +151,7 @@ fn main() {
         .map_err(|v| v.to_string())
         .unwrap();
 
+        #[allow(unused_mut)]
         let mut bindings = bindgen::Builder::default()
             .rust_edition(bindgen::RustEdition::Edition2021)
             .rust_target(package_msrv)
