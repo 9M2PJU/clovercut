@@ -1119,28 +1119,28 @@ fn wrap_caption(sentence: &str) -> Vec<String> {
     lines
 }
 
+fn srt_commands(
+    cues: Vec<concat_project::srt::Cue>,
+    look: (f64, f64),
+    base: Option<&concat_project::model::TextStyle>,
+) -> Vec<concat_project::Command> {
+    cues.into_iter()
+        .filter(|cue| !cue.text.trim().is_empty())
+        .map(|cue| {
+            caption_clip(
+                cue.text.trim().to_owned(),
+                cue.start,
+                cue.end - cue.start,
+                look,
+                base,
+            )
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn srt_commands(
-        cues: Vec<concat_project::srt::Cue>,
-        look: (f64, f64),
-        base: Option<&concat_project::model::TextStyle>,
-    ) -> Vec<concat_project::Command> {
-        cues.into_iter()
-            .filter(|cue| !cue.text.trim().is_empty())
-            .map(|cue| {
-                caption_clip(
-                    cue.text.trim().to_owned(),
-                    cue.start,
-                    cue.end - cue.start,
-                    look,
-                    base,
-                )
-            })
-            .collect()
-    }
 
     #[test]
     fn imported_srt_preserves_short_cues_and_multiline_text() {
