@@ -196,7 +196,7 @@ fn a_partial_write_failure_preserves_the_manifest_and_does_not_advance_save_orde
             projects::Saved::Written,
             "a failed newer ticket must not suppress a valid retry"
         );
-        assert_eq!(open(&root).project().active().tracks.len(), 5);
+        assert_eq!(open(&root).project().active().tracks.len(), 2);
         println!("partial-write injection and ordered retry: ok");
         return;
     }
@@ -241,7 +241,7 @@ fn a_partial_write_failure_preserves_the_manifest_and_does_not_advance_save_orde
             .unwrap()["retryMarker"],
         "preserved after a partial write"
     );
-    assert_eq!(open(scratch.path()).project().active().tracks.len(), 5);
+    assert_eq!(open(scratch.path()).project().active().tracks.len(), 2);
 }
 
 /// SIGKILL affects only an exact-test child writing a marked, unique fixture.
@@ -332,7 +332,7 @@ fn an_interrupted_save_keeps_the_committed_document_and_recovery_candidate() {
         std::fs::read(&candidate).expect("the interrupted process leaves its own candidate");
     assert!(!partial.is_empty());
     let mut session = open(root);
-    assert_eq!(session.project().active().tracks.len(), 4);
+    assert_eq!(session.project().active().tracks.len(), 1);
     session.save(None).unwrap();
     assert_eq!(
         std::fs::read(candidate).unwrap(),

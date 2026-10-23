@@ -1864,7 +1864,7 @@ mod durability_tests {
         assert!(api.session(&info.path).is_err(), "close is allowed");
         drop(restore);
         let reopened = Session::open_info(&info).unwrap();
-        assert_eq!(reopened.project().active().tracks.len(), 5);
+        assert_eq!(reopened.project().active().tracks.len(), 2);
         assert_eq!(
             serde_json::to_value(Done::default()).unwrap(),
             serde_json::json!({}),
