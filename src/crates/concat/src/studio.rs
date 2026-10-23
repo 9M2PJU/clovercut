@@ -11124,7 +11124,7 @@ impl Studio {
         let Some(clip) = self.sole_selection().and_then(|id| self.clip(&id)) else {
             return Vec::new();
         };
-        let at = place_in(&clip, self.playhead);
+        let at = place_in(clip, self.playhead);
         let near = |a: f64, b: f64| (a - b).abs() <= model::KEY_EPSILON;
         // A run of keys as marks: each with its value as a fraction of the
         // range and the ease into it, and the ride as a path - a hold to
@@ -12116,7 +12116,7 @@ impl Studio {
         };
         // A keyed property shows what it is worth at the playhead, which is
         // what the knob edits.
-        let at = place_in(&clip, self.playhead);
+        let at = place_in(clip, self.playhead);
         let text = clip.text_at(place_in(clip, self.playhead));
         // Where the family sits in the picker's list; none when nothing on
         // this machine has it, which the picker shows in red.
