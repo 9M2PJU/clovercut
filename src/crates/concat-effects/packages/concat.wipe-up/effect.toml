@@ -1,0 +1,14 @@
+format = 2
+
+[effect]
+id = "concat.wipe-up"
+name = "Wipe Up"
+kind = "transition"
+category = "Wipe"
+order = 17
+description = "The incoming shot uncovers upward from bottom to top."
+
+[transition]
+entry = "effect.wgsl"
+xfade = "wipeup"
+fallback = "cross-fade"

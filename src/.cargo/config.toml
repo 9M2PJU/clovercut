@@ -18,5 +18,5 @@
 dev = "run --bin clovercut --profile quick"
 
 [target.'cfg(all(target_os = "linux", target_arch = "x86_64"))']
-rustflags = ["-C", "link-arg=-Wl,-z,muldefs"]
+rustflags = ["-C", "link-arg=-Wl,-z,muldefs", "-C", "link-arg=-Wl,--allow-multiple-definition"]
 

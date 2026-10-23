@@ -1,0 +1,14 @@
+format = 2
+
+[effect]
+id = "concat.wipe-down"
+name = "Wipe Down"
+kind = "transition"
+category = "Wipe"
+order = 16
+description = "The incoming shot uncovers downward from top to bottom."
+
+[transition]
+entry = "effect.wgsl"
+xfade = "wipedown"
+fallback = "cross-fade"

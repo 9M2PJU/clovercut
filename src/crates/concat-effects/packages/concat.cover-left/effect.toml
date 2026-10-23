@@ -1,0 +1,14 @@
+format = 2
+
+[effect]
+id = "concat.cover-left"
+name = "Cover Left"
+kind = "transition"
+category = "Slide"
+order = 10
+description = "The incoming shot slides across from right to left over the outgoing shot."
+
+[transition]
+entry = "effect.wgsl"
+xfade = "coverleft"
+fallback = "cross-fade"

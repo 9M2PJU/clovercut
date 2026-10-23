@@ -894,6 +894,7 @@ pub struct Studio {
     /// about a track that the document does not.
     pub lanes: crate::panes::timeline::TimelinePane,
     pub selection: Vec<String>,
+    pub last_active_track: Option<String>,
     pub last_inspector_selection: std::cell::RefCell<Option<Vec<String>>>,
     pub last_inspector_revision: std::cell::RefCell<u64>,
     pub playhead: f64,
@@ -2447,6 +2448,7 @@ impl Studio {
             waves: RefCell::new(HashMap::new()),
             lanes: crate::panes::timeline::TimelinePane::default(),
             selection: Vec::new(),
+            last_active_track: None,
             last_inspector_selection: std::cell::RefCell::new(None),
             last_inspector_revision: std::cell::RefCell::new(0),
             playhead: 0.0,
@@ -2546,10 +2548,12 @@ impl Studio {
         studio.handle(crate::panes::Msg::Settings(
             crate::panes::settings::SettingsMsg::Restore,
         ));
-        // The effects shelf starts on "All", not whatever a stale default
-        // would leave it on.
+        // The effects and transitions shelves start on "All", not whatever a stale default
+        // would leave them on.
         studio.library[1].category = "All".to_owned();
         studio.library[1].group = -1;
+        studio.library[3].category = "All".to_owned();
+        studio.library[3].group = -1;
         studio
     }
 
@@ -5005,6 +5009,7 @@ impl Studio {
         if self.locked(&clip.track_id) {
             return;
         }
+        self.last_active_track = Some(clip.track_id.clone());
         let entry = AppliedFilter::new(id);
         let patch = if video {
             let mut effects = clip.video_effects.clone();
@@ -5739,6 +5744,7 @@ impl Studio {
         if self.locked(&clip.track_id) {
             return;
         }
+        self.last_active_track = Some(clip.track_id.clone());
         // Whatever the inspector still holds for the clip selected until
         // now lands before the selection moves: a commit flushed after the
         // change would look for it on the newly selected clip and lose it.
@@ -7209,6 +7215,7 @@ impl Studio {
         if self.locked(&clip.track_id) {
             return;
         }
+        self.last_active_track = Some(clip.track_id.clone());
         let (width, height) = self.output_size();
         // A grip of the mask: the mask is what moves, not the picture.
         if let Some(grip) = MaskGrip::of(grip) {
@@ -8109,12 +8116,13 @@ impl Studio {
         let Some(id) = self.sole_selection() else {
             return;
         };
-        let Some(clip) = self.clip(&id) else {
+        let Some(clip) = self.clip(&id).cloned() else {
             return;
         };
         if self.locked(&clip.track_id) {
             return;
         }
+        self.last_active_track = Some(clip.track_id.clone());
         let linked = clip.enhanced.is_some();
         if !on && self.enhance_jobs.contains_key(&id) {
             self.host.enhancers.cancel();
@@ -8431,6 +8439,7 @@ impl Studio {
         if self.locked(&clip.track_id) {
             return;
         }
+        self.last_active_track = Some(clip.track_id.clone());
         let Some(media) = self
             .project()
             .media
@@ -8803,12 +8812,39 @@ impl Studio {
             selected_under
         } else if !same_track_under.is_empty() {
             same_track_under
-        } else if !selection.is_empty() {
-            // If clips are selected on other tracks, but playhead is not crossing any clip
-            // on those tracks, do not cut unrelated tracks.
-            vec![]
+        } else if let Some(active_track) = &self.last_active_track {
+            let active_under: Vec<String> = under
+                .iter()
+                .filter(|id| self.clip(id).is_some_and(|c| &c.track_id == active_track))
+                .cloned()
+                .collect();
+            if !active_under.is_empty() {
+                active_under
+            } else {
+                let main_track_id = self.timeline().main_track().map(|t| t.id.clone());
+                let main_under: Vec<String> = under
+                    .iter()
+                    .filter(|id| self.clip(id).is_some_and(|c| Some(&c.track_id) == main_track_id.as_ref()))
+                    .cloned()
+                    .collect();
+                if !main_under.is_empty() {
+                    main_under
+                } else {
+                    under.into_iter().take(1).collect()
+                }
+            }
         } else {
-            under
+            let main_track_id = self.timeline().main_track().map(|t| t.id.clone());
+            let main_under: Vec<String> = under
+                .iter()
+                .filter(|id| self.clip(id).is_some_and(|c| Some(&c.track_id) == main_track_id.as_ref()))
+                .cloned()
+                .collect();
+            if !main_under.is_empty() {
+                main_under
+            } else {
+                under.into_iter().take(1).collect()
+            }
         };
 
         if !victims.is_empty() {
@@ -8817,7 +8853,10 @@ impl Studio {
                 time: at,
             });
             if let Some(tail_id) = created {
-                self.selection = vec![tail_id];
+                self.selection = vec![tail_id.clone()];
+                if let Some(clip) = self.clip(&tail_id) {
+                    self.last_active_track = Some(clip.track_id.clone());
+                }
             }
         }
     }
@@ -9102,6 +9141,7 @@ impl Studio {
         if self.locked(&clip.track_id) {
             return;
         }
+        self.last_active_track = Some(clip.track_id.clone());
         let video = self.project().active().video;
         let frame =
             crate::timeline_time::nearest_frame(seconds.into(), video.rate_num, video.rate_den);
@@ -11078,7 +11118,7 @@ impl Studio {
         let Some(clip) = self.sole_selection().and_then(|id| self.clip(&id)) else {
             return Vec::new();
         };
-        let at = place_in(clip, self.playhead);
+        let at = place_in(&clip, self.playhead);
         let near = |a: f64, b: f64| (a - b).abs() <= model::KEY_EPSILON;
         // A run of keys as marks: each with its value as a fraction of the
         // range and the ease into it, and the ride as a path - a hold to
@@ -12070,7 +12110,7 @@ impl Studio {
         };
         // A keyed property shows what it is worth at the playhead, which is
         // what the knob edits.
-        let at = place_in(clip, self.playhead);
+        let at = place_in(&clip, self.playhead);
         let text = clip.text_at(place_in(clip, self.playhead));
         // Where the family sits in the picker's list; none when nothing on
         // this machine has it, which the picker shows in red.
@@ -13190,9 +13230,9 @@ impl Studio {
                 rows.push(action(
                     "toggle-group-captions",
                     if is_ungrouped {
-                        "Agrupar com Legendas".to_string()
+                        "Group with Captions".to_string()
                     } else {
-                        "Desagrupar Legendas".to_string()
+                        "Ungroup Captions".to_string()
                     },
                     Glyph::TextMark,
                     "",

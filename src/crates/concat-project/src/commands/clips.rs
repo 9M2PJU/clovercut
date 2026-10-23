@@ -894,6 +894,7 @@ fn first_free_track_above(timeline: &Timeline, start: f64, duration: f64) -> Opt
             clip.track_id == track_id && clip.start < end && start < clip.start + clip.duration
         })
     };
+    let min_floor = timeline.main_track_index() + 1;
     let floor = timeline
         .tracks
         .iter()
@@ -901,12 +902,13 @@ fn first_free_track_above(timeline: &Timeline, start: f64, duration: f64) -> Opt
         .filter(|(_, track)| occupied(&track.id))
         .map(|(row, _)| row + 1)
         .max()
-        .unwrap_or(0);
+        .unwrap_or(min_floor)
+        .max(min_floor);
     timeline
         .tracks
         .iter()
         .skip(floor)
-        .find(|track| !occupied(&track.id))
+        .find(|track| track.kind != TrackKind::Audio && !occupied(&track.id))
         .map(|track| track.id.clone())
 }
 

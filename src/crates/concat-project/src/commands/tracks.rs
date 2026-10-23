@@ -35,12 +35,21 @@ pub(super) fn apply(
                 extra: Default::default(),
             };
             // The stack is stored bottom first: the last track is the lane
-            // drawn on top.
+            // drawn on top. Audio tracks stay strictly below the main video track;
+            // visual tracks (video overlays, adjustment layers, text, stickers) stay strictly above.
+            let main_idx = timeline.main_track_index();
+            let is_audio = track.kind == TrackKind::Audio;
             if let Some(idx) = insert_at {
-                let clamp_idx = idx.min(timeline.tracks.len());
+                let clamp_idx = if is_audio {
+                    idx.min(main_idx)
+                } else {
+                    idx.max((main_idx + 1).min(timeline.tracks.len()))
+                        .min(timeline.tracks.len())
+                };
                 timeline.tracks.insert(clamp_idx, track);
-            } else if bottom {
-                timeline.tracks.insert(0, track);
+            } else if bottom || is_audio {
+                let insert_idx = if is_audio { 0 } else { (main_idx + 1).min(timeline.tracks.len()) };
+                timeline.tracks.insert(insert_idx, track);
             } else {
                 timeline.tracks.push(track);
             }

@@ -1234,6 +1234,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
             state.flush_commit();
             let (from, to) = (state.lanes.absolute(from), state.lanes.absolute(to));
             let (from_row, to_row) = (state.row_at(from_y), state.row_at(to_y));
+            if let Some(track) = state.row_track(from_row) {
+                state.last_active_track = Some(track.id.clone());
+            }
             let caught: Vec<String> = state
                 .timeline()
                 .clips

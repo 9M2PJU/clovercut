@@ -503,6 +503,9 @@ impl CaptionsPane {
     /// taken. Otherwise the chosen clip while it is still on the timeline
     /// with sound, and none - nothing to run - when it is not.
     fn subject_clip(&self, studio: &Studio, sources: &[Source]) -> Option<String> {
+        if self.clip.as_deref() == Some("__all__") {
+            return Some("__all__".to_owned());
+        }
         follow_selection(
             studio.sole_selection(),
             self.chosen_with.as_deref(),
@@ -565,19 +568,15 @@ impl CaptionsPane {
     }
 
     /// The sheet's clip through the transcriber on a worker, reporting into
-    /// the sheet as it goes.
+    /// the sheet as it goes. If "__all__" is selected, transcribes across all
+    /// audible clips in the project and places continuous subtitles over the cut.
     fn run_sound(&mut self, studio: &mut Studio) {
-        // The clip the panel shows, and no other: see `subject_clip`.
-        let Some(clip) = self
-            .subject_clip(studio, &sources(studio))
-            .and_then(|id| studio.clip(&id))
-            .cloned()
+        let sources = sources(studio);
+        let Some(target_id) = self
+            .subject_clip(studio, &sources)
+            .or_else(|| sources.first().map(|s| s.id.clone()))
         else {
-            self.message = t("captions.clipNoLongerTimeline");
-            return;
-        };
-        let Some(media) = studio.project().media_by_id(&clip.media_id).cloned() else {
-            self.message = t("captions.clipHasNoFile");
+            self.message = t("captions.noVoiceOnTimeline");
             return;
         };
         let Some((model, megabytes)) = installed(&studio.settings.transcribers)
@@ -585,6 +584,118 @@ impl CaptionsPane {
             .map(|model| (model.id.clone(), model.megabytes))
         else {
             self.message = t("captions.downloadTranscriberModelFirst");
+            return;
+        };
+
+        if target_id == "__all__" {
+            let mut sound_clips: Vec<_> = studio
+                .timeline()
+                .clips
+                .iter()
+                .filter(|clip| studio.clip_has_sound(clip))
+                .cloned()
+                .collect();
+            sound_clips.sort_by(|a, b| a.start.total_cmp(&b.start).then_with(|| a.id.cmp(&b.id)));
+            if sound_clips.is_empty() {
+                self.message = t("captions.noVoiceOnTimeline");
+                return;
+            }
+            #[derive(Clone)]
+            struct JobItem {
+                path: String,
+                audio_stream: Option<u32>,
+                source_start: f64,
+                window: f64,
+                timeline_start: f64,
+                speed: f64,
+            }
+            let mut jobs = Vec::new();
+            for clip in sound_clips {
+                let Some(media) = studio.project().media_by_id(&clip.media_id) else {
+                    continue;
+                };
+                let window = clip.duration * clip.speed;
+                if window <= 0.0 || window.is_nan() {
+                    continue;
+                }
+                jobs.push(JobItem {
+                    path: media.path.clone(),
+                    audio_stream: clip.audio_stream,
+                    source_start: clip.source_start,
+                    window,
+                    timeline_start: clip.start,
+                    speed: clip.speed,
+                });
+            }
+            if jobs.is_empty() {
+                self.message = t("captions.noVoiceOnTimeline");
+                return;
+            }
+
+            let total_window: f64 = jobs.iter().map(|j| j.window).sum();
+            let windows = (total_window / 30.0).ceil().max(1.0) as f32;
+            let learned = self.timings.get(&model);
+            let loaded = studio.host.transcriber.loaded_model().as_deref() == Some(model.as_str());
+            let load = if loaded { 0.0 } else { learned.load.unwrap_or(0.5 + megabytes / 400.0) };
+            let per_window = learned.per_unit.unwrap_or(0.3 + megabytes * WINDOW_SECONDS_PER_MB);
+            self.pace = Pace::new(vec![
+                (Stage::Reading, 0.2 + total_window as f32 / 400.0),
+                (Stage::Loading, load),
+                (Stage::Working, windows * per_window),
+            ]);
+            self.subject = Some(Subject {
+                start: 0.0,
+                speed: 1.0,
+                look: self.collection_look(studio),
+                model: model.clone(),
+                windows,
+            });
+            self.running = true;
+            self.message.clear();
+            let dirs = studio.host.dirs.clone();
+            let transcriber = Arc::clone(&studio.host.transcriber);
+            let epoch = crate::host::project_epoch();
+            spawn_in_project(
+                move || {
+                    let mut combined = Vec::new();
+                    for job in jobs {
+                        let req = concat_speech::transcribe::TranscribeRequest {
+                            path: job.path,
+                            audio_stream: job.audio_stream,
+                            source_start: job.source_start,
+                            window: job.window,
+                            model_id: model.clone(),
+                        };
+                        let segs = match transcriber.transcribe(&dirs, &req, move |stage| {
+                            on_ui_in_project(epoch, move |studio, _, _| {
+                                studio.handle(Msg::Captions(CaptionsMsg::Progress(stage)));
+                            });
+                        }) {
+                            Ok(s) => s,
+                            Err(e) if e.contains("cancel") => return Err(e),
+                            Err(_) => Vec::new(),
+                        };
+                        for s in segs {
+                            combined.push(concat_speech::transcribe::Segment {
+                                start: job.timeline_start + s.start / job.speed,
+                                end: job.timeline_start + s.end / job.speed,
+                                text: s.text,
+                            });
+                        }
+                    }
+                    Ok(combined)
+                },
+                |studio, _, _, result| studio.handle(Msg::Captions(CaptionsMsg::Finished(result))),
+            );
+            return;
+        }
+
+        let Some(clip) = studio.clip(&target_id).cloned() else {
+            self.message = t("captions.clipNoLongerTimeline");
+            return;
+        };
+        let Some(media) = studio.project().media_by_id(&clip.media_id).cloned() else {
+            self.message = t("captions.clipHasNoFile");
             return;
         };
         let request = concat_speech::transcribe::TranscribeRequest {
@@ -717,23 +828,6 @@ fn store_generated(studio: &mut Studio, commands: Vec<Command>) {
     });
 }
 
-/// Legacy caption conversion fixture, also checking short SubRip cue timing.
-#[cfg(test)]
-fn srt_commands(cues: Vec<srt::Cue>, look: (f64, f64), base: Option<&TextStyle>) -> Vec<Command> {
-    cues.into_iter()
-        .filter(|cue| !cue.text.trim().is_empty())
-        .map(|cue| {
-            caption_clip(
-                cue.text.trim().to_owned(),
-                cue.start,
-                cue.end - cue.start,
-                look,
-                base,
-            )
-        })
-        .collect()
-}
-
 /// The lane an SRT export writes out.
 struct ExportLane {
     track_id: String,
@@ -849,13 +943,18 @@ fn sources(studio: &Studio) -> Vec<Source> {
         })
         .collect();
     clips.sort_by(|a, b| a.0.total_cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
-    clips
-        .into_iter()
-        .map(|(start, id, name)| Source {
-            id,
-            label: source_label(&name, start),
-        })
-        .collect()
+    let mut list = Vec::new();
+    if !clips.is_empty() {
+        list.push(Source {
+            id: "__all__".to_owned(),
+            label: t("captions.allAudioProject"),
+        });
+    }
+    list.extend(clips.into_iter().map(|(start, id, name)| Source {
+        id,
+        label: source_label(&name, start),
+    }));
+    list
 }
 
 /// A clip as the list names it: its file and where it starts on the
@@ -1016,7 +1115,22 @@ fn wrap_caption(sentence: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{script_captions, source_label};
+    use super::*;
+
+    fn srt_commands(cues: Vec<concat_project::srt::Cue>, look: (f64, f64), base: Option<&concat_project::model::TextStyle>) -> Vec<concat_project::Command> {
+        cues.into_iter()
+            .filter(|cue| !cue.text.trim().is_empty())
+            .map(|cue| {
+                caption_clip(
+                    cue.text.trim().to_owned(),
+                    cue.start,
+                    cue.end - cue.start,
+                    look,
+                    base,
+                )
+            })
+            .collect()
+    }
 
     #[test]
     fn imported_srt_preserves_short_cues_and_multiline_text() {

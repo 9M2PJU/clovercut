@@ -1,0 +1,14 @@
+format = 2
+
+[effect]
+id = "concat.pixelize-transition"
+name = "Pixelize"
+kind = "transition"
+category = "Glitch"
+order = 18
+description = "A mosaic pixel grid dissolves from one shot into the next."
+
+[transition]
+entry = "effect.wgsl"
+xfade = "pixelize"
+fallback = "cross-fade"

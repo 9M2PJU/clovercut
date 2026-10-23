@@ -40,14 +40,20 @@ pub const WIDTH: u32 = 480;
 /// A card's height in pixels.
 pub const HEIGHT: u32 = 270;
 
-/// The picture every card is drawn from: a person in a bright, colourful
-/// room, so a look has skin, saturated colour, shadow and highlight to
-/// work on.
-pub const STILL: &[u8] = include_bytes!("../assets/card-still.jpg");
+/// The picture every card is drawn from: a serene sunset over the sea/sky,
+/// giving rich golden light, color gradations, clouds, and contrast for filters and adjustments.
+pub const STILL_SUNSET: &[u8] = include_bytes!("../assets/card-sunset.jpg");
+
+/// The picture abrupt effect and transition cards are drawn from: a modern city skyline
+/// with high-frequency geometry, skyscrapers, and crisp architectural edges.
+pub const STILL_CITY: &[u8] = include_bytes!("../assets/card-city.jpg");
+
+/// Default still for backwards compatibility.
+pub const STILL: &[u8] = STILL_SUNSET;
 
 /// Bumped whenever the way a card is drawn changes - the still, the moment,
 /// the title, the size, the encoding - so every kept card is drawn again.
-const EDITION: u64 = 1;
+const EDITION: u64 = 2;
 
 /// The instant a card shows, in seconds into its clip: late enough that a
 /// reveal is under way and a pulse is lit, early enough that a one-shot
@@ -64,6 +70,15 @@ const TITLE: &str = "Big Title";
 /// The quality cards are written at: FFmpeg's JPEG quantiser, 2 the best.
 const QUALITY: u8 = 3;
 
+/// The visual theme / base picture a card is drawn from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CardTheme {
+    /// Serene sunset for calm effects, color grades, filters, and adjustments.
+    Calm,
+    /// Dynamic city skyline for abrupt distortions, glitch, blur, and motion.
+    Abrupt,
+}
+
 /// What a card draws.
 #[derive(Clone, Debug)]
 enum Drawing {
@@ -72,10 +87,11 @@ enum Drawing {
     Picture {
         pass: ShaderPass,
         screen: Option<[u8; 3]>,
+        theme: CardTheme,
     },
     /// A title over the still, the pass on the title.
     Title(ShaderPass),
-    /// A cut from the still to its turned copy.
+    /// A cut from the still (sunset) to the city.
     Cut(TransitionPass),
 }
 
@@ -102,6 +118,20 @@ impl Card {
         let mut set = package.params_at(At::Default);
         set.extend(settings.params.clone());
         let moment = settings.moment.unwrap_or(MOMENT);
+        let is_abrupt = package.category().eq_ignore_ascii_case("Distort")
+            || package.category().eq_ignore_ascii_case("Glitch")
+            || package.category().eq_ignore_ascii_case("Blur")
+            || package.category().eq_ignore_ascii_case("Cutout")
+            || package.id().contains("pixelate")
+            || package.id().contains("fisheye")
+            || package.id().contains("chromatic")
+            || package.id().contains("halation")
+            || package.id().contains("motion");
+        let theme = if is_abrupt {
+            CardTheme::Abrupt
+        } else {
+            CardTheme::Calm
+        };
         let drawing = if package.transition().is_some() {
             Drawing::Cut(catalogue.transition_pass(
                 package.id(),
@@ -116,6 +146,7 @@ impl Card {
                 Drawing::Picture {
                     pass,
                     screen: settings.screen_rgb(),
+                    theme,
                 }
             }
         };
@@ -204,8 +235,13 @@ fn fingerprint(drawing: &Drawing, moment: f64) -> u64 {
         Drawing::Picture {
             pass: drawn,
             screen,
+            theme,
         } => {
             feed(b"picture");
+            feed(match theme {
+                CardTheme::Calm => b"calm",
+                CardTheme::Abrupt => b"abrupt",
+            });
             feed(&screen.map_or([0; 4], |[r, g, b]| [1, r, g, b]));
             pass(&mut feed, drawn);
         }
@@ -226,12 +262,12 @@ fn fingerprint(drawing: &Drawing, moment: f64) -> u64 {
 }
 
 /// What draws cards: a compositor, and the pictures every card starts from,
-/// made once - the still at the card's size, its turned copy, the
+/// made once - the still (sunset), the city skyline (or turned copy), the
 /// checkerboard, the title.
 pub struct Painter {
     compositor: WgpuCompositor,
     still: Arc<Frame>,
-    turned: Arc<Frame>,
+    city: Arc<Frame>,
     checker: Arc<Frame>,
     title: Option<(Arc<Frame>, Arc<RevealMap>)>,
 }
@@ -245,18 +281,41 @@ impl Painter {
         width: u32,
         height: u32,
     ) -> Result<Painter, String> {
+        Self::with_city(compositor, still, None, width, height)
+    }
+
+    /// A painter on `compositor` with both calm still (sunset) and dynamic/abrupt still (city).
+    pub fn with_city(
+        compositor: WgpuCompositor,
+        still: &Path,
+        city: Option<&Path>,
+        width: u32,
+        height: u32,
+    ) -> Result<Painter, String> {
         let mut decoder = Decoder::open(still, &DecodeOptions::default().scaled_to(width, height))
             .map_err(|error| error.to_string())?;
         let still = decoder
             .next_frame()
             .map_err(|error| error.to_string())?
             .ok_or_else(|| format!("{} holds no picture", still.display()))?;
-        let turned = turned(&still);
+
+        let city_frame = if let Some(city_path) = city {
+            if city_path.is_file() {
+                Decoder::open(city_path, &DecodeOptions::default().scaled_to(width, height))
+                    .ok()
+                    .and_then(|mut dec| dec.next_frame().ok().flatten())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let city = city_frame.unwrap_or_else(|| turned(&still));
         let checker = checker(still.width(), still.height());
         Ok(Painter {
             compositor,
             still: Arc::new(still),
-            turned: Arc::new(turned),
+            city: Arc::new(city),
             checker: Arc::new(checker),
             title: None,
         })
@@ -279,10 +338,14 @@ impl Painter {
         let (width, height) = (self.still.width(), self.still.height());
         let moment = Rational::approximate(card.moment).ok_or("the moment is not a time")?;
         let frame = match &card.drawing {
-            Drawing::Picture { pass, screen } => {
+            Drawing::Picture { pass, screen, theme } => {
+                let base = match theme {
+                    CardTheme::Abrupt => &self.city,
+                    CardTheme::Calm => &self.still,
+                };
                 let subject = match screen {
-                    Some(colour) => Arc::new(screened(&self.still, *colour)),
-                    None => Arc::clone(&self.still),
+                    Some(colour) => Arc::new(screened(base, *colour)),
+                    None => Arc::clone(base),
                 };
                 let ground = PlannedLayer::picture(detached_clip(), Arc::clone(&self.checker));
                 let mut picture = PlannedLayer::picture(detached_clip(), subject);
@@ -315,7 +378,7 @@ impl Painter {
                     height,
                     card.moment as f32,
                     &self.still,
-                    &self.turned,
+                    &self.city,
                     cut,
                 )
                 .ok_or("the transition's shader would not run")?,
@@ -418,7 +481,9 @@ pub fn draw_all(
             {
                 return Err("a software adapter only; the cards are left undrawn".to_owned());
             }
-            Painter::new(compositor, &still_in(dir)?, WIDTH, HEIGHT)
+            let still_path = still_in(dir)?;
+            let city_path = city_still_in(dir).ok();
+            Painter::with_city(compositor, &still_path, city_path.as_deref(), WIDTH, HEIGHT)
         });
     let mut painter = match painter {
         Ok(painter) => painter,
@@ -483,13 +548,22 @@ fn write_card(frame: &Frame, path: &Path) -> Result<(), String> {
     std::fs::rename(&part, path).map_err(|error| error.to_string())
 }
 
-/// The still, written into `dir` for a decoder to read, and its path. It is
-/// rewritten when it differs, so a build with a new still draws from it.
+/// The still (sunset), written into `dir` for a decoder to read, and its path.
 pub fn still_in(dir: &Path) -> Result<PathBuf, String> {
-    let path = dir.join("still.jpg");
-    if std::fs::read(&path).ok().as_deref() != Some(STILL) {
+    let path = dir.join("still-sunset.jpg");
+    if std::fs::read(&path).ok().as_deref() != Some(STILL_SUNSET) {
         std::fs::create_dir_all(dir).map_err(|error| error.to_string())?;
-        std::fs::write(&path, STILL).map_err(|error| error.to_string())?;
+        std::fs::write(&path, STILL_SUNSET).map_err(|error| error.to_string())?;
+    }
+    Ok(path)
+}
+
+/// The city still, written into `dir` for a decoder to read, and its path.
+pub fn city_still_in(dir: &Path) -> Result<PathBuf, String> {
+    let path = dir.join("still-city.jpg");
+    if std::fs::read(&path).ok().as_deref() != Some(STILL_CITY) {
+        std::fs::create_dir_all(dir).map_err(|error| error.to_string())?;
+        std::fs::write(&path, STILL_CITY).map_err(|error| error.to_string())?;
     }
     Ok(path)
 }
@@ -622,7 +696,8 @@ mod tests {
             .map(PathBuf::from)
             .unwrap_or_else(|| scratch("draw"));
         let still = still_in(&dir).expect("the still");
-        let mut painter = Painter::new(compositor, &still, WIDTH, HEIGHT).expect("a painter");
+        let city = city_still_in(&dir).ok();
+        let mut painter = Painter::with_city(compositor, &still, city.as_deref(), WIDTH, HEIGHT).expect("a painter");
         let mut idle = Vec::new();
         let mut failed = Vec::new();
         let cards = cards(Catalogue::builtin(), &dir);
@@ -638,8 +713,16 @@ mod tests {
             let untreated = match &card.drawing {
                 Drawing::Picture {
                     screen: Some(colour),
+                    theme,
                     ..
-                } => screened(&painter.still, *colour),
+                } => screened(match theme {
+                    CardTheme::Abrupt => &painter.city,
+                    CardTheme::Calm => &painter.still,
+                }, *colour),
+                Drawing::Picture { theme, .. } => match theme {
+                    CardTheme::Abrupt => (*painter.city).clone(),
+                    CardTheme::Calm => (*painter.still).clone(),
+                },
                 _ => (*painter.still).clone(),
             };
             let change = frame

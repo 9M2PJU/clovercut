@@ -4021,8 +4021,8 @@ mod tests {
             .position(|t| t.id == caption.track_id)
             .expect("row");
         assert_eq!(
-            caption_row, 0,
-            "with nothing occupied, the caption takes the bottom lane"
+            caption_row, 1,
+            "with nothing occupied, the caption lands above the main video lane"
         );
     }
 

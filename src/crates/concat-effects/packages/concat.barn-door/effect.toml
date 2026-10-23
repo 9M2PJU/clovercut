@@ -1,0 +1,14 @@
+format = 2
+
+[effect]
+id = "concat.barn-door"
+name = "Barn Doors"
+kind = "transition"
+category = "Wipe"
+order = 13
+description = "A split wipe opens from the center outward like opening barn doors."
+
+[transition]
+entry = "effect.wgsl"
+xfade = "vertopen"
+fallback = "cross-fade"
