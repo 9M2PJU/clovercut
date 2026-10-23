@@ -92,6 +92,8 @@ pub enum SoundsMsg {
     ConcatLoaded(Result<Option<Catalogue>, String>),
     /// A category of the Concat shelf picked: 0 All, then [`CATEGORIES`].
     ConcatCategory(i32),
+    /// Provider picked: 0 OpenGameArt, 1 YouTube Audio, 2 Freesound.
+    Provider(i32),
     /// A Concat sound's download, how far.
     Fetching(String, f32),
     /// A Concat sound's download is done.
@@ -111,6 +113,8 @@ pub struct SoundsPane {
     /// shelf stands.
     pub catalogue: Catalogue,
     pub concat: ConcatState,
+    /// Selected provider: 0 OpenGameArt, 1 YouTube Audio, 2 Freesound.
+    pub provider: usize,
     /// The category shown: 0 All, then a row of [`CATEGORIES`].
     pub category: usize,
     /// Search text last submitted to the source.
@@ -157,7 +161,12 @@ impl SoundsPane {
     /// Applies one message. The studio is the rest of the window; while
     /// this runs the studio's copy of the pane is a blank it must not read.
     pub fn update(&mut self, msg: SoundsMsg, studio: &mut Studio) {
-        if !studio.prefs.opengameart_library
+        let library_enabled = match self.provider {
+            1 => studio.prefs.youtube_audio_library,
+            2 => studio.prefs.freesound_library,
+            _ => studio.prefs.opengameart_library,
+        };
+        if !library_enabled
             && matches!(
                 &msg,
                 SoundsMsg::LoadConcat
@@ -170,25 +179,39 @@ impl SoundsPane {
         }
         match msg {
             SoundsMsg::Shown(on) => self.shown = on,
-            SoundsMsg::LoadConcat => self.load_page(self.catalogue.page),
+            SoundsMsg::Provider(p) => {
+                let provider = (p.max(0) as usize).min(2);
+                if self.provider != provider {
+                    self.provider = provider;
+                    self.query.clear();
+                    self.category = 0;
+                    self.load_page(0, studio);
+                }
+            }
+            SoundsMsg::LoadConcat => self.load_page(self.catalogue.page, studio),
             SoundsMsg::Search(query) => {
                 if self.concat != ConcatState::Loading {
                     self.query = query.chars().take(160).collect();
-                    self.load_page(0);
+                    self.load_page(0, studio);
                 }
             }
             SoundsMsg::Page(next) => {
                 if self.concat != ConcatState::Loading && (!next || self.catalogue.more) {
-                    self.load_page(if next {
-                        self.catalogue.page + 1
-                    } else {
-                        self.catalogue.page.saturating_sub(1)
-                    });
+                    self.load_page(
+                        if next {
+                            self.catalogue.page + 1
+                        } else {
+                            self.catalogue.page.saturating_sub(1)
+                        },
+                        studio,
+                    );
                 }
             }
             SoundsMsg::Source(card) => {
                 if let Some(sound) = self.listed(&card)
-                    && concat_host::opengameart::is_source(&sound.source)
+                    && (concat_host::opengameart::is_source(&sound.source)
+                        || sound.source.starts_with("https://www.youtube.com")
+                        || sound.source.starts_with("https://freesound.org"))
                     && let Err(error) = crate::platform::open_link(&sound.source)
                 {
                     studio.notify(&error, true);
@@ -201,7 +224,7 @@ impl SoundsPane {
                 }
                 Ok(None) => self.concat = ConcatState::Soon,
                 Err(error) => {
-                    log::info!("sounds: OpenGameArt could not be searched: {error}");
+                    log::info!("sounds: audio library search failed: {error}");
                     // A list already on screen stays: the refresh failed,
                     // not the shelf.
                     if self.catalogue.sounds.is_empty() {
@@ -217,7 +240,7 @@ impl SoundsPane {
             SoundsMsg::ConcatCategory(index) => {
                 if self.concat != ConcatState::Loading {
                     self.category = (index.max(0) as usize).min(CATEGORIES.len());
-                    self.load_page(0);
+                    self.load_page(0, studio);
                 }
             }
             SoundsMsg::Fetching(card, done) => {
@@ -407,7 +430,7 @@ impl SoundsPane {
     }
 
     /// Fetch one search page on a worker; never issue requests from the paint path.
-    fn load_page(&mut self, page: usize) {
+    fn load_page(&mut self, page: usize, studio: &Studio) {
         let Some(dirs) = self.dirs.clone() else {
             return;
         };
@@ -417,8 +440,10 @@ impl SoundsPane {
         self.concat = ConcatState::Loading;
         let query = self.query.clone();
         let category = self.category;
+        let provider = self.provider;
+        let freesound_key = studio.prefs.freesound_api_key.clone();
         crate::host::spawn(
-            move || sounds::search_catalogue(&dirs, &query, category, page),
+            move || sounds::search_catalogue_provider(&dirs, provider, &query, category, page, &freesound_key),
             |studio, _, _, result| studio.handle(Msg::Sounds(SoundsMsg::ConcatLoaded(result))),
         );
     }
@@ -440,7 +465,15 @@ impl SoundsPane {
                     name: sound.name.as_str().into(),
                     duration: sound.duration as f32,
                     wave: SharedString::new(),
-                    detail: if sound.author.is_empty() {
+                    detail: if sound.id.starts_with("ytal-") {
+                        "Music · Royalty Free · YouTube Audio Library".into()
+                    } else if sound.id.starts_with("fs-") {
+                        if sound.author.is_empty() {
+                            "Effects · Freesound".into()
+                        } else {
+                            format!("Effects · {} · Freesound", sound.author).into()
+                        }
+                    } else if sound.author.is_empty() {
                         format!("{} · CC0 · OpenGameArt", category_label(&sound.category)).into()
                     } else {
                         format!(

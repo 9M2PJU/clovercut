@@ -1,0 +1,13 @@
+format = 2
+
+[effect]
+id = "concat.gl-water-drop"
+name = "Water Drop"
+kind = "transition"
+category = "GL Transitions"
+order = 1
+description = "Concentric liquid ripples spread out from the centre as the cut completes."
+
+[transition]
+entry = "effect.wgsl"
+fallback = "cross-fade"

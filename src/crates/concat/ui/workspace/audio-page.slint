@@ -75,6 +75,9 @@ export global Sounds {
     in property <int> concat-state;
     /// 0 All, then Whoosh, Impact, Riser, Ambience, Music.
     in property <int> concat-category;
+    /// Audio provider: 0 OpenGameArt, 1 YouTube Audio, 2 Freesound.
+    in property <int> provider: 0;
+    callback provider-changed(provider: int);
     /// "Load Concat sounds", Refresh, Try again: the list fetched.
     callback load-concat();
     in property <string> query;

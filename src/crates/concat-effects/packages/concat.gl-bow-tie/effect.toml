@@ -1,0 +1,13 @@
+format = 2
+
+[effect]
+id = "concat.gl-bow-tie"
+name = "Bow Tie"
+kind = "transition"
+category = "GL Transitions"
+order = 4
+description = "A dynamic triangular bow tie wipe cutting inward from the edges to reveal the next shot."
+
+[transition]
+entry = "effect.wgsl"
+fallback = "cross-fade"

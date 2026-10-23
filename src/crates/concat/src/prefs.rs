@@ -26,8 +26,16 @@ pub const UI_SCALES: [u32; 6] = [100, 110, 125, 150, 175, 200];
 pub struct Preferences {
     /// Optional public audio catalogue, enabled explicitly in Settings.
     pub opengameart_library: bool,
+    /// Optional YouTube Audio Library integration, enabled explicitly in Settings.
+    pub youtube_audio_library: bool,
+    /// Optional Freesound integration, enabled explicitly in Settings.
+    pub freesound_library: bool,
+    /// Optional Freesound API key.
+    pub freesound_api_key: String,
     /// Optional GIPHY sticker integration, enabled explicitly in Settings.
     pub giphy_library: bool,
+    /// Optional community GL transitions package library, enabled in Settings.
+    pub gl_transitions_library: bool,
     /// The dark theme. `None` is the app's default, which is dark.
     pub dark: Option<bool>,
     /// The parent folder of the last project created successfully.

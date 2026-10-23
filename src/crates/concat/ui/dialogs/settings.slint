@@ -862,6 +862,40 @@ export component SettingsDialog inherits Modal {
                     Text { text: I18n.t("libraries.audioDescription"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs; }
                 }
                 DialogSection {
+                    title: "YouTube Audio Library"; switchable: true; on: ContentLibraries.youtube-audio-enabled;
+                    switched(enabled) => { ContentLibraries.enable-youtube-audio(enabled); }
+                    Text { text: I18n.t("libraries.youtubeAudioDescription"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs; }
+                }
+                DialogSection {
+                    title: "Freesound"; switchable: true; on: ContentLibraries.freesound-enabled;
+                    switched(enabled) => { ContentLibraries.enable-freesound(enabled); }
+                    Text { text: I18n.t("libraries.freesoundDescription"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs; }
+                    if ContentLibraries.freesound-enabled: VerticalLayout {
+                        spacing: 8px;
+                        Rectangle {
+                            height: Theme.h;
+                            background: Theme.field;
+                            border-width: 1px; border-color: Theme.line; border-radius: Theme.r;
+                            fs-key := TextInput {
+                                x: 8px; y: 0; width: parent.width - 16px; height: parent.height;
+                                color: Theme.fg; font-size: Theme.fs;
+                                single-line: true; input-type: password;
+                                vertical-alignment: center;
+                                accepted => { ContentLibraries.save-freesound-key(self.text); self.text = ""; }
+                            }
+                            if fs-key.text == "": Text {
+                                x: 8px; height: parent.height;
+                                text: ContentLibraries.freesound-configured ? I18n.t("freesound.keySaved") : I18n.t("freesound.keyPlaceholder");
+                                color: Theme.fg-dim; font-size: Theme.fs-sm; vertical-alignment: center;
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Button { label: I18n.t("stickers.connect"); enabled: fs-key.text != ""; clicked => { ContentLibraries.save-freesound-key(fs-key.text); fs-key.text = ""; } }
+                        }
+                    }
+                }
+                DialogSection {
                     title: "GIPHY"; switchable: true; on: ContentLibraries.stickers-enabled;
                     switched(enabled) => { ContentLibraries.enable-stickers(enabled); }
                     Text { text: I18n.t("libraries.stickerDescription"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs; }
@@ -892,6 +926,11 @@ export component SettingsDialog inherits Modal {
                     }
 
                     if Stickers.error != "": Text { text: Stickers.error; color: Theme.danger; wrap: word-wrap; }
+                }
+                DialogSection {
+                    title: "GL Transitions"; switchable: true; on: ContentLibraries.gl-transitions-enabled;
+                    switched(enabled) => { ContentLibraries.enable-gl-transitions(enabled); }
+                    Text { text: I18n.t("libraries.glTransitionsDescription"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs; }
                 }
             }
 

@@ -2080,6 +2080,8 @@ export component MediaPane inherits Rectangle {
     property <bool> sounds-open: true;
     property <bool> voices-open: true;
     property <bool> concat-open: true;
+    property <bool> youtube-open: true;
+    property <bool> freesound-open: true;
     /// How far left the page strip can be pushed: nothing, while its chips
     /// fit. See `strip`.
     property <length> strip-floor: Math.min(0px, strip.width - strip.content-width);
@@ -2480,14 +2482,44 @@ export component MediaPane inherits Rectangle {
                             CategoryRow {
                                 height: 28px;
                                 label: I18n.t("sounds.catMusic");
-                                current: root.audio-category == 1 && Sounds.concat-category == 5;
-                                clicked => { root.audio-category = 1; Sounds.concat-category-changed(5); }
+                                current: root.audio-category == 1 && Sounds.concat-category == 5 && Sounds.provider == 0;
+                                clicked => { root.audio-category = 1; Sounds.provider-changed(0); Sounds.concat-category-changed(5); }
                             }
                             CategoryRow {
                                 height: 28px;
                                 label: I18n.t("sounds.catEffects");
-                                current: root.audio-category == 1 && Sounds.concat-category == 6;
-                                clicked => { root.audio-category = 1; Sounds.concat-category-changed(6); }
+                                current: root.audio-category == 1 && Sounds.concat-category == 6 && Sounds.provider == 0;
+                                clicked => { root.audio-category = 1; Sounds.provider-changed(0); Sounds.concat-category-changed(6); }
+                            }
+                        }
+                        if ContentLibraries.youtube-audio-enabled: CategoryHeading {
+                            height: 26px;
+                            title: "YouTube Audio";
+                            open: root.youtube-open;
+                            toggled => { root.youtube-open = !root.youtube-open; }
+                        }
+                        if root.youtube-open && ContentLibraries.youtube-audio-enabled: VerticalLayout {
+                            spacing: 1px;
+                            CategoryRow {
+                                height: 28px;
+                                label: I18n.t("sounds.catMusic");
+                                current: root.audio-category == 2 && Sounds.provider == 1;
+                                clicked => { root.audio-category = 2; Sounds.provider-changed(1); }
+                            }
+                        }
+                        if ContentLibraries.freesound-enabled: CategoryHeading {
+                            height: 26px;
+                            title: "Freesound";
+                            open: root.freesound-open;
+                            toggled => { root.freesound-open = !root.freesound-open; }
+                        }
+                        if root.freesound-open && ContentLibraries.freesound-enabled: VerticalLayout {
+                            spacing: 1px;
+                            CategoryRow {
+                                height: 28px;
+                                label: I18n.t("sounds.catEffects");
+                                current: root.audio-category == 3 && Sounds.provider == 2;
+                                clicked => { root.audio-category = 3; Sounds.provider-changed(2); }
                             }
                         }
                         CategoryHeading {
@@ -2898,10 +2930,9 @@ export component MediaPane inherits Rectangle {
                     }
                 }
 
-                // Concat's own sounds: offered, not fetched, until asked
-                // for - nothing goes online at startup - then listed, each
-                // downloaded the first time it is played or laid down.
-                if root.tab == 8 && root.audio-category == 1 && ContentLibraries.audio-enabled: VerticalLayout {
+                // Online audio sounds (OpenGameArt, YouTube Audio Library, Freesound):
+                // offered, not fetched, until asked for - nothing goes online at startup.
+                if root.tab == 8 && ((root.audio-category == 1 && ContentLibraries.audio-enabled) || (root.audio-category == 2 && ContentLibraries.youtube-audio-enabled) || (root.audio-category == 3 && ContentLibraries.freesound-enabled)): VerticalLayout {
                     padding: 8px;
                     spacing: 8px;
 
@@ -2977,12 +3008,12 @@ export component MediaPane inherits Rectangle {
 
                 }
 
-                if root.tab == 8 && root.audio-category == 1 && Sounds.concat-state == 3: Empty {
+                if root.tab == 8 && (root.audio-category == 1 || root.audio-category == 2 || root.audio-category == 3) && Sounds.concat-state == 3: Empty {
                     glyph: Glyph.music;
                     text: I18n.t("sounds.noResults");
                 }
 
-                if root.tab == 8 && root.audio-category == 1 && !ContentLibraries.audio-enabled: VerticalLayout {
+                if root.tab == 8 && ((root.audio-category == 1 && !ContentLibraries.audio-enabled) || (root.audio-category == 2 && !ContentLibraries.youtube-audio-enabled) || (root.audio-category == 3 && !ContentLibraries.freesound-enabled)): VerticalLayout {
                     padding: 8px; spacing: 8px;
                     Text { text: I18n.t("libraries.audioAvailable"); color: Theme.fg-muted; wrap: word-wrap; }
                     ImportButton { label: I18n.t("libraries.manage"); clicked => { ContentLibraries.open-settings(); } }

@@ -1575,6 +1575,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         sounds.on_load_concat(on_window!(|state| {
             state.handle(Msg::Sounds(SoundsMsg::LoadConcat));
         }));
+        sounds.on_provider_changed(on_window!(|state, provider: i32| {
+            state.handle(Msg::Sounds(SoundsMsg::Provider(provider)));
+        }));
         sounds.on_concat_category_changed(on_window!(|state, index: i32| {
             state.handle(Msg::Sounds(SoundsMsg::ConcatCategory(index)));
         }));
@@ -1931,12 +1934,29 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
             state.prefs.opengameart_library = enabled;
             state.prefs.save(&state.host.dirs);
         }));
+        libraries.on_enable_youtube_audio(on_window!(|state, enabled: bool| {
+            state.prefs.youtube_audio_library = enabled;
+            state.prefs.save(&state.host.dirs);
+        }));
+        libraries.on_enable_freesound(on_window!(|state, enabled: bool| {
+            state.prefs.freesound_library = enabled;
+            state.prefs.save(&state.host.dirs);
+        }));
+        libraries.on_save_freesound_key(on_window!(|state, key: SharedString| {
+            state.prefs.freesound_api_key = key.trim().to_string();
+            state.prefs.save(&state.host.dirs);
+            state.handle(Msg::Sounds(SoundsMsg::LoadConcat));
+        }));
         libraries.on_enable_stickers(on_window!(|state, enabled: bool| {
             state.prefs.giphy_library = enabled;
             state.prefs.save(&state.host.dirs);
             if !enabled {
                 state.stickers.suspend();
             }
+        }));
+        libraries.on_enable_gl_transitions(on_window!(|state, enabled: bool| {
+            state.prefs.gl_transitions_library = enabled;
+            state.prefs.save(&state.host.dirs);
         }));
     }
     app.on_open_settings(on_window!(|state| {

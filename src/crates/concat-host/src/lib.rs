@@ -32,6 +32,7 @@ pub mod jobs;
 pub mod lock;
 pub mod logs;
 pub mod machine;
+pub mod freesound;
 pub mod media;
 pub mod memory;
 pub mod models;
@@ -48,6 +49,7 @@ pub mod sounds;
 pub mod stabilize;
 pub mod templates;
 pub mod titles;
+pub mod youtube_audio;
 pub mod updates;
 pub mod voices;
 

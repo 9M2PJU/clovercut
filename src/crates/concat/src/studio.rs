@@ -1461,6 +1461,7 @@ struct ShelfStamp {
     lang: String,
     views: Vec<(String, i32, bool, String)>,
     favourites: Vec<String>,
+    gl_transitions: bool,
 }
 
 /// The built-in colour package's id; see `adjust_rows` and `Studio::adjust_set`.
@@ -12555,6 +12556,7 @@ impl Studio {
                 })
                 .collect(),
             favourites: starred.clone(),
+            gl_transitions: self.prefs.gl_transitions_library,
         };
         if self.shelf_stamp.borrow().as_ref() != Some(&stamp) {
             // The looks made from tables are the Adjustments page's, not
@@ -12618,13 +12620,20 @@ impl Studio {
             );
             sync(&models.audio_groups, groups);
             sync(&models.catalogue_audio, entries);
+            let gl_transitions_enabled = self.prefs.gl_transitions_library;
             let (groups, entries) = shelves(
                 SHELF_KINDS[3],
                 &self.library[3],
                 starred,
                 &self.look_art,
                 &self.card_paths,
-                |_| true,
+                |pkg| {
+                    if pkg.manifest.effect.category == "GL Transitions" {
+                        gl_transitions_enabled
+                    } else {
+                        true
+                    }
+                },
             );
             sync(&models.transition_groups, groups);
             sync(&models.catalogue_transitions, entries);
@@ -12958,6 +12967,14 @@ impl Studio {
             .set_audio_enabled(self.prefs.opengameart_library);
         app.global::<crate::ui::ContentLibraries>()
             .set_stickers_enabled(self.prefs.giphy_library);
+        app.global::<crate::ui::ContentLibraries>()
+            .set_youtube_audio_enabled(self.prefs.youtube_audio_library);
+        app.global::<crate::ui::ContentLibraries>()
+            .set_freesound_enabled(self.prefs.freesound_library);
+        app.global::<crate::ui::ContentLibraries>()
+            .set_freesound_configured(!self.prefs.freesound_api_key.trim().is_empty());
+        app.global::<crate::ui::ContentLibraries>()
+            .set_gl_transitions_enabled(self.prefs.gl_transitions_library);
         // The Audio page.
         sync(&models.sounds_mine, self.sounds.mine());
         sync(&models.sounds_concat, self.sounds.concat_rows());
@@ -12971,6 +12988,7 @@ impl Studio {
                 ConcatState::Soon => 3,
                 ConcatState::Offline => 4,
             });
+            page.set_provider(self.sounds.provider as i32);
             page.set_concat_category(self.sounds.category as i32);
             page.set_query(self.sounds.query.as_str().into());
             page.set_result_page(self.sounds.catalogue.page as i32);

@@ -4,7 +4,15 @@
 export global ContentLibraries {
     in property <bool> audio-enabled;
     in property <bool> stickers-enabled;
+    in property <bool> youtube-audio-enabled;
+    in property <bool> freesound-enabled;
+    in property <bool> freesound-configured;
+    in property <bool> gl-transitions-enabled;
     callback enable-audio(enabled: bool);
     callback enable-stickers(enabled: bool);
+    callback enable-youtube-audio(enabled: bool);
+    callback enable-freesound(enabled: bool);
+    callback enable-gl-transitions(enabled: bool);
+    callback save-freesound-key(key: string);
     callback open-settings();
 }

@@ -401,6 +401,28 @@ pub fn cached_catalogue(dirs: &AppDirs) -> Option<Catalogue> {
     Some(catalogue)
 }
 
+/// Search an audio catalogue provider directly, caching metadata.
+pub fn search_catalogue_provider(
+    dirs: &AppDirs,
+    provider: usize,
+    query: &str,
+    category: usize,
+    page: usize,
+    freesound_key: &str,
+) -> Result<Option<Catalogue>, String> {
+    match provider {
+        1 => {
+            let catalogue = crate::youtube_audio::search(dirs, query, category, page)?;
+            Ok(Some(catalogue))
+        }
+        2 => {
+            let catalogue = crate::freesound::search(dirs, query, category, page, freesound_key)?;
+            Ok(Some(catalogue))
+        }
+        _ => search_catalogue(dirs, query, category, page),
+    }
+}
+
 /// Search OpenGameArt directly, and cache only the metadata locally.
 pub fn search_catalogue(
     dirs: &AppDirs,
@@ -460,15 +482,16 @@ pub fn cached_file(dirs: &AppDirs, sound: &Listed) -> PathBuf {
     use sha2::{Digest, Sha256};
     let key = if sound.id.starts_with("oga-") {
         format!("{:x}", Sha256::digest(sound.source.as_bytes()))
+    } else if sound.id.starts_with("ytal-") || sound.id.starts_with("fs-") {
+        sound.id.clone()
     } else {
         sound.sha256.clone()
     };
     cache_dir(dirs).join(format!("{}-{}", &key[..key.len().min(12)], sound.file))
 }
 
-/// Download original audio directly from OpenGameArt, after checking its own
-/// licence page. A local digest detects later cache corruption; it is not a
-/// publisher-supplied checksum.
+/// Download original audio directly from the source provider, after checking its own
+/// licence and parameters.
 pub fn fetch_sound(
     dirs: &AppDirs,
     sound: &Listed,
@@ -480,31 +503,44 @@ pub fn fetch_sound(
     if !sound.is_offered() {
         return Err("invalid audio library entry".into());
     }
-    if !sound.id.starts_with("oga-") {
-        return Err("unsupported legacy audio source".into());
-    }
-    let mut sound = match resolved_sound(dirs, sound) {
-        Some(known) => known,
-        None => crate::opengameart::resolve(sound)?,
+
+    let (mut sound, urls) = if sound.id.starts_with("oga-") {
+        let resolved = match resolved_sound(dirs, sound) {
+            Some(known) => known,
+            None => crate::opengameart::resolve(sound)?,
+        };
+        if !crate::opengameart::is_audio(&resolved.download_url) {
+            return Err("invalid original audio URL".into());
+        }
+        let url = resolved.download_url.clone();
+        (resolved, vec![url])
+    } else if sound.id.starts_with("ytal-") {
+        let drive_id = sound.id.trim_start_matches("ytal-");
+        (
+            sound.clone(),
+            vec![
+                sound.download_url.clone(),
+                format!("https://docs.google.com/uc?export=download&id={drive_id}"),
+            ],
+        )
+    } else if sound.id.starts_with("fs-") {
+        if sound.download_url.is_empty() {
+            return Err("Freesound sound has no preview URL".into());
+        }
+        (sound.clone(), vec![sound.download_url.clone()])
+    } else {
+        return Err("unsupported audio source".into());
     };
+
     let target = cached_file(dirs, &sound);
     if target.is_file()
-        && !sound.sha256.is_empty()
-        && crate::models::verify(&target, &sound.sha256).is_ok()
+        && (sound.sha256.is_empty() || crate::models::verify(&target, &sound.sha256).is_ok())
     {
         return Ok(target);
     }
     let dir = cache_dir(dirs);
     std::fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
     let partial = target.with_extension("partial");
-    let urls = if sound.id.starts_with("oga-") {
-        if !crate::opengameart::is_audio(&sound.download_url) {
-            return Err("invalid original audio URL".into());
-        }
-        vec![sound.download_url.clone()]
-    } else {
-        return Err("unsupported audio source".into());
-    };
     let mut last = String::new();
     for url in urls {
         match crate::models::download(&url, &partial, sound.bytes, cancel, "cancelled", progress) {

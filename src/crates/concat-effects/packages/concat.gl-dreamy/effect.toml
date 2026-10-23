@@ -1,0 +1,13 @@
+format = 2
+
+[effect]
+id = "concat.gl-dreamy"
+name = "Dreamy Wave"
+kind = "transition"
+category = "GL Transitions"
+order = 3
+description = "A shimmering dream wave with subtle color aberration that dissolves into the next shot."
+
+[transition]
+entry = "effect.wgsl"
+fallback = "cross-fade"

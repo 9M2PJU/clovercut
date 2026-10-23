@@ -1,0 +1,13 @@
+format = 2
+
+[effect]
+id = "concat.gl-crosshatch"
+name = "Crosshatch"
+kind = "transition"
+category = "GL Transitions"
+order = 5
+description = "Geometric crosshatching diagonals reveal the incoming shot with rhythmic texture."
+
+[transition]
+entry = "effect.wgsl"
+fallback = "cross-fade"

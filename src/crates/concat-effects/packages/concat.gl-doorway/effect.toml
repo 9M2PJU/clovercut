@@ -1,0 +1,13 @@
+format = 2
+
+[effect]
+id = "concat.gl-doorway"
+name = "Doorway"
+kind = "transition"
+category = "GL Transitions"
+order = 2
+description = "The outgoing clip pushes back in perspective and parts in the middle to reveal the next shot."
+
+[transition]
+entry = "effect.wgsl"
+fallback = "cross-fade"

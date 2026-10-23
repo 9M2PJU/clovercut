@@ -1,0 +1,13 @@
+format = 2
+
+[effect]
+id = "concat.gl-circle-crop"
+name = "Circle Crop"
+kind = "transition"
+category = "GL Transitions"
+order = 6
+description = "A clean circular mask expands from the center with a soft edge to unveil the incoming shot."
+
+[transition]
+entry = "effect.wgsl"
+fallback = "cross-fade"

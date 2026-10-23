@@ -253,6 +253,11 @@ component CurvePoint inherits TouchArea {
     property <bool> dragging;
     property <bool> off;
 
+    property <length> origin-x;
+    property <length> origin-y;
+    property <float> start-px;
+    property <float> start-py;
+
     x: (self.dragging ? self.drag-x : root.px) * root.plot-w - 8px;
     y: (1 - (self.dragging ? self.drag-y : root.py)) * root.plot-h - 8px;
     width: 16px;
@@ -271,25 +276,35 @@ component CurvePoint inherits TouchArea {
         opacity: root.off ? 0.35 : 1;
     }
 
-    moved => {
-        if (self.pressed) {
-            self.dragging = true;
-            let x = root.px + (self.mouse-x - self.pressed-x) / root.plot-w;
-            let y = root.py - (self.mouse-y - self.pressed-y) / root.plot-h;
-            // Well outside the square, the point is on its way off.
-            self.off = x < -0.08 || x > 1.08 || y < -0.08 || y > 1.08;
-            self.drag-x = Math.max(0, Math.min(1, x));
-            self.drag-y = Math.max(0, Math.min(1, y));
-            root.dragged(self.drag-x, self.drag-y);
-        }
-    }
     pointer-event(event) => {
-        if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
+        if (event.kind == PointerEventKind.down) {
+            self.origin-x = self.absolute-position.x + self.mouse-x;
+            self.origin-y = self.absolute-position.y + self.mouse-y;
+            self.start-px = root.px;
+            self.start-py = root.py;
+            self.drag-x = root.px;
+            self.drag-y = root.py;
+            self.dragging = true;
+        } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
             if (self.off && event.kind == PointerEventKind.up) {
                 root.removed();
             }
             self.dragging = false;
             self.off = false;
+        }
+    }
+
+    moved => {
+        if (self.pressed) {
+            let dx = (self.absolute-position.x + self.mouse-x - self.origin-x) / root.plot-w;
+            let dy = (self.absolute-position.y + self.mouse-y - self.origin-y) / root.plot-h;
+            let x = self.start-px + dx;
+            let y = self.start-py - dy;
+            // Well outside the square, the point is on its way off.
+            self.off = x < -0.08 || x > 1.08 || y < -0.08 || y > 1.08;
+            self.drag-x = Math.max(0, Math.min(1, x));
+            self.drag-y = Math.max(0, Math.min(1, y));
+            root.dragged(self.drag-x, self.drag-y);
         }
     }
     double-clicked => { root.removed(); }
