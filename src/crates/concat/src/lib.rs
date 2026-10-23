@@ -2078,6 +2078,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     app.on_settings_shortcut_reset_all(on_window!(|state| {
         state.handle(Msg::Settings(SettingsMsg::ShortcutResetAll));
     }));
+    app.on_settings_shortcut_preset_chosen(on_window!(|state, index: i32| {
+        state.handle(Msg::Settings(SettingsMsg::ShortcutPresetChosen(index)));
+    }));
     app.on_settings_show_log(on_window!(|state| {
         state.handle(Msg::Settings(SettingsMsg::ShowLog));
     }));

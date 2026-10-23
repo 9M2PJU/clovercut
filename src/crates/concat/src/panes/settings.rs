@@ -49,6 +49,7 @@ pub enum SettingsMsg {
     /// it now, and every row put back at once.
     ShortcutReset(String),
     ShortcutResetAll,
+    ShortcutPresetChosen(i32),
     /// Show this run's log in the file manager.
     ShowLog,
     LanguageChanged(i32),
@@ -274,6 +275,12 @@ impl SettingsPane {
             SettingsMsg::ShortcutResetAll => {
                 self.capturing = None;
                 keymap::reset_all(&mut studio.prefs);
+                studio.prefs.save(&studio.host.dirs);
+            }
+            SettingsMsg::ShortcutPresetChosen(index) => {
+                self.capturing = None;
+                let profile = keymap::ShortcutProfile::from_index(index);
+                keymap::apply_profile(&mut studio.prefs, profile);
                 studio.prefs.save(&studio.host.dirs);
             }
             SettingsMsg::ShowLog => {
@@ -846,6 +853,7 @@ impl SettingsPane {
                     })
                     .collect::<Vec<_>>(),
             ))),
+            shortcut_preset: keymap::current_profile(&studio.prefs).to_index(),
             capturing: self.capturing.clone().unwrap_or_default().into(),
             language: self.language as i32,
             log_level: LOG_LEVELS

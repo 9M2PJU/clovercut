@@ -298,6 +298,7 @@ export component App inherits Window {
     callback settings-shortcut-capture(id: string);
     callback settings-shortcut-reset(id: string);
     callback settings-shortcut-reset-all();
+    callback settings-shortcut-preset-chosen(index: int);
     callback model-activated(id: string);
     callback model-download(id: string);
     callback model-cancel(id: string);
@@ -874,6 +875,7 @@ export component App inherits Window {
         shortcut-capture(id) => { root.settings-shortcut-capture(id); }
         shortcut-reset(id) => { root.settings-shortcut-reset(id); }
         shortcut-reset-all => { root.settings-shortcut-reset-all(); }
+        shortcut-preset-chosen(index) => { root.settings-shortcut-preset-chosen(index); }
         show-log => { root.settings-show-log(); }
         language-changed(index) => { root.settings-language-changed(index); }
         log-level-changed(index) => { root.settings-log-level-changed(index); }

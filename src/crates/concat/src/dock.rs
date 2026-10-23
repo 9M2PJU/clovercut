@@ -345,58 +345,58 @@ impl LayoutPreset {
 
 pub fn audio_dock() -> Dock {
     Dock::Split {
-        columns: false,
-        ratio: 0.34,
+        columns: true,
+        ratio: 0.78,
         first: Box::new(Dock::Split {
             columns: true,
-            ratio: 0.72,
+            ratio: 0.32,
             first: Box::new(Dock::Split {
-                columns: true,
-                ratio: 0.389,
+                columns: false,
+                ratio: 0.55,
                 first: Dock::leaf(PaneKind::Media),
                 second: Dock::leaf(PaneKind::Preview),
             }),
-            second: Dock::leaf(PaneKind::Inspector),
+            second: Dock::leaf(PaneKind::Timeline),
         }),
-        second: Dock::leaf(PaneKind::Timeline),
+        second: Dock::leaf(PaneKind::Inspector),
     }
 }
 
 pub fn vertical_right_dock() -> Dock {
     Dock::Split {
-        columns: false,
-        ratio: 0.58,
+        columns: true,
+        ratio: 0.70,
         first: Box::new(Dock::Split {
-            columns: true,
-            ratio: 0.65,
+            columns: false,
+            ratio: 0.56,
             first: Box::new(Dock::Split {
                 columns: true,
-                ratio: 0.46,
+                ratio: 0.52,
                 first: Dock::leaf(PaneKind::Media),
                 second: Dock::leaf(PaneKind::Inspector),
             }),
-            second: Dock::leaf(PaneKind::Preview),
+            second: Dock::leaf(PaneKind::Timeline),
         }),
-        second: Dock::leaf(PaneKind::Timeline),
+        second: Dock::leaf(PaneKind::Preview),
     }
 }
 
 pub fn vertical_left_dock() -> Dock {
     Dock::Split {
-        columns: false,
-        ratio: 0.58,
-        first: Box::new(Dock::Split {
-            columns: true,
-            ratio: 0.35,
-            first: Dock::leaf(PaneKind::Preview),
-            second: Box::new(Dock::Split {
+        columns: true,
+        ratio: 0.30,
+        first: Dock::leaf(PaneKind::Preview),
+        second: Box::new(Dock::Split {
+            columns: false,
+            ratio: 0.56,
+            first: Box::new(Dock::Split {
                 columns: true,
-                ratio: 0.46,
+                ratio: 0.52,
                 first: Dock::leaf(PaneKind::Media),
                 second: Dock::leaf(PaneKind::Inspector),
             }),
+            second: Dock::leaf(PaneKind::Timeline),
         }),
-        second: Dock::leaf(PaneKind::Timeline),
     }
 }
 
@@ -406,10 +406,10 @@ pub fn inspector_priority_dock() -> Dock {
         ratio: 0.56,
         first: Box::new(Dock::Split {
             columns: true,
-            ratio: 0.55,
+            ratio: 0.52,
             first: Box::new(Dock::Split {
                 columns: true,
-                ratio: 0.45,
+                ratio: 0.46,
                 first: Dock::leaf(PaneKind::Media),
                 second: Dock::leaf(PaneKind::Preview),
             }),
@@ -425,11 +425,11 @@ pub fn media_priority_dock() -> Dock {
         ratio: 0.56,
         first: Box::new(Dock::Split {
             columns: true,
-            ratio: 0.45,
+            ratio: 0.48,
             first: Dock::leaf(PaneKind::Media),
             second: Box::new(Dock::Split {
                 columns: true,
-                ratio: 0.55,
+                ratio: 0.54,
                 first: Dock::leaf(PaneKind::Preview),
                 second: Dock::leaf(PaneKind::Inspector),
             }),
@@ -594,6 +594,27 @@ mod tests {
                     h
                 );
             }
+        }
+    }
+
+    #[test]
+    fn all_layout_presets_produce_four_seats() {
+        for preset in [
+            LayoutPreset::Default,
+            LayoutPreset::Audio,
+            LayoutPreset::VerticalRight,
+            LayoutPreset::VerticalLeft,
+            LayoutPreset::InspectorPriority,
+            LayoutPreset::MediaPriority,
+        ] {
+            let dock = preset.build_dock();
+            let mut out = DockLayout::default();
+            lay_out(&dock, (0.0, 0.0, 1920.0, 1080.0), &mut out);
+            assert_eq!(out.seats.len(), 4, "preset {:?} seat count", preset);
+            assert!(out.seats.iter().any(|s| s.kind == PaneKind::Media));
+            assert!(out.seats.iter().any(|s| s.kind == PaneKind::Preview));
+            assert!(out.seats.iter().any(|s| s.kind == PaneKind::Inspector));
+            assert!(out.seats.iter().any(|s| s.kind == PaneKind::Timeline));
         }
     }
 }

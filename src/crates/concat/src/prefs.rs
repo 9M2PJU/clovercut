@@ -137,6 +137,8 @@ pub struct Preferences {
     /// by Settings › Shortcuts; resolved in [`crate::keymap`].
     #[serde(default)]
     pub keybinds: BTreeMap<String, String>,
+    /// Active shortcut preset profile: "clovercut", "premiere", "finalcut", "davinci", "custom".
+    pub shortcut_profile: Option<String>,
 }
 
 /// The voiceover panel's choices, kept from one take to the next and one

@@ -118,6 +118,8 @@ export struct SettingsData {
     install-note: string,
     /// The Shortcuts page's rows, in the order the page draws them.
     shortcuts: [ShortcutData],
+    /// Active shortcut preset profile: 0 Clovercut, 1 Premiere Pro, 2 Final Cut Pro, 3 DaVinci Resolve, 4 Custom
+    shortcut-preset: int,
     /// The row listening for its keys: its action id, or "" when none
     /// is. A key pressed while this is set binds instead of dispatching,
     /// and Escape puts it back to "".
@@ -646,6 +648,7 @@ export component SettingsDialog inherits Modal {
     callback shortcut-capture(id: string);
     callback shortcut-reset(id: string);
     callback shortcut-reset-all();
+    callback shortcut-preset-chosen(index: int);
     /// Focus handed back to the window's own scope, where the keymap
     /// listens: the capture field gives it up when its key has been
     /// heard, and the window answers with its own `keys.focus()`.
@@ -1710,6 +1713,31 @@ export component SettingsDialog inherits Modal {
                     first: true;
                     title: I18n.t("settings.shortcuts");
                     hint: I18n.t("shortcuts.hint");
+
+                    HorizontalLayout {
+                        spacing: 12px;
+                        alignment: start;
+
+                        Text {
+                            text: I18n.t("shortcuts.presetProfile");
+                            color: Theme.fg-muted;
+                            font-size: Theme.fs;
+                            vertical-alignment: center;
+                        }
+
+                        Select {
+                            width: 240px;
+                            options: [
+                                I18n.t("shortcuts.presetClovercut"),
+                                I18n.t("shortcuts.presetPremiere"),
+                                I18n.t("shortcuts.presetFinalCut"),
+                                I18n.t("shortcuts.presetDaVinci"),
+                                I18n.t("shortcuts.presetCustom"),
+                            ];
+                            current: root.data.shortcut-preset;
+                            changed(index) => { root.shortcut-preset-chosen(index); }
+                        }
+                    }
 
                     // Flat rows, one per action, the way the system report
                     // draws its lines: a page of chords is scanned, not

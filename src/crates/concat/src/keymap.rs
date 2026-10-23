@@ -293,6 +293,7 @@ pub fn bind(prefs: &mut Preferences, id: &str, chord: &str) -> Option<&'static s
     } else {
         prefs.keybinds.insert(id.to_owned(), chord.to_owned());
     }
+    prefs.shortcut_profile = Some("custom".to_string());
     lost
 }
 
@@ -301,6 +302,7 @@ pub fn bind(prefs: &mut Preferences, id: &str, chord: &str) -> Option<&'static s
 pub fn reset(prefs: &mut Preferences, id: &str) -> Option<&'static str> {
     let action = action(id)?;
     prefs.keybinds.remove(id);
+    prefs.shortcut_profile = Some("custom".to_string());
     let default = action.defaults.first()?;
     let mut lost = None;
     for other in ACTIONS {
@@ -315,6 +317,113 @@ pub fn reset(prefs: &mut Preferences, id: &str) -> Option<&'static str> {
 /// Forgets every override: the table as it ships.
 pub fn reset_all(prefs: &mut Preferences) {
     prefs.keybinds.clear();
+    prefs.shortcut_profile = Some("clovercut".to_string());
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum ShortcutProfile {
+    Clovercut = 0,
+    PremierePro = 1,
+    FinalCutPro = 2,
+    DaVinciResolve = 3,
+    Custom = 4,
+}
+
+impl ShortcutProfile {
+    pub fn from_index(index: i32) -> Self {
+        match index {
+            0 => Self::Clovercut,
+            1 => Self::PremierePro,
+            2 => Self::FinalCutPro,
+            3 => Self::DaVinciResolve,
+            _ => Self::Custom,
+        }
+    }
+
+    pub fn to_index(self) -> i32 {
+        self as i32
+    }
+}
+
+pub fn apply_profile(prefs: &mut Preferences, profile: ShortcutProfile) {
+    match profile {
+        ShortcutProfile::Clovercut => {
+            prefs.keybinds.clear();
+            prefs.shortcut_profile = Some("clovercut".to_string());
+        }
+        ShortcutProfile::PremierePro => {
+            prefs.keybinds.clear();
+            prefs.keybinds.insert("split".into(), "ctrl+k".into());
+            prefs.keybinds.insert("split-tool".into(), "c".into());
+            prefs.keybinds.insert("snap".into(), "s".into());
+            prefs.keybinds.insert("export".into(), "ctrl+m".into());
+            prefs.keybinds.insert("preview-axis".into(), "alt+s".into());
+            prefs.keybinds.insert("delete-left".into(), "q".into());
+            prefs.keybinds.insert("delete-right".into(), "w".into());
+            prefs.shortcut_profile = Some("premiere".to_string());
+        }
+        ShortcutProfile::FinalCutPro => {
+            prefs.keybinds.clear();
+            prefs.keybinds.insert("split".into(), "ctrl+b".into());
+            prefs.keybinds.insert("split-tool".into(), "b".into());
+            prefs.keybinds.insert("snap".into(), "n".into());
+            prefs.keybinds.insert("mute".into(), "v".into());
+            prefs.keybinds.insert("delete-left".into(), "[".into());
+            prefs.keybinds.insert("delete-right".into(), "]".into());
+            prefs.shortcut_profile = Some("finalcut".to_string());
+        }
+        ShortcutProfile::DaVinciResolve => {
+            prefs.keybinds.clear();
+            prefs.keybinds.insert("split".into(), "ctrl+\\".into());
+            prefs.keybinds.insert("split-tool".into(), "b".into());
+            prefs.keybinds.insert("snap".into(), "n".into());
+            prefs.keybinds.insert("mute".into(), "d".into());
+            prefs.keybinds.insert("ripple-delete".into(), "shift+backspace".into());
+            prefs.keybinds.insert("delete-left".into(), "ctrl+shift+[".into());
+            prefs.keybinds.insert("delete-right".into(), "ctrl+shift+]".into());
+            prefs.shortcut_profile = Some("davinci".to_string());
+        }
+        ShortcutProfile::Custom => {
+            prefs.shortcut_profile = Some("custom".to_string());
+        }
+    }
+}
+
+pub fn current_profile(prefs: &Preferences) -> ShortcutProfile {
+    if prefs.keybinds.is_empty() {
+        return ShortcutProfile::Clovercut;
+    }
+    match prefs.shortcut_profile.as_deref() {
+        Some("premiere") => {
+            let mut test_prefs = Preferences::default();
+            apply_profile(&mut test_prefs, ShortcutProfile::PremierePro);
+            if test_prefs.keybinds == prefs.keybinds {
+                ShortcutProfile::PremierePro
+            } else {
+                ShortcutProfile::Custom
+            }
+        }
+        Some("finalcut") => {
+            let mut test_prefs = Preferences::default();
+            apply_profile(&mut test_prefs, ShortcutProfile::FinalCutPro);
+            if test_prefs.keybinds == prefs.keybinds {
+                ShortcutProfile::FinalCutPro
+            } else {
+                ShortcutProfile::Custom
+            }
+        }
+        Some("davinci") => {
+            let mut test_prefs = Preferences::default();
+            apply_profile(&mut test_prefs, ShortcutProfile::DaVinciResolve);
+            if test_prefs.keybinds == prefs.keybinds {
+                ShortcutProfile::DaVinciResolve
+            } else {
+                ShortcutProfile::Custom
+            }
+        }
+        Some("clovercut") => ShortcutProfile::Clovercut,
+        _ => ShortcutProfile::Custom,
+    }
 }
 
 /// The chords that are not the table's to give: the menu bar's own keys
