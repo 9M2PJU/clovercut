@@ -67,5 +67,8 @@ The site's incorrect reference to an NSIS installer was also corrected.
   Windows, macOS, Android and iPhone. No browser connection was available for a
   visual screenshot review. GitHub Pages deployment succeeded and the published
   HTML was fetched and checked for the new desktop-first messages.
-- Full local build and isolated smoke: pending completion; results will be
-  appended when the executable is ready.
+- Full local build: `cargo build --profile quick -p concat` passed in 7m37s,
+  using the established profile and 24 GiB temporary disk swap.
+- Isolated `clovercut --smoke` passed (exit 0), detecting Radeon RX 6600 XT /
+  Vulkan and the Whisper CPU backend. Executable: `src/target/quick/clovercut`,
+  390,889,128 bytes. Temporary swap was removed after validation.
