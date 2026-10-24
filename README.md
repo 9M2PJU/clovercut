@@ -2,7 +2,7 @@
   <img src="assets/typography.svg" alt="clovercut logo" width="460" />
 </p>
 
-<p align="center"><strong>Open-source desktop video editor with built-in stock libraries and local AI.</strong></p>
+<p align="center"><strong>Desktop-first, open-source video editor with built-in stock libraries and local AI.</strong></p>
 <p align="center">A fast, local-first alternative to CapCut. Fluid 60 FPS scrubbing, on-device Whisper subtitles, and native Rust performance without cloud paywalls or tracking.</p>
 
 <p align="center">
@@ -10,7 +10,7 @@
   <a href="https://github.com/tulcoturo/clovercut/releases/tag/v0.1.4"><img src="https://img.shields.io/badge/Release-v0.1.4-00bcd4?style=flat-square" alt="Current version 0.1.4" /></a>
   <a href="https://github.com/tulcoturo/clovercut/issues"><img src="https://img.shields.io/badge/Feedback-Issues-blue?style=flat-square" alt="Issues and Feedback" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-16b86a?style=flat-square" alt="License: AGPL-3.0-or-later" /></a>
-  <img src="https://img.shields.io/badge/Platforms-Linux%20%7C%20Windows%20%7C%20macOS%20%7C%20Android-blueviolet?style=flat-square" alt="Linux, Windows, macOS, Android" />
+  <img src="https://img.shields.io/badge/Desktop-Linux%20%7C%20Windows%20%7C%20macOS-blueviolet?style=flat-square" alt="Desktop focus: Linux, Windows, macOS" />
 </p>
 
 <p align="center">
@@ -21,7 +21,9 @@
 
 ## What is clovercut?
 
-**clovercut** is a desktop and mobile video editor designed for creators who want the intuitive, fast workflow of tools like CapCut without cloud lock-ins, paid subscription tiers, watermarks, or telemetry.
+**clovercut** is a desktop-first video editor for Linux, Windows and macOS, designed for creators who want the intuitive, fast workflow of tools like CapCut without cloud lock-ins, paid subscription tiers, watermarks, or telemetry.
+
+The editing workflow is centred on a desktop computer: keyboard and mouse, a multi-track timeline, and a full-size preview and inspector. Desktop use drives development and release priorities. Mobile support is secondary and may have a different feature set and release schedule.
 
 Built with a native **Rust** core and a **Slint** interface accelerated by WGSL GPU compute shaders, clovercut runs 100% locally on your own machine.
 
@@ -91,7 +93,7 @@ The desktop packages are published after the release checks pass on [GitHub Rele
 | **macOS (Apple Silicon)** | [Download DMG](https://github.com/tulcoturo/clovercut/releases/download/v0.1.4/Clovercut-0.1.4-macos-arm64.dmg) | arm64 | `.dmg` disk image |
 | **macOS (Intel)** | [Download DMG](https://github.com/tulcoturo/clovercut/releases/download/v0.1.4/Clovercut-0.1.4-macos-x86_64.dmg) | x86_64 | `.dmg` disk image |
 
-Version 0.1.4 is desktop-only. The previous [Android 0.1.3 APK](https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-android-arm64.apk) remains available.
+Desktop is the primary supported workflow. Version 0.1.4 is desktop-only; mobile builds follow a separate schedule. The previous [Android 0.1.3 APK](https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-android-arm64.apk) remains available.
 
 
 ### Running on Linux

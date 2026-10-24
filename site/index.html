@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>clovercut: open-source video editor with built-in creative libraries and local AI</title>
+  <title>clovercut: desktop-first video editor with creative libraries and local AI</title>
+  <meta name="description" content="Clovercut is a desktop-first, open-source video editor for Linux, Windows and macOS, with local AI captions and integrated creative libraries. Mobile support is secondary.">
   <link rel="icon" type="image/x-icon" href="site_assets/favicon.ico">
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
@@ -161,11 +162,11 @@
       </div>
 
       <h1 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-slate-200 mb-6">
-        Open-source video editing with <span class="clover-text-gradient">stock libraries and local AI</span>
+        Desktop-first video editing with <span class="clover-text-gradient">stock libraries and local AI</span>
       </h1>
 
       <p class="text-base sm:text-lg lg:text-xl text-slate-300 max-w-3xl mx-auto mb-10 leading-relaxed font-normal">
-        No subscriptions, no accounts, and no cloud uploads. clovercut runs entirely on your hardware with 
+        Built around keyboard and mouse, a multi-track timeline, and a full-size preview. clovercut runs locally on your desktop with
         <strong>local Whisper AI subtitles</strong>, direct <strong>GIPHY stickers</strong>, and a built-in 
         <strong>CC0 music library</strong>, powered by a fast native Rust engine.
       </p>
@@ -181,8 +182,8 @@
         </a>
 
         <a href="#downloads" class="w-full sm:w-auto px-6 py-4 rounded-xl card-glass hover:bg-slate-800/80 text-slate-200 font-semibold text-base transition-all border border-white/10 flex items-center justify-center gap-2">
-          <span>All Platforms</span>
-          <span class="text-xs text-slate-400">(Linux, Windows, Android)</span>
+          <span>Desktop Downloads</span>
+          <span class="text-xs text-slate-400">(Linux, Windows, macOS)</span>
         </a>
       </div>
 
@@ -409,9 +410,9 @@
             <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
             </div>
-            <h4 class="text-lg font-bold text-white mb-2">Cross-platform</h4>
+            <h4 class="text-lg font-bold text-white mb-2">Desktop comes first</h4>
             <p class="text-sm text-slate-300 leading-relaxed">
-              Compiled natively for Linux (x86_64 and ARM64 AppImages), Windows (installer and portable), and Android.
+              Linux, Windows and macOS are the focus of our editing workflow and desktop releases. Mobile support is secondary, with its own feature set and release schedule.
             </p>
           </div>
         </div>
@@ -437,7 +438,7 @@
         <div class="text-center max-w-2xl mx-auto mb-10">
           <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Ready to edit?</span>
           <h2 class="text-3xl font-extrabold text-white mt-2 mb-3">download clovercut v0.1.3</h2>
-          <p class="text-sm text-slate-300">Choose the package for your operating system.</p>
+          <p class="text-sm text-slate-300">Choose a desktop package. Mobile builds are secondary and follow a separate release schedule.</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -467,7 +468,7 @@
                 <span class="text-lg font-bold text-white">Windows</span>
                 <span class="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium">10 / 11 64-bit</span>
               </div>
-              <p class="text-xs text-slate-400 mb-6">Standard NSIS Setup installer with desktop shortcut or standalone portable zip.</p>
+              <p class="text-xs text-slate-400 mb-6">Setup installer with desktop shortcut or standalone portable ZIP.</p>
             </div>
             <div class="space-y-2">
               <a href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-windows-x86_64-setup.exe" class="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]">
@@ -479,23 +480,26 @@
             </div>
           </div>
 
-          <!-- Android Card -->
+          <!-- macOS desktop releases -->
           <div class="rounded-2xl bg-slate-900/80 border border-white/5 p-6 flex flex-col justify-between hover:border-emerald-500/40 transition-all">
             <div>
               <div class="flex items-center justify-between mb-4">
-                <span class="text-lg font-bold text-white">Android</span>
-                <span class="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 font-medium">ARM64 APK</span>
+                <span class="text-lg font-bold text-white">macOS</span>
+                <span class="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 font-medium">Desktop</span>
               </div>
-              <p class="text-xs text-slate-400 mb-6">Direct APK package compatible with Android 8.0+ devices with 16 KB page support.</p>
+              <p class="text-xs text-slate-400 mb-6">See the desktop releases for Intel and Apple Silicon package availability.</p>
             </div>
-            <div class="space-y-2">
-              <a href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-android-arm64.apk" class="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]">
-                <span>Universal APK (.apk)</span>
-              </a>
-              <div class="py-2 text-center text-[12px] text-slate-500">16 KB page aligned</div>
-            </div>
+            <a href="https://github.com/tulcoturo/clovercut/releases" class="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]">
+              <span>View macOS releases</span>
+            </a>
           </div>
         </div>
+
+        <p class="mt-6 text-center text-xs text-slate-400 leading-relaxed">
+          Mobile support is secondary. The previous
+          <a class="text-slate-300 underline hover:text-emerald-400" href="https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-android-arm64.apk">Android 0.1.3 APK</a>
+          remains available separately; desktop features and releases take priority.
+        </p>
 
         <div class="mt-8 text-center">
           <a href="https://github.com/tulcoturo/clovercut/releases" target="_blank" class="text-xs text-slate-400 hover:text-emerald-400 transition-colors inline-flex items-center gap-1">
@@ -664,11 +668,17 @@
       const label = document.getElementById('smart-download-label');
 
       if (/Android/i.test(ua)) {
-        label.innerText = 'Download for Android (.apk)';
-        btn.href = 'https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-android-arm64.apk';
+        label.innerText = 'Explore desktop downloads';
+        btn.href = '#downloads';
       } else if (/Win/i.test(platform) || /Windows/i.test(ua)) {
         label.innerText = 'Download for Windows (.exe)';
         btn.href = 'https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-windows-x86_64-setup.exe';
+      } else if (/Mac/i.test(platform) || /Macintosh/i.test(ua)) {
+        label.innerText = 'View macOS releases';
+        btn.href = 'https://github.com/tulcoturo/clovercut/releases';
+      } else if (/iPhone|iPad|iPod/i.test(ua)) {
+        label.innerText = 'Explore desktop downloads';
+        btn.href = '#downloads';
       } else {
         // Linux default (e.g. Linux / Hyprland)
         label.innerText = 'Download for Linux (.AppImage)';
