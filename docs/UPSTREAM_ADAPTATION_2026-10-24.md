@@ -46,8 +46,10 @@ pass after the fix in both the sample decoder and export mix.
 - Application feature configuration (GPU and Chatterbox): export 48, host 137 and speech 23 passed; includes a rendered logo over a transition chain and a real load/run of the embedded VAD on silence.
 - GPU integration suites: 46 passed across export, phase-7 reliability, timeline precision and editor preferences; includes cancellation and preservation of the previous destination.
 - Strict Clippy (`-D warnings`) passed for media, host, export, speech and MCP, all targets, with GPU and Chatterbox enabled.
-- Slint interface generation passed. Locale inventory has no missing or stale entries in the 26 bundled languages; existing untranslated English strings remain.
-- Complete local build and isolated startup smoke: pending at the time of this record; results will be appended after completion.
+- Slint interface generation passed. Locale inventory has no missing or stale entries in the 25 bundled languages; existing untranslated English strings remain.
+- Complete local build: `cargo build --profile quick -p concat` passed in 12m29s, with the existing profile and 24 GiB temporary disk swap.
+- Isolated `clovercut --smoke` passed (exit 0): Radeon RX 6600 XT / Vulkan and Whisper CPU backend detected.
+- Executable: `src/target/quick/clovercut`, 390,869,592 bytes, built 24 October 2026 at 10:51:59 Europe/Lisbon.
 
 No Android device was available. The encoder state machine and retry policy
 have automated coverage, but native MediaCodec recovery is not device-qualified.
