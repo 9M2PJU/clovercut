@@ -49,6 +49,7 @@ fn make_test_picture(path: &Path, rate: FrameRate, seconds: u32, codec: VideoCod
         color_range: concat_media::ColorRange::Limited,
         hardware: false,
         threads: 0,
+        software_only: false,
     };
     let mut encoder = Encoder::create(path, WIDTH, HEIGHT, rate, &options).expect("encoder opens");
     let fps = rate.fps().as_f64();
