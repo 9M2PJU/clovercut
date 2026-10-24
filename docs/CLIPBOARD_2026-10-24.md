@@ -85,8 +85,19 @@ compiling the normal graphical library and its test variant concurrently creates
 avoidable memory pressure on this 16 GiB machine, even with temporary disk swap.
 The application build keeps the existing profile, job settings and codegen units.
 
-The final regular application build is pending. Its first attempt was stopped
-when sustained system memory pressure became excessive. Zram had reached
-15.2 GiB before the temporary disk swap began carrying significant data; no OOM
-kill was recorded. The next attempt will prioritize the temporary disk swap,
-without changing Cargo's profile, jobs or codegen units.
+The final regular application build passed in **13m33s**, from source commit
+`7a46bfa5`, using `cargo build --profile quick -p concat` after silently loading
+`.env.local`. The isolated native startup smoke test passed on the Radeon RX
+6600 XT Vulkan adapter, including Whisper startup. `--version` reports 0.1.6.
+
+Binary: `src/target/quick/clovercut`, 389448096 bytes. SHA-256:
+`709b0e13af98b12a7400bbf316eb68a1112147b9708055437d4306663fb8faba`.
+
+The first normal-build attempt was stopped when system memory pressure became
+excessive. Zram had reached 15.2 GiB before disk swap began carrying significant
+data; no OOM kill was recorded. The successful attempt prioritized the temporary
+24 GiB disk swap at 150 while leaving zram at 100. Cargo's profile, jobs and
+codegen units were unchanged. The compiler threads also received lower CPU and
+I/O scheduling priority during this attempt to favour interactive work. The
+service recorded an 11.1 GiB memory peak and 8.5 GiB swap peak. This build remains
+memory intensive on a 16 GiB desktop; disk swap trades build time for headroom.
