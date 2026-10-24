@@ -1,0 +1,84 @@
+name: Publish validated 0.1.5 packages
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: publish-validated-015
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Verify approved build sources and results
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/tulcoturo/clovercut/actions/runs/40102255808 > original.json
+          gh api repos/tulcoturo/clovercut/actions/runs/40102255808/jobs > original-jobs.json
+          gh api repos/tulcoturo/clovercut/actions/runs/40106398440 > windows.json
+          gh api repos/tulcoturo/clovercut/actions/runs/40106398440/jobs > windows-jobs.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          load = lambda p: json.loads(Path(p).read_text())
+          assert load('original.json')['head_sha'] == '656c75fba1189a002dbf4feb4bdcef3aaad195ff'
+          jobs = {j['name']: j['conclusion'] for j in load('original-jobs.json')['jobs']}
+          for name in ['CI / Engine tests and lints', 'build / linux-x86_64', 'build / linux-aarch64', 'build / windows-aarch64', 'build / macos-x86_64', 'build / macos-arm64']:
+              assert jobs[name] == 'success', (name, jobs[name])
+          win = load('windows.json')
+          assert win['head_sha'] == '438245af91eb55e5b6ac7fef1fd98fc28e03f494'
+          assert win['conclusion'] == 'success'
+          jobs = {j['name']: j for j in load('windows-jobs.json')['jobs']}
+          assert jobs['windows-x86_64']['conclusion'] == 'success'
+          print('All six platform builds and engine CI passed at the recorded source commits.')
+          PY
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          github-token: ${{ github.token }}
+          run-id: 40102255808
+          pattern: Clovercut-*
+          merge-multiple: true
+          path: bundles
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          github-token: ${{ github.token }}
+          run-id: 40106398440
+          name: Clovercut-windows-x86_64
+          path: bundles
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: v0.1.5
+          path: source
+      - name: Validate packages and record checksums and provenance
+        run: |
+          set -euo pipefail
+          test "$(git -C source rev-parse HEAD)" = 656c75fba1189a002dbf4feb4bdcef3aaad195ff
+          python3 source/scripts/models.py release-manifest --version 0.1.5 --tag v0.1.5 --bundles bundles --out bundles/manifest.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path('bundles')
+          expected = {'Clovercut-0.1.5-' + suffix for suffix in ['x86_64.AppImage', 'aarch64.AppImage', 'windows-x86_64-setup.exe', 'windows-x86_64-portable.zip', 'windows-aarch64-setup.exe', 'windows-aarch64-portable.zip', 'macos-arm64.dmg', 'macos-x86_64.dmg']}
+          assert {p.name for p in root.iterdir()} == expected | {'manifest.json'}
+          assert all((root / name).stat().st_size > 0 for name in expected)
+          p = root / 'manifest.json'
+          data = json.loads(p.read_text())
+          data['build_provenance'] = {name: {'commit': '438245af91eb55e5b6ac7fef1fd98fc28e03f494' if 'windows-x86_64' in name else '656c75fba1189a002dbf4feb4bdcef3aaad195ff', 'run_url': 'https://github.com/tulcoturo/clovercut/actions/runs/' + ('40106398440' if 'windows-x86_64' in name else '40102255808')} for name in sorted(expected)}
+          p.write_text(json.dumps(data, indent=2) + '\n')
+          PY
+          (cd bundles && sha256sum Clovercut-* manifest.json > SHA256SUMS && sha256sum --check SHA256SUMS)
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64
+        with:
+          tag_name: v0.1.5
+          name: Clovercut v0.1.5
+          draft: false
+          prerelease: false
+          make_latest: true
+          body_path: docs/releases/0.1.5.md
+          fail_on_unmatched_files: true
+          files: bundles/*
