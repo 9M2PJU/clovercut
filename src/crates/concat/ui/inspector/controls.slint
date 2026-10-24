@@ -3,7 +3,7 @@
 
 import { I18n } from "../i18n.slint";
 import { Theme } from "../theme/theme.slint";
-import { Fmt } from "../util.slint";
+import { Fmt, Focus } from "../util.slint";
 import { Glyph, Icon } from "../icons.slint";
 import { NumberField } from "../primitives/number-field.slint";
 import { FocusRing } from "../primitives/focus-ring.slint";
@@ -920,7 +920,14 @@ export component SearchField inherits Rectangle {
                 single-line: true;
                 text <=> root.text;
                 edited => { root.edited(self.text); }
-                accepted => { root.submitted(self.text); }
+                accepted => { root.submitted(self.text); Focus.release(); }
+                key-pressed(event) => {
+                    if (event.text == Key.Escape) {
+                        Focus.release();
+                        return EventResult.accept;
+                    }
+                    return EventResult.reject;
+                }
             }
 
             if root.text == "" && !input.has-focus: Text {

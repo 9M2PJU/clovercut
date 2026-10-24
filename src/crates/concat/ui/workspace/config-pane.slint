@@ -250,7 +250,7 @@ export component ConfigPane inherits Rectangle {
     property <bool> is-caption: root.is-text && CaptionsLibrary.style-count > 0;
     changed is-caption => { if root.is-caption { root.tab = 1; } }
     property <bool> is-layer: root.cached-kind == ClipKind.filter;
-    property <[string]> tabs: root.cached-batch-volume ? ["Audio"] : root.is-text ? (CaptionsLibrary.style-count > 0 ? ["Captions", "Text", "CaptionEffects"] : ["Text", "CaptionEffects"])
+    property <[string]> tabs: root.cached-batch-volume ? ["Audio"] : root.is-text ? (CaptionsLibrary.style-count > 0 ? ["Captions", "Text", "CaptionEffects", "Effects"] : ["Text", "CaptionEffects", "Effects"])
         : root.is-layer ? ["Filter"]
         : root.is-shape ? ["Video"]
         : root.is-image ? ["Video", "Effects"]
@@ -258,7 +258,7 @@ export component ConfigPane inherits Rectangle {
         : ["Video", "Audio", "Effects"];
     /// The same tabs in the interface's language. `tabs` stays English,
     /// because the panels are picked by comparing against it.
-    property <[string]> tabs-shown: root.cached-batch-volume ? [I18n.t("common.audio")] : root.is-text ? (CaptionsLibrary.style-count > 0 ? [I18n.t("captions.captions"), I18n.t("captions.styleTab"), I18n.t("videoMotion.animation")] : [I18n.t("common.text"), I18n.t("videoMotion.animation")])
+    property <[string]> tabs-shown: root.cached-batch-volume ? [I18n.t("common.audio")] : root.is-text ? (CaptionsLibrary.style-count > 0 ? [I18n.t("captions.captions"), I18n.t("captions.styleTab"), I18n.t("videoMotion.animation"), I18n.t("common.effects")] : [I18n.t("common.text"), I18n.t("videoMotion.animation"), I18n.t("common.effects")])
         : root.is-layer ? [I18n.t("configPane.filter")]
         : root.is-shape ? [I18n.t("configPane.vectorImage")]
         : root.is-image ? [I18n.t("common.video"), I18n.t("common.effects")]
