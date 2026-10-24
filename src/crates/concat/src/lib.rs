@@ -33,7 +33,6 @@ mod ui {
 
 mod batch_volume;
 mod chips;
-mod clip_copy;
 mod dock;
 mod fonts;
 mod format;

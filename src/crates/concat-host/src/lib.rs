@@ -21,6 +21,7 @@
 
 pub mod brush;
 pub mod cards;
+pub mod clipboard;
 pub mod consolidate;
 pub mod crash;
 pub mod cutout;

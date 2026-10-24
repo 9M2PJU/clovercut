@@ -353,7 +353,7 @@ fn durability_warning(root: &Path, error: &str) -> String {
 }
 
 #[cfg(target_os = "linux")]
-fn sync_directory(root: &Path) -> Result<(), String> {
+pub(crate) fn sync_directory(root: &Path) -> Result<(), String> {
     let directory = std::fs::File::open(root)
         .map_err(|error| format!("could not open the project directory for sync: {error}"))?;
     directory
@@ -364,7 +364,7 @@ fn sync_directory(root: &Path) -> Result<(), String> {
 // Preserve the existing file-sync + rename contract on Windows and other targets.
 // Written on those targets does not claim parent-directory durability.
 #[cfg(not(target_os = "linux"))]
-fn sync_directory(_root: &Path) -> Result<(), String> {
+pub(crate) fn sync_directory(_root: &Path) -> Result<(), String> {
     Ok(())
 }
 

@@ -78,9 +78,13 @@ Most open-source video editors leave you hunting across the web for stickers, so
 
 ---
 
+## In development
+
+The next version adds complete clip snapshots for copy/paste and grouped duplication, including paste between projects in the same window. See the [clipboard integration notes](docs/CLIPBOARD_2026-10-24.md). These changes are not included in the published 0.1.5 packages.
+
 ## Downloads (Version 0.1.5)
 
-The desktop packages are published after the release checks pass on [GitHub Releases](https://github.com/tulcoturo/clovercut/releases/tag/v0.1.5):
+The desktop packages are available on [GitHub Releases](https://github.com/tulcoturo/clovercut/releases/tag/v0.1.5):
 
 | Platform | Package | Architecture | Format |
 |---|---|---|---|

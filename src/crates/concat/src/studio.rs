@@ -51,7 +51,6 @@ mod masking;
 use masking::{MaskFrame, MaskGrip};
 use slint::{Model, ModelRc, SharedString, VecModel};
 
-use crate::clip_copy::{copy_commands, layer_copy_command};
 use crate::dock::{Dock, DockLayout, SEAT_GAP, default_dock, lay_out, row_at, row_top};
 use crate::format::{
     WAVE_BAR, WAVE_PITCH, colour_of, frames_timecode, hex_of, hex_with_alpha, rate_label,
@@ -72,6 +71,7 @@ use crate::prefs::Preferences;
 use crate::presets::{self, TextPreset};
 use crate::speed_ramp;
 use crate::ui::*;
+use concat_project::clipboard::Clipboard;
 
 /// The monitor's output sizes, matching the picker's rows.
 pub const OUTPUTS: [(i32, i32); 6] = [
@@ -927,8 +927,10 @@ pub struct Studio {
     pub hover: Option<f64>,
     /// Stops the burst of sound a hover with audio plays.
     hover_hush: slint::Timer,
-    /// One clip, held for Paste.
-    pub clipboard: Vec<Held>,
+    /// Complete copied clips and their referenced media/fonts, held for Paste.
+    pub clipboard: Clipboard,
+    clipboard_project: Option<String>,
+    paste_cancel: Option<Arc<std::sync::atomic::AtomicBool>>,
     /// The monitor: its frame, and the requests for the next.
     pub monitor: crate::panes::monitor::MonitorPane,
 
@@ -2303,49 +2305,6 @@ pub enum Confirm {
     QuitWithoutSaving { error: String },
 }
 
-/// One clip on the clipboard: the clip as it was when copied, and the row
-/// of the lane it sat on. A lane's id belongs to its timeline, so a paste
-/// into another timeline goes by the row instead and lands the clip on
-/// the same row there (#290).
-#[derive(Clone, Debug)]
-pub struct Held {
-    pub row: usize,
-    pub clip: Clip,
-}
-
-/// Where each held clip lands: `(row, start)` per clip in the order held,
-/// or `None` for one with no lane to land on. The group keeps its shape,
-/// every clip the same distance from the earliest as when copied, from
-/// `base` on; its rows are shifted by `shift` and held inside the `lanes`
-/// of the timeline it lands in, and a locked row is passed over for the
-/// nearest open one.
-fn paste_plan(
-    held: &[Held],
-    base: f64,
-    shift: isize,
-    lanes: usize,
-    locked: &dyn Fn(usize) -> bool,
-) -> Vec<Option<(usize, f64)>> {
-    let origin = held
-        .iter()
-        .map(|held| held.clip.start)
-        .fold(f64::INFINITY, f64::min);
-    let open: Vec<usize> = (0..lanes).filter(|row| !locked(*row)).collect();
-    held.iter()
-        .map(|held| {
-            let top = isize::try_from(lanes.checked_sub(1)?).ok()?;
-            let wanted = (isize::try_from(held.row).ok()? + shift).clamp(0, top);
-            let wanted = usize::try_from(wanted).ok()?;
-            let row = if locked(wanted) {
-                *open.iter().min_by_key(|row| row.abs_diff(wanted))?
-            } else {
-                wanted
-            };
-            Some((row, base + (held.clip.start - origin)))
-        })
-        .collect()
-}
-
 /// Each rewritten link as "Old → New", the new one by its package's name.
 fn upgraded_effects(pairs: &[(String, String)]) -> Vec<String> {
     let catalogue = Catalogue::builtin();
@@ -2434,7 +2393,9 @@ impl Studio {
             glide_beat: slint::Timer::default(),
             hover: None,
             hover_hush: slint::Timer::default(),
-            clipboard: Vec::new(),
+            clipboard: Clipboard::default(),
+            clipboard_project: None,
+            paste_cancel: None,
             monitor: crate::panes::monitor::MonitorPane::default(),
             export: Default::default(),
             settings: crate::panes::settings::SettingsPane::default(),
@@ -9376,11 +9337,8 @@ impl Studio {
         }
     }
 
-    /// A copy of `source` laid after it. Three commands, because a clip's
-    /// in-point and length are set by trims, not by placement.
-    /// Duplicate every unlocked selected clip (right-to-left by start so
-    /// neighbours do not stack). Falls back to the menu target when the
-    /// selection is empty.
+    /// Duplicate the unlocked selection as one group and one undo step,
+    /// preserving caption groups, detached-audio links and relative timing.
     pub fn duplicate_selected(&mut self) {
         let mut sources: Vec<Clip> = self
             .selection
@@ -9388,195 +9346,179 @@ impl Studio {
             .filter_map(|id| self.clip(id).cloned())
             .filter(|clip| !self.locked(&clip.track_id))
             .collect();
-        #[allow(clippy::collapsible_if)]
-        if sources.is_empty() {
-            if let Some(id) = self.menu_target.clone() {
-                if let Some(clip) = self.clip(&id).cloned() {
-                    if !self.locked(&clip.track_id) {
-                        sources.push(clip);
-                    }
-                }
-            }
+        if sources.is_empty()
+            && let Some(id) = self.menu_target.as_deref()
+            && let Some(clip) = self.clip(id)
+            && !self.locked(&clip.track_id)
+        {
+            sources.push(clip.clone());
         }
         if sources.is_empty() {
             return;
         }
-        sources.sort_by(|left, right| right.start.total_cmp(&left.start));
-        let mut last = None;
-        for source in &sources {
-            self.duplicate(source);
-            last = self.selection.first().cloned();
-        }
-        if let Some(id) = last {
-            self.selection = vec![id];
-        }
+        let end = sources
+            .iter()
+            .map(|c| c.start + c.duration)
+            .fold(0.0, f64::max);
+        let clips = sources.into_iter().filter_map(|clip| {
+            let row = self
+                .timeline()
+                .tracks
+                .iter()
+                .position(|t| t.id == clip.track_id)?;
+            Some((row, clip))
+        });
+        let clipboard = Clipboard::from_clips(self.project(), clips);
+        self.paste_snapshot(clipboard, end, 0, None);
     }
 
-    /// A copy of `source` laid right after it on its own lane, selected.
-    pub fn duplicate(&mut self, source: &Clip) {
-        let end = source.start + source.duration;
-        let track_id = source.track_id.clone();
-        if let Some(created) = self.place_copy(source, &track_id, end, None) {
-            self.selection = vec![created];
-        }
-    }
-
-    /// Copy: the selected clips, or `anchor` alone when it is not among
-    /// them - the clip a menu was opened on. Each is held with the row of
-    /// its lane, so a paste into another timeline lands it on the same row
-    /// there; the media is the project's, shared by every timeline. The
-    /// held clips are kept in order of their start, the earliest first.
+    /// Copy the selected clips and the resources their snapshots refer to.
     pub fn copy_clips(&mut self, anchor: Option<&str>) {
-        let mut ids: Vec<String> = self.selection.clone();
+        let mut ids = self.selection.clone();
         if let Some(anchor) = anchor
             && !ids.iter().any(|id| id == anchor)
         {
             ids = vec![anchor.to_owned()];
         }
-        let tracks = &self.timeline().tracks;
-        let mut held: Vec<Held> = ids
-            .iter()
-            .filter_map(|id| {
-                let clip = self.clip(id)?.clone();
-                let row = tracks.iter().position(|track| track.id == clip.track_id)?;
-                Some(Held { row, clip })
-            })
-            .collect();
-        if held.is_empty() {
+        let clipboard = Clipboard::capture(self.project(), &ids);
+        if clipboard.is_empty() {
             return;
         }
-        held.sort_by(|left, right| {
-            left.clip
-                .start
-                .total_cmp(&right.clip.start)
-                .then(left.row.cmp(&right.row))
-        });
-        self.clipboard = held;
+        self.clipboard = clipboard;
+        self.clipboard_project = self.session.as_ref().map(|s| s.path().to_owned());
     }
 
-    /// Paste: the held clips as a group, its shape kept, as one undo step.
-    /// After `after` and on its lane - the clip a menu was opened on, or
-    /// the one selected - with the rest of the group on the rows around it
-    /// as they were copied; or, with nothing to follow, at the playhead on
-    /// the rows they were copied from. In another timeline the rows are
-    /// matched by number, which is what a paste between timelines wanted
-    /// and never got: the held lane's id was the other timeline's, and the
-    /// add was refused without a word (#290). The new clips are selected.
+    /// Paste the whole group, including resource imports, as one undo step.
     pub fn paste_clips(&mut self, after: Option<&str>) {
         if self.clipboard.is_empty() {
             return;
         }
-        let held = self.clipboard.clone();
-        let first_row = held[0].row;
-        let tracks: Vec<String> = self
-            .timeline()
-            .tracks
-            .iter()
-            .map(|track| track.id.clone())
-            .collect();
-        let (base, shift) = match after.and_then(|id| self.clip(id).cloned()) {
+        if self.paste_cancel.is_some() {
+            self.notify(&t("studio.pastePreparing"), false);
+            return;
+        }
+        let first_row = self.clipboard.clips[0].row;
+        let (base, shift) = match after.and_then(|id| self.clip(id)) {
             Some(anchor) => {
-                let row = tracks
+                let row = self
+                    .timeline()
+                    .tracks
                     .iter()
-                    .position(|id| *id == anchor.track_id)
+                    .position(|t| t.id == anchor.track_id)
                     .unwrap_or(first_row);
-                let shift =
-                    isize::try_from(row).unwrap_or(0) - isize::try_from(first_row).unwrap_or(0);
-                (anchor.start + anchor.duration, shift)
+                (
+                    anchor.start + anchor.duration,
+                    row as isize - first_row as isize,
+                )
             }
             None => (self.playhead, 0),
         };
-        let plan = paste_plan(&held, base, shift, tracks.len(), &|row| {
-            tracks.get(row).is_some_and(|id| self.locked(id))
-        });
-        self.flush_commit();
-        let mut created = Vec::new();
-        for (held, place) in held.iter().zip(plan) {
-            let Some((row, start)) = place else {
-                continue;
-            };
-            if let Some(id) = self.place_copy(&held.clip, &tracks[row], start, Some("paste")) {
-                created.push(id);
-            }
+        let Some(session) = &self.session else {
+            return;
+        };
+        let destination = session.path().to_owned();
+        let source = self
+            .clipboard_project
+            .clone()
+            .unwrap_or_else(|| destination.clone());
+        let clipboard = self.clipboard.clone();
+        if source == destination {
+            self.paste_snapshot(clipboard, base, shift, None);
+            return;
         }
-        // One step for the lot, and the next paste a step of its own.
-        if let Some(session) = self.session.as_mut() {
-            session.end_gesture();
-        }
-        if !created.is_empty() {
-            self.selection = created;
-        }
+        let timeline = self.timeline().id.clone();
+        let anchor_id = after
+            .filter(|id| self.clip(id).is_some())
+            .map(str::to_owned);
+        let target = self.project().clone();
+        let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        self.paste_cancel = Some(Arc::clone(&cancel));
+        self.notify(&t("studio.pastePreparing"), false);
+        spawn_in_project(
+            move || {
+                concat_host::clipboard::prepare(
+                    clipboard,
+                    std::path::Path::new(&source),
+                    std::path::Path::new(&destination),
+                    &target,
+                    &cancel,
+                )
+            },
+            move |studio, _, _, result| {
+                studio.paste_cancel = None;
+                if studio.timeline().id != timeline {
+                    studio.notify(&t("studio.pasteTimelineChanged"), true);
+                    return;
+                }
+                let (base, shift) = if let Some(id) = &anchor_id {
+                    let Some(anchor) = studio.clip(id) else {
+                        studio.notify(&t("studio.pasteTimelineChanged"), true);
+                        return;
+                    };
+                    let Some(row) = studio
+                        .timeline()
+                        .tracks
+                        .iter()
+                        .position(|t| t.id == anchor.track_id)
+                    else {
+                        studio.notify(&t("studio.pasteTimelineChanged"), true);
+                        return;
+                    };
+                    (
+                        anchor.start + anchor.duration,
+                        row as isize - first_row as isize,
+                    )
+                } else {
+                    (base, shift)
+                };
+                match result {
+                    Ok(mut prepared) => {
+                        let clipboard = std::mem::take(&mut prepared.clipboard);
+                        if studio
+                            .paste_snapshot(clipboard, base, shift, None)
+                            .is_some()
+                        {
+                            prepared.commit();
+                        }
+                    }
+                    Err(error) => studio.notify(&tf("studio.pasteFailed", &[&error]), true),
+                }
+            },
+        );
     }
 
-    /// Lays a copy of `source` on `track_id` starting at `start` - its
-    /// trims, mix, placement, speed, keys and effects with it - and says
-    /// the new clip's id. `gesture` folds the commands into one undo step
-    /// with whatever else names it; `None` leaves them steps of their own.
-    /// Footage is first laid past the lane's last clip, then shaped by
-    /// [`copy_commands`].
-    fn place_copy(
+    fn paste_snapshot(
         &mut self,
-        source: &Clip,
-        track_id: &str,
+        clipboard: Clipboard,
         start: f64,
+        shift: isize,
         gesture: Option<&str>,
     ) -> Option<String> {
-        if self.locked(track_id) {
-            return None;
-        }
-        if source.kind == model::ClipKind::Text {
-            return self.apply_in(
-                gesture,
-                Command::AddTextClip {
-                    above: false,
-                    track_id: Some(track_id.to_owned()),
-                    start,
-                    style: source.text.clone(),
-                    duration: Some(source.duration),
-                    offset_y: Some(source.offset_y),
-                },
-            );
-        }
-        if source.kind == model::ClipKind::Shape {
-            return self.apply_in(
-                gesture,
-                Command::AddShapeClip {
-                    above: false,
-                    track_id: Some(track_id.to_owned()),
-                    start,
-                    style: source.shape.clone(),
-                    duration: Some(source.duration),
-                    name: source.name.clone(),
-                },
-            );
-        }
-        if source.kind == model::ClipKind::Layer {
-            let add = layer_copy_command(source, self.timeline(), track_id, start)?;
-            let created = self.apply_in(gesture, add)?;
-            let placed = self.clip(&created).cloned()?;
-            let commands = copy_commands(source, &placed, track_id, start);
-            self.apply_in(gesture, Command::Batch { commands });
-            return Some(created);
-        }
-        let lane_end = self
+        let before: HashSet<_> = self.timeline().clips.iter().map(|c| c.id.clone()).collect();
+        let locked_tracks = self
+            .timeline()
+            .tracks
+            .iter()
+            .filter(|t| self.locked(&t.id))
+            .map(|t| t.id.clone())
+            .collect();
+        let created = self.apply_in(
+            gesture,
+            Command::PasteClips {
+                clipboard: Box::new(clipboard),
+                start,
+                shift,
+                locked_tracks,
+            },
+        )?;
+        self.selection = self
             .timeline()
             .clips
             .iter()
-            .filter(|clip| clip.track_id == track_id)
-            .map(|clip| clip.start + clip.duration)
-            .fold(0.0, f64::max);
-        let created = self.apply_in(
-            gesture,
-            Command::AddClip {
-                media_id: source.media_id.clone(),
-                track_id: track_id.to_owned(),
-                start: lane_end,
-                ripple: false,
-            },
-        )?;
-        let placed = self.clip(&created).cloned()?;
-        let commands = copy_commands(source, &placed, track_id, start);
-        self.apply_in(gesture, Command::Batch { commands });
+            .filter(|c| !before.contains(&c.id))
+            .map(|c| c.id.clone())
+            .collect();
+        self.check_missing_media();
         Some(created)
     }
 
@@ -9959,6 +9901,9 @@ impl Studio {
     /// Lets the open project go, unsaved: what `close_project` does once
     /// the save has landed, and what quitting without saving does instead.
     fn release_project(&mut self) {
+        if let Some(cancel) = self.paste_cancel.take() {
+            cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
         self.host.cutouts.cancel();
         self.host.stabilizers.cancel();
         self.host.enhancers.cancel();
@@ -14369,50 +14314,6 @@ mod tests {
         }
     }
 
-    /// A pasted group keeps its shape from `base` on, its rows shifted
-    /// and held inside the lanes it lands in, a locked row passed over
-    /// for the nearest open one; with no lane at all nothing lands.
-    #[test]
-    fn a_paste_keeps_the_groups_shape_and_lands_on_rows_that_exist() {
-        use concat_project::model::{Clip, ClipKind};
-        let held = |row: usize, start: f64| super::Held {
-            row,
-            clip: Clip::blank("c", "t", ClipKind::Video, "c", start, 1.0),
-        };
-        let group = [held(1, 4.0), held(2, 5.5), held(0, 9.0)];
-        let none = |_: usize| false;
-        // At the playhead on the rows copied from.
-        let plan = super::paste_plan(&group, 10.0, 0, 4, &none);
-        assert_eq!(
-            plan,
-            vec![Some((1, 10.0)), Some((2, 11.5)), Some((0, 15.0))]
-        );
-        // After an anchor on row 3: the earliest lands there, the rest
-        // keep their distance in rows, held inside the four lanes.
-        let plan = super::paste_plan(&group, 20.0, 2, 4, &none);
-        assert_eq!(
-            plan,
-            vec![Some((3, 20.0)), Some((3, 21.5)), Some((2, 25.0))]
-        );
-        // Another timeline with two lanes: rows past the end fold back.
-        let plan = super::paste_plan(&group, 0.0, 0, 2, &none);
-        assert_eq!(plan, vec![Some((1, 0.0)), Some((1, 1.5)), Some((0, 5.0))]);
-        // A locked row is passed over for the nearest open one.
-        let plan = super::paste_plan(&group, 0.0, 0, 4, &|row| row == 1);
-        assert_eq!(plan, vec![Some((0, 0.0)), Some((2, 1.5)), Some((0, 5.0))]);
-        // No lanes, nothing lands; every lane locked, nothing lands.
-        assert!(
-            super::paste_plan(&group, 0.0, 0, 0, &none)
-                .iter()
-                .all(Option::is_none)
-        );
-        assert!(
-            super::paste_plan(&group, 0.0, 0, 2, &|_| true)
-                .iter()
-                .all(Option::is_none)
-        );
-    }
-
     /// A copy of a split clip's tail, laid right after it, shows the
     /// tail's frames at the tail's speed - not the file's opening frames,
     /// which it showed when the whole file was laid over the halves (#335).
@@ -14468,17 +14369,21 @@ mod tests {
             let tail = editor.project().active().clips[1].clone();
             let end = tail.start + tail.duration;
 
-            let placed = apply(&mut editor, add(end)).expect("copy");
-            let placed = editor
-                .project()
-                .active()
-                .clip(&placed)
-                .expect("placed")
-                .clone();
-            let commands = super::copy_commands(&tail, &placed, &track_id, end);
-            apply(&mut editor, Command::Batch { commands });
-
-            let copy = editor.project().active().clip(&placed.id).expect("copy");
+            let clipboard = concat_project::clipboard::Clipboard::capture(
+                editor.project(),
+                std::slice::from_ref(&tail.id),
+            );
+            let copy_id = apply(
+                &mut editor,
+                Command::PasteClips {
+                    clipboard: Box::new(clipboard),
+                    start: end,
+                    shift: 0,
+                    locked_tracks: vec![],
+                },
+            )
+            .expect("copy");
+            let copy = editor.project().active().clip(&copy_id).expect("copy");
             assert_eq!(
                 (copy.start, copy.duration, copy.source_start, copy.speed),
                 (end, tail.duration, tail.source_start, speed),
@@ -15530,3 +15435,6 @@ mod phase4_preview_export_parity_tests;
 #[cfg(all(test, target_os = "linux"))]
 #[path = "phase6_performance_tests.rs"]
 mod phase6_performance_tests;
+
+#[cfg(all(test, target_os = "linux"))]
+mod clipboard_tests;

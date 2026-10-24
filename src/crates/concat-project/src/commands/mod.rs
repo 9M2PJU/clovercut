@@ -264,6 +264,18 @@ pub struct NewMedia {
 // the patch would cost every caller for a saving nobody would measure.
 #[allow(clippy::large_enum_variant)]
 pub enum Command {
+    /// Atomically paste a trusted in-process clipboard; unavailable over API/JSON.
+    #[serde(skip)]
+    PasteClips {
+        /// Full snapshots and only the resources they reference.
+        clipboard: Box<crate::clipboard::Clipboard>,
+        /// Earliest desired timeline position.
+        start: f64,
+        /// Preferred offset from the original track rows.
+        shift: isize,
+        /// Destination tracks locked by the window preferences.
+        locked_tracks: Vec<String>,
+    },
     /// Embed a subtitle file, optionally placing its first instance on the timeline.
     AddCaptionSource {
         /// Display name, normally ending in .srt.
@@ -899,6 +911,12 @@ pub struct Outcome {
 /// those sentences names a host can match on.
 #[derive(Clone, PartialEq, Eq, Debug, thiserror::Error)]
 pub enum CommandError {
+    /// A clipboard dependency or placement cannot be preserved safely.
+    #[error("{reason}")]
+    CannotPaste {
+        /// The reason the whole paste was refused.
+        reason: String,
+    },
     /// [`Command::FillSlot`] named a media id no longer in the bin.
     #[error("That template slot no longer exists.")]
     SlotGone,
@@ -1055,7 +1073,9 @@ impl Command {
                 style,
                 ..
             } => bad([*offset_y, style.caption_motion.duration]) || bad(*place_at),
-            Command::PlaceCaptionSource { start, .. } => bad([*start]),
+            Command::PlaceCaptionSource { start, .. } | Command::PasteClips { start, .. } => {
+                bad([*start])
+            }
             Command::Batch { commands } => commands.iter().any(Command::has_non_finite),
             Command::AddMedia { item }
             | Command::FillSlot { item, .. }
@@ -1223,6 +1243,12 @@ pub fn apply(
         return Err(CommandError::NotANumber);
     }
     match command {
+        Command::PasteClips {
+            clipboard,
+            start,
+            shift,
+            locked_tracks,
+        } => crate::clipboard::paste(project, mint, *clipboard, start, shift, &locked_tracks),
         Command::Batch { commands } => {
             // All or nothing: apply to a staged copy and commit only a fully
             // successful run, so one bad command cannot leave a half-applied

@@ -22,6 +22,7 @@
 //! more than the adjacency.
 
 pub mod captions;
+pub mod clipboard;
 pub mod commands;
 pub mod doc;
 pub mod editor;
