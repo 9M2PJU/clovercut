@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Clovercut contributors
 import { I18n } from "../i18n.slint";
-import { Theme } from "../primitives/primitives.slint";
+import { Theme, Glyph, Icon } from "../primitives/primitives.slint";
 
 export component LibraryTabs inherits HorizontalLayout {
     in property <int> mode;
@@ -26,9 +26,19 @@ export component LibraryStar inherits Rectangle {
     width: 24px;
     height: 24px;
     border-radius: Theme.r-sm;
-    background: hit.has-hover ? Theme.field-hover : Theme.scrim;
+    background: root.checked ? Theme.accent-soft : hit.has-hover ? Theme.field-hover : Theme.scrim;
+    border-width: 1px;
+    border-color: root.checked ? Theme.accent : Theme.line;
     accessible-role: button;
     accessible-label: root.checked ? I18n.t("library.removeFavourite") : I18n.t("library.addFavourite");
-    Text { text: root.checked ? "★" : "☆"; color: root.checked ? Theme.accent : Theme.on-scrim; font-size: 20px; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
+    Icon {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        size: 16px;
+        glyph: Glyph.star;
+        filled: root.checked;
+        tint: root.checked ? Theme.accent : Theme.on-scrim;
+        weight: 1.8;
+    }
     hit := TouchArea { mouse-cursor: pointer; clicked => { root.toggled(!root.checked); } }
 }

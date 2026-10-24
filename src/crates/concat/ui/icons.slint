@@ -64,6 +64,8 @@ export enum Glyph {
     mask-star,
     chevron-right,
     sparkle,
+    /// A library favourite, outline or filled.
+    star,
     eye,
     lock,
     frame,
@@ -413,6 +415,14 @@ export component Icon inherits Rectangle {
     if root.glyph == Glyph.search: Stroked {
         size: root.size; tint: root.tint; weight: root.weight;
         commands: "M21 21l-4.34-4.34 M3 11a8 8 0 1 0 16 0a8 8 0 1 0 -16 0";
+    }
+
+    // The same five-point silhouette as mask-star, optically centred in
+    // the 24 grid rather than aligned to a font baseline.
+    if root.glyph == Glyph.star: Stroked {
+        size: root.size; tint: root.tint; weight: root.weight;
+        fill: root.filled ? root.tint : transparent;
+        commands: "M12 2.5L15.09 8.76L22 9.77L17 14.64L18.18 21.52L12 18.27L5.82 21.52L7 14.64L2 9.77L8.91 8.76Z";
     }
 
     // lucide/sparkles
