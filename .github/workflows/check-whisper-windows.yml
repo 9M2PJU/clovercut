@@ -17,7 +17,6 @@ jobs:
       GGML_BACKEND_DL: "ON"
       GGML_CPU_ALL_VARIANTS: "ON"
       GGML_NATIVE: "OFF"
-      WHISPER_DONT_GENERATE_BINDINGS: "1"
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
@@ -25,6 +24,15 @@ jobs:
     - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
       with:
         toolchain: "1.93.1"
+    - name: Generate bindings for the actual Windows ABI
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        & "$env:ProgramFiles\Git\bin\bash.exe" scripts/ci/fetch.sh llvm-win64 llvm.exe
+        if ($LASTEXITCODE -ne 0) { throw 'LLVM download failed' }
+        Start-Process -Wait -FilePath .\llvm.exe -ArgumentList '/S', '/D=C:\llvm'
+        if (-not (Test-Path C:\llvm\bin\libclang.dll)) { throw 'LLVM installation failed' }
+        'LIBCLANG_PATH=C:\llvm\bin' | Out-File -FilePath $env:GITHUB_ENV -Append
     - name: Prepare a minimal standalone probe
       shell: pwsh
       run: |
