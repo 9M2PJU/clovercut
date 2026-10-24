@@ -398,8 +398,10 @@ jobs:
       working-directory: src
       run: |
         set -o pipefail
+        # Keep the original Windows LTO: unused whisper-rs SystemInfo code
+        # refers to symbols supplied only by runtime-loaded CPU modules.
         cargo build --locked --profile app -p concat --bin clovercut --target ${{ matrix.target }} \
-          --config 'profile.app.lto=false' \
+          --config 'profile.app.lto="fat"' \
           --config 'profile.app.package.concat.opt-level=0' \
           --config 'profile.app.package.concat.codegen-units=16' 2>&1 | tee build.log
     - name: Build log to the summary (failure only)
@@ -731,8 +733,17 @@ jobs:
       if: matrix.platform == 'macos'
       run: |
         set -euo pipefail
-        brew install ffmpeg cmake dylibbundler
-        echo "FFMPEG_DIR=$(brew --prefix ffmpeg)" >> "$GITHUB_ENV"
+        brew install ffmpeg-full cmake dylibbundler
+        ffmpeg_dir=$(brew --prefix ffmpeg-full)
+        echo "FFMPEG_DIR=$ffmpeg_dir" >> "$GITHUB_ENV"
+        # Fail before compiling if Homebrew changes the required filter set.
+        "$ffmpeg_dir/bin/ffmpeg" -hide_banner -filters > /tmp/clovercut-ffmpeg-filters.txt
+        for filter in rubberband asendcmd asetnsamples; do
+          grep -Eq "[[:space:]]${filter}[[:space:]]" /tmp/clovercut-ffmpeg-filters.txt || {
+            echo "::error::Packaged FFmpeg is missing $filter"
+            exit 1
+          }
+        done
         # ggml's Metal code asks `@available(macOS 15, *)` before using
         # residency sets. Below that deployment target the question is
         # answered at run time by ___isPlatformVersionAtLeast, which lives
