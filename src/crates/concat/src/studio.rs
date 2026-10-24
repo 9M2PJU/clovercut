@@ -51,6 +51,7 @@ mod masking;
 use masking::{MaskFrame, MaskGrip};
 use slint::{Model, ModelRc, SharedString, VecModel};
 
+use crate::clip_copy::{copy_commands, layer_copy_command};
 use crate::dock::{Dock, DockLayout, SEAT_GAP, default_dock, lay_out, row_at, row_top};
 use crate::format::{
     WAVE_BAR, WAVE_PITCH, colour_of, frames_timecode, hex_of, hex_with_alpha, rate_label,
@@ -2310,99 +2311,6 @@ pub enum Confirm {
 pub struct Held {
     pub row: usize,
     pub clip: Clip,
-}
-
-/// The edits that make `placed` - the whole of `source`'s file, just laid
-/// on a free stretch of the lane - into a copy of `source` at `start` on
-/// `track_id`: its frames, speed, placement, keys and mix.
-///
-/// The footage is trimmed at normal speed to what the source covers, then
-/// retimed - the speed command keeps the footage covered and recomputes
-/// the length - and only then moved to `start`, so neighbours there never
-/// push the whole file aside and shift the frames the trims cut.
-fn copy_commands(source: &Clip, placed: &Clip, track_id: &str, start: f64) -> Vec<Command> {
-    let created = &placed.id;
-    let mut commands = Vec::new();
-    let head = source.source_start - placed.source_start;
-    if head.abs() > 1e-6 {
-        commands.push(Command::TrimClip {
-            clip_id: created.clone(),
-            edge: TrimEdge::Start,
-            delta: head,
-            ripple: false,
-        });
-    }
-    // The footage the source covers, at normal speed.
-    let covered = source.duration * source.speed;
-    let tail = covered - (placed.duration - head);
-    if tail.abs() > 1e-6 {
-        commands.push(Command::TrimClip {
-            clip_id: created.clone(),
-            edge: TrimEdge::End,
-            delta: tail,
-            ripple: false,
-        });
-    }
-    if (source.speed - 1.0).abs() > 1e-9 {
-        commands.push(Command::SetClipSpeed {
-            clip_id: created.clone(),
-            ripple: false,
-            speed: source.speed,
-        });
-    }
-    if source.speed_curve.is_some() {
-        commands.push(Command::SetClipSpeedCurve {
-            clip_id: created.clone(),
-            ripple: false,
-            curve: source.speed_curve.clone(),
-        });
-    }
-    commands.push(Command::MoveClips {
-        moves: vec![ClipMove {
-            clip_id: created.clone(),
-            start,
-            track_id: track_id.to_owned(),
-        }],
-    });
-    commands.push(Command::SetClipTransform {
-        clip_id: created.clone(),
-        scale: Some(source.scale),
-        offset_x: Some(source.offset_x),
-        offset_y: Some(source.offset_y),
-        rotation: Some(source.rotation),
-        stretch_x: Some(source.stretch_x),
-        stretch_y: Some(source.stretch_y),
-    });
-    for key in &source.keys {
-        commands.push(Command::SetClipKey {
-            clip_id: created.clone(),
-            property: key.property,
-            at: key.at,
-            value: key.value,
-            ease: key.ease,
-        });
-    }
-    commands.push(Command::UpdateClip {
-        clip_id: created.clone(),
-        patch: ClipPatch {
-            name: Some(format!("{} copy", source.name)),
-            volume: Some(source.volume),
-            fade_in: Some(source.fade_in),
-            fade_out: Some(source.fade_out),
-            visual_motion: Some(source.visual_motion),
-            opacity: Some(source.opacity),
-            preserve_pitch: Some(source.preserve_pitch),
-            muted: source.muted,
-            flip_h: Some(source.flip_h),
-            flip_v: Some(source.flip_v),
-            blend: Some(source.blend.clone()),
-            crop: Some(source.crop),
-            filters: Some(source.filters.clone()),
-            video_effects: Some(source.video_effects.clone()),
-            ..ClipPatch::default()
-        },
-    });
-    commands
 }
 
 /// Where each held clip lands: `(row, start)` per clip in the order held,
@@ -9613,6 +9521,9 @@ impl Studio {
         start: f64,
         gesture: Option<&str>,
     ) -> Option<String> {
+        if self.locked(track_id) {
+            return None;
+        }
         if source.kind == model::ClipKind::Text {
             return self.apply_in(
                 gesture,
@@ -9638,6 +9549,14 @@ impl Studio {
                     name: source.name.clone(),
                 },
             );
+        }
+        if source.kind == model::ClipKind::Layer {
+            let add = layer_copy_command(source, self.timeline(), track_id, start)?;
+            let created = self.apply_in(gesture, add)?;
+            let placed = self.clip(&created).cloned()?;
+            let commands = copy_commands(source, &placed, track_id, start);
+            self.apply_in(gesture, Command::Batch { commands });
+            return Some(created);
         }
         let lane_end = self
             .timeline()

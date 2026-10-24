@@ -461,9 +461,12 @@ pub fn catalogue() -> Vec<Tool> {
         Tool {
             name: "preview_frame",
             title: "Preview a frame",
-            description: "Renders the true composited frame at `time` seconds on an open project's timeline and returns it as an image to look at - titles, effects and transforms included. Without `width` and `height` it fits within 1280 pixels; give both for another size (8192 at most). With `output` (a .png path) it is written there instead.",
-            read_only: true,
-            destructive: false,
+            description: "Renders the true composited frame at `time` seconds on an open project's timeline and returns it as an image to look at - titles, effects and transforms included. Without `width` and `height` it fits within 1280 pixels; give both for another size (8192 at most). With `output` (a .png path) it is written there instead, replacing any file already at that path.",
+            // Not read-only: with `output` it writes a file, over one that
+            // is there. A client that trusts the hint to skip asking would
+            // let an agent overwrite anything under home.
+            read_only: false,
+            destructive: true,
             idempotent: true,
             action: Action::PreviewFrame,
         },
@@ -1067,6 +1070,18 @@ mod tests {
                 json!({ "path": "/tmp/Cut", "time": 1.5, "width": 320, "height": 180 }),
             ),
         ]
+    }
+
+    #[test]
+    fn preview_file_output_is_not_advertised_as_read_only() {
+        let listed = Toolbox::new().list();
+        let preview = listed
+            .iter()
+            .find(|tool| tool["name"] == "preview_frame")
+            .unwrap();
+        assert_eq!(preview["annotations"]["readOnlyHint"], false);
+        assert_eq!(preview["annotations"]["destructiveHint"], true);
+        assert!(preview["inputSchema"]["properties"].get("output").is_some());
     }
 
     #[test]

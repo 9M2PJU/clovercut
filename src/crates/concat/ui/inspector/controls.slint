@@ -880,6 +880,8 @@ export component Note inherits HorizontalLayout {
 export component SearchField inherits Rectangle {
     in-out property <string> text;
     in property <string> placeholder;
+    /// Let a containing popup handle Escape instead of consuming it here.
+    in property <bool> esc-passes: false;
 
     callback edited(text: string);
     callback submitted(text: string);
@@ -922,7 +924,7 @@ export component SearchField inherits Rectangle {
                 edited => { root.edited(self.text); }
                 accepted => { root.submitted(self.text); Focus.release(); }
                 key-pressed(event) => {
-                    if (event.text == Key.Escape) {
+                    if (event.text == Key.Escape && !root.esc-passes) {
                         Focus.release();
                         return EventResult.accept;
                     }

@@ -300,8 +300,12 @@ impl AudioDecoder {
     /// One decoded frame out of the codec, or `None` when the file is over.
     fn next_source(&mut self) -> Result<Option<Audio>> {
         let read = || crate::feed::read_packet(&mut self.input, self.stream);
-        crate::feed::next_frame(&mut self.decoder, &mut self.held, read)
-            .map_err(|stall| crate::feed::fail(stall, &self.path))
+        let mut frame = crate::feed::next_frame(&mut self.decoder, &mut self.held, read)
+            .map_err(|stall| crate::feed::fail(stall, &self.path))?;
+        if let Some(frame) = frame.as_mut() {
+            crate::ffi::name_channels(frame);
+        }
+        Ok(frame)
     }
 
     /// The next frame out of the graph: interleaved samples at the requested
@@ -600,6 +604,95 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// A WAV whose header names no channel layout - the plain PCM header,
+    /// which many recorders write - is still filtered: a low-pass under a
+    /// 440 Hz tone all but takes it away. It used to pass the tone through
+    /// untouched, the filter unable to name the channels it was given.
+    #[test]
+    fn a_wav_that_names_no_channels_is_still_filtered() {
+        let rate: u32 = 48_000;
+        let mut data = Vec::new();
+        for index in 0..rate {
+            let t = f64::from(index) / f64::from(rate);
+            let value = (0.5 * (2.0 * std::f64::consts::PI * 440.0 * t).sin() * 32767.0) as i16;
+            data.extend_from_slice(&value.to_le_bytes());
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"RIFF");
+        bytes.extend_from_slice(&(36 + data.len() as u32).to_le_bytes());
+        bytes.extend_from_slice(b"WAVEfmt ");
+        bytes.extend_from_slice(&16u32.to_le_bytes());
+        bytes.extend_from_slice(&1u16.to_le_bytes());
+        bytes.extend_from_slice(&2u16.to_le_bytes());
+        bytes.extend_from_slice(&rate.to_le_bytes());
+        bytes.extend_from_slice(&(rate * 4).to_le_bytes());
+        bytes.extend_from_slice(&4u16.to_le_bytes());
+        bytes.extend_from_slice(&16u16.to_le_bytes());
+        bytes.extend_from_slice(b"data");
+        bytes.extend_from_slice(&(data.len() as u32).to_le_bytes());
+        bytes.extend_from_slice(&data);
+        let path = std::env::temp_dir().join(format!("concat-unnamed-{}.wav", std::process::id()));
+        std::fs::write(&path, bytes).expect("writes the wav");
+
+        let loudest = |path: &std::path::Path, filters: Vec<String>| {
+            let options = AudioOptions {
+                filters,
+                ..AudioOptions::default()
+            };
+            let mut decoder = AudioDecoder::open(path, &options).expect("opens");
+            let mut samples: Vec<i16> = Vec::new();
+            while let Some(frame) = decoder.next_frame().expect("decodes") {
+                let bytes = decoder.bytes_of(&frame);
+                samples.extend(
+                    bytes
+                        .chunks_exact(2)
+                        .map(|b| i16::from_le_bytes([b[0], b[1]])),
+                );
+            }
+            // Past the filter's first tenth of a second, where it settles.
+            samples
+                .iter()
+                .skip(2 * 4_800)
+                .map(|sample| i32::from(*sample).abs())
+                .max()
+                .unwrap_or(0)
+        };
+        let plain = loudest(&path, Vec::new());
+        let chain = "lowpass=f=60,lowpass=f=60";
+        let filtered = loudest(&path, vec![chain.to_owned()]);
+        let output = path.with_extension("m4a");
+        let mut piece = crate::audio::AudioClip {
+            path: path.clone(),
+            stream: None,
+            start: 0.0,
+            duration: 1.0,
+            source_start: 0.0,
+            speed: 1.0,
+            preserve_pitch: true,
+            retime: None,
+            volume: 1.0,
+            volume_curve: Default::default(),
+            fade_in: 0.0,
+            fade_out: 0.0,
+            filter_chain: String::new(),
+        };
+        crate::audio::mix_to_file(&[piece.clone()], 1.0, &output).expect("mixes plain WAV");
+        let mixed_plain = loudest(&output, Vec::new());
+        piece.filter_chain = chain.to_owned();
+        crate::audio::mix_to_file(&[piece], 1.0, &output).expect("mixes filtered WAV");
+        let mixed_filtered = loudest(&output, Vec::new());
+        let _ = std::fs::remove_file(output);
+        assert!(mixed_plain > 15_000, "export has the tone: {mixed_plain}");
+        assert!(
+            mixed_filtered < 1_000,
+            "export filtered peak: {mixed_filtered}"
+        );
+        let _ = std::fs::remove_file(&path);
+        assert!(plain > 15_000, "the tone is there, at {plain}");
+        assert!(filtered < 1_000, "the tone came through at {filtered}");
     }
 
     #[test]

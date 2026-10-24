@@ -32,6 +32,35 @@ pub fn agent_builder(connect: Duration, read: Duration) -> ureq::AgentBuilder {
         .tls_config(Arc::clone(tls()))
 }
 
+/// Trusts only the shipped roots for the update manifest that declares package hashes.
+/// A system-installed inspection root must not authenticate both a substituted
+/// manifest and its substituted installer. Downloads and provider clients keep
+/// their existing shared TLS configuration and redirect policies.
+pub fn strict_agent(connect: Duration, read: Duration) -> ureq::Agent {
+    ureq::AgentBuilder::new()
+        .timeout_connect(connect)
+        .timeout_read(read)
+        .tls_config(Arc::clone(shipped_tls()))
+        .build()
+}
+
+/// The TLS configuration [`strict_agent`] shares: the shipped roots only.
+fn shipped_tls() -> &'static Arc<rustls::ClientConfig> {
+    static CONFIG: OnceLock<Arc<rustls::ClientConfig>> = OnceLock::new();
+    CONFIG.get_or_init(|| {
+        let config = rustls::ClientConfig::builder_with_provider(
+            rustls::crypto::ring::default_provider().into(),
+        )
+        .with_protocol_versions(&[&rustls::version::TLS12, &rustls::version::TLS13])
+        .expect("ring offers cipher suites for TLS 1.2 and 1.3")
+        .with_root_certificates(rustls::RootCertStore {
+            roots: webpki_roots::TLS_SERVER_ROOTS.to_vec(),
+        })
+        .with_no_client_auth();
+        Arc::new(config)
+    })
+}
+
 /// The TLS configuration every agent shares. Built once: reading the
 /// system's store takes a keychain query on macOS and a registry walk on
 /// Windows, which is not worth paying per request.
@@ -81,6 +110,7 @@ mod tests {
         // The configuration is whole: a connection can be started on it.
         // The name is never looked up.
         let name = rustls::pki_types::ServerName::try_from("github.com").expect("a valid name");
-        assert!(rustls::ClientConnection::new(Arc::clone(tls()), name).is_ok());
+        assert!(rustls::ClientConnection::new(Arc::clone(tls()), name.clone()).is_ok());
+        assert!(rustls::ClientConnection::new(Arc::clone(shipped_tls()), name).is_ok());
     }
 }

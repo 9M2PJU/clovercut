@@ -916,7 +916,7 @@ fn decode_key(spec: &ClipSpec) -> String {
     // this retires every one of them (audit 2026-10-04, #3). The disk
     // budget sweeps the orphans. Decoder preroll also retires the short
     // MP3 spans cached before its bit reservoir was warmed at each seek.
-    eat(b"file-origin-preroll-v3");
+    eat(b"named-channels-file-origin-v4");
     format!("{hash:016x}")
 }
 

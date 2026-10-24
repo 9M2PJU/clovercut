@@ -20,7 +20,7 @@
 //!    segments come back relative to the window.
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use concat_host::{AppDirs, SingleFlight};
@@ -286,13 +286,32 @@ fn on_speech(start: f64, end: f64, speech: &[(f64, f64)]) -> (f64, f64) {
 /// The VAD model as a file whisper can open, written beside the
 /// transcription models the first time it is wanted.
 fn vad_model(dirs: &AppDirs) -> Result<PathBuf, String> {
+    use std::io::Write;
+
     let path = models_dir(dirs)?.join("ggml-silero-v6.2.0.bin");
-    let whole = std::fs::metadata(&path).is_ok_and(|meta| meta.len() == VAD_MODEL.len() as u64);
-    if !whole {
-        let part = path.with_extension("part");
-        std::fs::write(&part, VAD_MODEL)
-            .and_then(|()| std::fs::rename(&part, &path))
-            .map_err(|error| format!("could not write {}: {error}", path.display()))?;
+    if std::fs::metadata(&path).is_ok_and(|meta| meta.len() == VAD_MODEL.len() as u64)
+        && std::fs::read(&path).is_ok_and(|bytes| bytes == VAD_MODEL)
+    {
+        return Ok(path);
+    }
+    static NEXT_PART: AtomicU64 = AtomicU64::new(0);
+    let part = path.with_extension(format!(
+        "part-{}-{}",
+        std::process::id(),
+        NEXT_PART.fetch_add(1, Ordering::Relaxed)
+    ));
+    let written = (|| {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&part)?;
+        file.write_all(VAD_MODEL)?;
+        drop(file);
+        std::fs::rename(&part, &path)
+    })();
+    if let Err(error) = written {
+        let _ = std::fs::remove_file(&part);
+        return Err(format!("could not write {}: {error}", path.display()));
     }
     Ok(path)
 }
@@ -691,6 +710,34 @@ mod tests {
                 segment.start, segment.end, segment.text
             );
         }
+    }
+
+    #[test]
+    fn simultaneous_voice_detector_writes_repair_and_publish_one_whole_model() {
+        let root = std::env::temp_dir().join(format!("clovercut-vad-race-{}", std::process::id()));
+        let dirs = AppDirs::under(&root);
+        let path = models_dir(&dirs).unwrap().join("ggml-silero-v6.2.0.bin");
+        std::fs::write(&path, vec![0; VAD_MODEL.len()]).unwrap();
+        let barrier = Arc::new(std::sync::Barrier::new(8));
+        let workers: Vec<_> = (0..8)
+            .map(|_| {
+                let dirs = dirs.clone();
+                let barrier = Arc::clone(&barrier);
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    vad_model(&dirs)
+                })
+            })
+            .collect();
+        for worker in workers {
+            assert_eq!(worker.join().unwrap().unwrap(), path);
+        }
+        assert_eq!(std::fs::read(&path).unwrap(), VAD_MODEL);
+        assert_eq!(
+            std::fs::read_dir(path.parent().unwrap()).unwrap().count(),
+            1
+        );
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]
