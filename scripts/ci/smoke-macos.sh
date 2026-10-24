@@ -2,12 +2,12 @@
 # Launches the built macOS bundle the way a person would, and fails if it
 # does not start: nothing else in the build ever runs what it packages.
 #
-#   smoke-macos.sh Concat.app
+#   smoke-macos.sh Clovercut.app
 #
 # The signature holds over the whole bundle (an ad-hoc one, which is what
 # a fork's build gets, passes and is reported); no binary in it loads a
-# library from Homebrew or anywhere else outside the bundle; `concat
-# --version` exits 0; and `concat --smoke` - start-up through the first
+# library from Homebrew or anywhere else outside the bundle; `clovercut
+# --version` exits 0; and `clovercut --smoke` - start-up through the first
 # frame of the window, then out - exits 0. Runs in CI after signing
 # (build-app.yml), and locally against a bundle built the same way.
 set -euo pipefail
@@ -35,9 +35,9 @@ expect_ok() {
   fi
 }
 
-[ $# -eq 1 ] || { echo "usage: $0 Concat.app" >&2; exit 2; }
+[ $# -eq 1 ] || { echo "usage: $0 Clovercut.app" >&2; exit 2; }
 app=$1
-bin="$app/Contents/MacOS/concat"
+bin="$app/Contents/MacOS/clovercut"
 [ -x "$bin" ] || fail "$bin is not there"
 
 say "the signature"
@@ -63,10 +63,10 @@ if [ -n "$leaks" ]; then
 fi
 echo "every load path is the system's or the bundle's"
 
-say "concat --version"
-HOME=$(mktemp -d) expect_ok "concat --version" 60 "$bin" --version
+say "clovercut --version"
+HOME=$(mktemp -d) expect_ok "clovercut --version" 60 "$bin" --version
 
-say "concat --smoke"
-HOME=$(mktemp -d) expect_ok "concat --smoke" 180 "$bin" --smoke
+say "clovercut --smoke"
+HOME=$(mktemp -d) expect_ok "clovercut --smoke" 180 "$bin" --smoke
 
 say "ok"

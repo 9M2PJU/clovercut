@@ -1,4 +1,4 @@
-# Linux AppImage and Windows x64 builds. Native dependencies remain checksum-pinned in scripts/ci/deps.lock.
+# Desktop packages for Linux, Windows x64/ARM64 and macOS. Native dependencies remain checksum-pinned in scripts/ci/deps.lock.
 name: Build Clovercut packages
 'on':
   workflow_dispatch:
@@ -7,12 +7,19 @@ name: Build Clovercut packages
         description: Git ref to build
         type: string
         default: main
+      include_mobile:
+        description: Also build Android (desktop releases leave this disabled)
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       ref:
         description: The ref to build, when it is not the one this runs on
         type: string
         default: ''
+      include_mobile:
+        type: boolean
+        default: false
 
 env:
   CARGO_TERM_COLOR: always
@@ -258,10 +265,11 @@ jobs:
         if-no-files-found: error
 
   windows:
-    name: windows-x86_64
-    runs-on: windows-2022
+    name: windows-${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 190
     strategy:
+      fail-fast: false
       matrix:
         include:
         - platform: windows
@@ -276,6 +284,17 @@ jobs:
           inno: x64compatible
           wix: x64
           ggml: variants
+        - platform: windows
+          arch: aarch64
+          os: windows-11-arm
+          target: aarch64-pc-windows-msvc
+          ffmpeg: winarm64
+          sherpa: win-arm64
+          ort: win-arm64
+          llvm: woa64
+          vc: arm64
+          inno: arm64
+          wix: arm64
     env:
       GGML_BACKEND_DL: ${{ matrix.ggml == 'variants' && 'ON' || 'OFF' }}
       GGML_CPU_ALL_VARIANTS: ${{ matrix.ggml == 'variants' && 'ON' || 'OFF' }}
@@ -379,7 +398,10 @@ jobs:
       working-directory: src
       run: |
         set -o pipefail
-        cargo build --locked --profile app -p concat --bin clovercut --target ${{ matrix.target }} 2>&1 | tee build.log
+        cargo build --locked --profile app -p concat --bin clovercut --target ${{ matrix.target }} \
+          --config 'profile.app.lto=false' \
+          --config 'profile.app.package.concat.opt-level=0' \
+          --config 'profile.app.package.concat.codegen-units=16' 2>&1 | tee build.log
     - name: Build log to the summary (failure only)
       if: failure()
       shell: bash
@@ -484,14 +506,14 @@ jobs:
         VERSION: ${{ steps.version.outputs.version }}
       run: |
         $ErrorActionPreference = "Stop"
-        $name = "Clovercut-$env:VERSION-windows-x86_64"
+        $name = "Clovercut-$env:VERSION-windows-${{ matrix.arch }}"
         $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
         if (-not (Test-Path $iscc)) {
           choco install innosetup --no-progress -y
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup installation failed" }
         }
         if (-not (Test-Path $iscc)) { throw "Inno Setup is not at $iscc" }
-        & $iscc "/DVersion=$env:VERSION" "/DArch=x64compatible" "/DSuffix=x86_64" `
+        & $iscc "/DVersion=$env:VERSION" "/DArch=${{ matrix.inno }}" "/DSuffix=${{ matrix.arch }}" `
           "/DStage=$PWD\stage\$name" "/DOut=$PWD\stage" assets\windows\clovercut.iss
         if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with $LASTEXITCODE" }
         if (-not (Test-Path "stage\$name-setup.exe")) { throw "installer missing" }
@@ -499,12 +521,13 @@ jobs:
         Remove-Item -Recurse -Force "stage\$name"
     - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
-        name: Clovercut-windows-x86_64
+        name: Clovercut-windows-${{ matrix.arch }}
         path: |-
           stage/*.exe
           stage/*.zip
         if-no-files-found: error
   android:
+    if: ${{ inputs.include_mobile }}
     name: android-${{ matrix.abi }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -660,3 +683,260 @@ jobs:
           name: Clovercut-android-${{ matrix.abi }}
           path: stage/Clovercut-*-android-${{ matrix.abi }}.apk
           if-no-files-found: error
+
+  macos:
+    name: macos-${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 190
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - platform: macos
+          arch: arm64
+          os: macos-15
+          target: aarch64-apple-darwin
+          sherpa: osx-arm64
+        - platform: macos
+          arch: x86_64
+          os: macos-15-intel
+          target: x86_64-apple-darwin
+          sherpa: osx-x64
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '12.0'
+      ORT_INTEL_MAC_VERSION: 1.23.2
+      GGML_AVX2: 'OFF'
+      GGML_FMA: 'OFF'
+      GGML_F16C: 'OFF'
+      GGML_BMI2: 'OFF'
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ inputs.ref }}
+    - name: The pinned toolchain
+      id: toolchain
+      shell: bash
+      run: echo "channel=$(sed -n 's/^channel = "\(.*\)"/\1/p' src/rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+    - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+      with:
+        toolchain: ${{ steps.toolchain.outputs.channel }}
+    - name: Read the version
+      id: version
+      shell: bash
+      run: |
+        version=$(sed -n 's/^version = "\(.*\)"/\1/p' src/Cargo.toml | head -1)
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+        echo "Building Clovercut $version for ${{ matrix.target }}"
+    - name: FFmpeg development libraries (macOS)
+      if: matrix.platform == 'macos'
+      run: |
+        set -euo pipefail
+        brew install ffmpeg cmake dylibbundler
+        echo "FFMPEG_DIR=$(brew --prefix ffmpeg)" >> "$GITHUB_ENV"
+        # ggml's Metal code asks `@available(macOS 15, *)` before using
+        # residency sets. Below that deployment target the question is
+        # answered at run time by ___isPlatformVersionAtLeast, which lives
+        # in clang's compiler-rt - and rustc links with -nodefaultlibs, so
+        # nothing pulls that archive in. Name it on the link line. (A
+        # build on a developer's Mac never sees this: with no deployment
+        # target set, the check is folded away at compile time.)
+        echo "RUSTFLAGS=-C link-arg=$(xcrun clang --print-file-name=libclang_rt.osx.a)" >> "$GITHUB_ENV"
+    - name: ONNX Runtime (Intel macOS)
+      if: matrix.platform == 'macos' && matrix.arch == 'x86_64'
+      run: |
+        set -euo pipefail
+        stem="onnxruntime-osx-x86_64-$ORT_INTEL_MAC_VERSION"
+        scripts/ci/fetch.sh onnxruntime-osx-x86_64 onnxruntime.tgz
+        tar -xzf onnxruntime.tgz
+        test -f "$stem/lib/libonnxruntime.$ORT_INTEL_MAC_VERSION.dylib"
+        echo "ORT_MAC_DYLIB=$PWD/$stem/lib/libonnxruntime.$ORT_INTEL_MAC_VERSION.dylib" >> "$GITHUB_ENV"
+    - name: sherpa-onnx static libraries (macOS and Linux)
+      if: matrix.platform != 'windows'
+      shell: bash
+      run: |
+        set -euo pipefail
+        version=$(grep -A1 'name = "sherpa-onnx-sys"' src/Cargo.lock | sed -n 's/^version = "\(.*\)"/\1/p')
+        name="sherpa-onnx-${{ matrix.sherpa }}-static-lib"
+        case "$(scripts/ci/fetch.sh --url "$name")" in
+          */v"$version"/*) ;;
+          *) echo "scripts/ci/deps.lock pins $name for another version than Cargo.lock's $version" >&2; exit 1 ;;
+        esac
+        stem="sherpa-onnx-v$version-${{ matrix.sherpa }}-static-lib"
+        scripts/ci/fetch.sh "$name" sherpa.tar.bz2
+        mkdir -p sherpa
+        tar -xjf sherpa.tar.bz2 -C sherpa
+        test -d "sherpa/$stem/lib"
+        echo "SHERPA_ONNX_LIB_DIR=$PWD/sherpa/$stem/lib" >> "$GITHUB_ENV"
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      with:
+        workspaces: src
+        key: ${{ matrix.target }}
+        env-vars: CARGO CC CFLAGS CXX CMAKE RUST GGML ORT
+    - name: Build
+      timeout-minutes: 120
+      shell: bash
+      working-directory: src
+      run: |
+        set -o pipefail
+        cargo build --locked --profile app -p concat --bin clovercut --target ${{ matrix.target }} \
+          --config 'profile.app.lto=false' \
+          --config 'profile.app.package.concat.opt-level=0' \
+          --config 'profile.app.package.concat.codegen-units=16' 2>&1 | tee build.log
+    - name: Build log to the summary (failure only)
+      if: failure()
+      shell: bash
+      run: |
+        if [ -f src/build.log ]; then
+          {
+            echo "### Build failed: ${{ matrix.target }}"
+            echo '```'
+            tail -n 150 src/build.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
+    - name: Bundle (macOS)
+      if: matrix.platform == 'macos'
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        set -euo pipefail
+        app=Clovercut.app
+        rm -rf "$app"
+        mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$app/Contents/Frameworks"
+        cp LICENSE THIRD_PARTY_NOTICES.md "$app/Contents/Resources/"
+        cp "src/target/${{ matrix.target }}/app/clovercut" "$app/Contents/MacOS/clovercut"
+
+        # The icon set Apple wants: each size and its @2x twin.
+        iconset=Clovercut.iconset
+        rm -rf "$iconset"; mkdir "$iconset"
+        icons=assets/icons
+        cp "$icons/clovercut_16.png"  "$iconset/icon_16x16.png"
+        cp "$icons/clovercut_32.png"  "$iconset/icon_16x16@2x.png"
+        cp "$icons/clovercut_32.png"  "$iconset/icon_32x32.png"
+        cp "$icons/clovercut_64.png"  "$iconset/icon_32x32@2x.png"
+        cp "$icons/clovercut_128.png" "$iconset/icon_128x128.png"
+        cp "$icons/clovercut_256.png" "$iconset/icon_128x128@2x.png"
+        cp "$icons/clovercut_256.png" "$iconset/icon_256x256.png"
+        cp "$icons/clovercut_512.png" "$iconset/icon_256x256@2x.png"
+        cp "$icons/clovercut_512.png" "$iconset/icon_512x512.png"
+        iconutil -c icns "$iconset" -o "$app/Contents/Resources/Clovercut.icns"
+
+        cat > "$app/Contents/Info.plist" <<PLIST
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+          <key>CFBundleName</key><string>Clovercut</string>
+          <key>CFBundleDisplayName</key><string>Clovercut</string>
+          <key>CFBundleIdentifier</key><string>io.github.tulcoturo.clovercut</string>
+          <key>CFBundleVersion</key><string>${VERSION}</string>
+          <key>CFBundleShortVersionString</key><string>${VERSION}</string>
+          <key>CFBundleExecutable</key><string>clovercut</string>
+          <key>CFBundleIconFile</key><string>Clovercut</string>
+          <key>CFBundlePackageType</key><string>APPL</string>
+          <key>LSMinimumSystemVersion</key><string>${MACOSX_DEPLOYMENT_TARGET}</string>
+          <key>NSHighResolutionCapable</key><true/>
+          <key>NSSupportsAutomaticGraphicsSwitching</key><true/>
+          <key>LSApplicationCategoryType</key><string>public.app-category.video</string>
+          <key>NSHumanReadableCopyright</key><string>AGPL-3.0-or-later. See THIRD_PARTY_NOTICES.md.</string>
+          <key>NSMicrophoneUsageDescription</key><string>Clovercut records voiceovers from your microphone.</string>
+        </dict>
+        </plist>
+        PLIST
+
+        # Every non-system dylib the binary (and those dylibs) load, copied
+        # in and re-pointed at @executable_path/../Frameworks.
+        dylibbundler -od -b \
+          -x "$app/Contents/MacOS/clovercut" \
+          -d "$app/Contents/Frameworks" \
+          -p @executable_path/../Frameworks
+
+        # Nothing outside the bundle may remain: a load path into
+        # Homebrew would break on a Mac without it.
+        if otool -L "$app/Contents/MacOS/clovercut" | grep -E '/opt/homebrew|/usr/local' ; then
+          echo "the binary still loads libraries from outside the bundle" >&2
+          exit 1
+        fi
+
+        # ONNX Runtime is never linked at launch: on an Intel Mac it is
+        # loaded at first use from Frameworks, under the name the app
+        # looks for (concat-vision's onnx.rs), and on Apple silicon it is
+        # inside the binary. A link here is #333 back: the app closing at
+        # launch on every macOS older than the runtime.
+        if otool -L "$app/Contents/MacOS/clovercut" | grep libonnxruntime ; then
+          echo "the binary links ONNX Runtime at launch" >&2
+          exit 1
+        fi
+        lazy=()
+        if [ -n "${ORT_MAC_DYLIB:-}" ]; then
+          cp "$ORT_MAC_DYLIB" "$app/Contents/Frameworks/libonnxruntime.dylib"
+          lazy=(--lazy Contents/Frameworks/libonnxruntime.dylib)
+        fi
+
+        # Every library in the bundle against the floor it declares. A
+        # warning for now: Homebrew's FFmpeg is built for the runner's
+        # macOS, so every Mac bundle has some until FFmpeg is built here
+        # for the floor. ONNX Runtime is listed apart, with the macOS it
+        # needs: the app reads that same field before loading it, and on
+        # an older one the AI features say so instead.
+        scripts/ci/check-min-os.sh "$app" "$MACOSX_DEPLOYMENT_TARGET" ${lazy[@]+"${lazy[@]}"}
+    - name: Sign and notarise (macOS)
+      if: matrix.platform == 'macos'
+      env:
+        CERT_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+        CERT_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        set -euo pipefail
+        app=Clovercut.app
+        dmg="Clovercut-${VERSION}-macos-${{ matrix.arch }}.dmg"
+        if [ -n "${CERT_P12}" ] && [ -n "${IDENTITY}" ]; then
+          keychain=$RUNNER_TEMP/signing.keychain-db
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "" "$keychain"
+          security import "$RUNNER_TEMP/cert.p12" -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" "$keychain"
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          # Frameworks first, then the executable, then the bundle: each
+          # signature covers what is beneath it.
+          find "$app/Contents/Frameworks" -name '*.dylib' -exec \
+            codesign --force --options runtime --timestamp -s "$IDENTITY" {} \;
+          # The hardened runtime keeps the microphone shut unless the app
+          # says it records: the voiceover.
+          entitlements="$RUNNER_TEMP/concat.entitlements"
+          printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
+            '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+            '<plist version="1.0"><dict><key>com.apple.security.device.audio-input</key><true/></dict></plist>' \
+            > "$entitlements"
+          codesign --force --options runtime --timestamp --entitlements "$entitlements" -s "$IDENTITY" "$app/Contents/MacOS/clovercut"
+          codesign --force --options runtime --timestamp --entitlements "$entitlements" -s "$IDENTITY" "$app"
+          codesign --verify --deep --strict "$app"
+        else
+          echo "No signing identity: ad-hoc signing."
+          codesign --force --deep -s - "$app"
+        fi
+
+        hdiutil create -volname Clovercut -srcfolder "$app" -ov -format UDZO "$dmg"
+
+        if [ -n "${APPLE_ID}" ] && [ -n "${TEAM_ID}" ] && [ -n "${APP_PASSWORD}" ] && [ -n "${IDENTITY}" ]; then
+          codesign --force --timestamp -s "$IDENTITY" "$dmg"
+          xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --team-id "$TEAM_ID" \
+            --password "$APP_PASSWORD" --wait
+          xcrun stapler staple "$dmg"
+        fi
+        mkdir -p stage && mv "$dmg" stage/
+    - name: Smoke test (macOS)
+      if: matrix.platform == 'macos'
+      timeout-minutes: 10
+      run: scripts/ci/smoke-macos.sh Clovercut.app
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: Clovercut-macos-${{ matrix.arch }}
+        path: stage/*.dmg
+        if-no-files-found: error

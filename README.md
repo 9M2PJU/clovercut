@@ -7,10 +7,10 @@
 
 <p align="center">
   <a href="https://tulcoturo.github.io/clovercut/"><img src="https://img.shields.io/badge/Website-tulcoturo.github.io%2Fclovercut-16b86a?style=flat-square" alt="clovercut website" /></a>
-  <a href="https://github.com/tulcoturo/clovercut/releases/tag/v0.1.3"><img src="https://img.shields.io/badge/Release-v0.1.3-00bcd4?style=flat-square" alt="Current version 0.1.3" /></a>
+  <a href="https://github.com/tulcoturo/clovercut/releases/tag/v0.1.4"><img src="https://img.shields.io/badge/Release-v0.1.4-00bcd4?style=flat-square" alt="Current version 0.1.4" /></a>
   <a href="https://github.com/tulcoturo/clovercut/issues"><img src="https://img.shields.io/badge/Feedback-Issues-blue?style=flat-square" alt="Issues and Feedback" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-16b86a?style=flat-square" alt="License: AGPL-3.0-or-later" /></a>
-  <img src="https://img.shields.io/badge/Platforms-Linux%20%7C%20Windows%20%7C%20Android-blueviolet?style=flat-square" alt="Linux, Windows, Android" />
+  <img src="https://img.shields.io/badge/Platforms-Linux%20%7C%20Windows%20%7C%20macOS%20%7C%20Android-blueviolet?style=flat-square" alt="Linux, Windows, macOS, Android" />
 </p>
 
 <p align="center">
@@ -56,7 +56,7 @@ Most open-source video editors leave you hunting across the web for stickers, so
 ### 3. Built-In Royalty-Free Audio & SFX
 * **Public Domain / CC0 Music:** Integrated OpenGameArt music and sound effects library.
 * **Waveform Previews:** Listen to tracks and view waveforms directly inside the media bin before placing them on audio tracks.
-* **Safe for Monetization:** Zero copyright strikes on YouTube, Twitch, or TikTok.
+* **More Sources:** Browse the YouTube Audio Library and Freesound too; check each asset’s licence and attribution requirements.
 
 <p align="center">
   <img src="assets/screenshots/audio-library.png" alt="clovercut royalty-free audio library with waveforms" width="1000" />
@@ -65,6 +65,8 @@ Most open-source video editors leave you hunting across the web for stickers, so
 ### 4. CapCut-Style Workflow with Native Rust Speed
 * **Single-Track Playhead Razor (`Ctrl+B`):** Split clips on the active track with a single keypress without slicing through your whole timeline.
 * **Strict Adjustment Layers:** Color grades and visual effects stay strictly bounded above the main video lane.
+* **Personal Libraries:** Star effects, filters, transitions and stickers; browse favourites, most-used and recent items.
+* **Online GL Transitions:** Download 123 supported transitions on demand and preview them by hovering over their cards.
 * **Real-Time GPU Transitions:** WGSL compute shaders powering transitions (Barn Door, Circle Close, Cover, Wipe, Pixelize, Glitch) with 1:1 preview cards.
 * **Clean 4K Export:** Export high-bitrate MP4 (H.264), ProRes, and AV1 up to 60 FPS without watermarks.
 
@@ -74,22 +76,28 @@ Most open-source video editors leave you hunting across the web for stickers, so
 
 ---
 
-## Downloads (Version 0.1.3)
+## Downloads (Version 0.1.4)
 
-Pre-built binaries are available for download on [GitHub Releases](https://github.com/tulcoturo/clovercut/releases/tag/v0.1.3):
+The desktop packages are published after the release checks pass on [GitHub Releases](https://github.com/tulcoturo/clovercut/releases/tag/v0.1.4):
 
 | Platform | Package | Architecture | Format |
 |---|---|---|---|
-| **Linux** | [Download AppImage](https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-x86_64.AppImage) | x86_64 | Portable `.AppImage` |
-| **Linux (ARM)** | [Download AppImage](https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-aarch64.AppImage) | aarch64 | Portable `.AppImage` |
-| **Windows** | [Download Setup Installer](https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-windows-x86_64-setup.exe) | x86_64 | Guided `.exe` installer |
-| **Windows** | [Download Portable Zip](https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-windows-x86_64-portable.zip) | x86_64 | Standalone `.zip` |
-| **Android** | [Download APK](https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-android-arm64.apk) | arm64-v8a | Universal `.apk` (16 KB aligned) |
+| **Linux** | [Download AppImage](https://github.com/tulcoturo/clovercut/releases/download/v0.1.4/Clovercut-0.1.4-x86_64.AppImage) | x86_64 | Portable `.AppImage` |
+| **Linux (ARM)** | [Download AppImage](https://github.com/tulcoturo/clovercut/releases/download/v0.1.4/Clovercut-0.1.4-aarch64.AppImage) | aarch64 | Portable `.AppImage` |
+| **Windows** | [Download Setup Installer](https://github.com/tulcoturo/clovercut/releases/download/v0.1.4/Clovercut-0.1.4-windows-x86_64-setup.exe) | x86_64 | Guided `.exe` installer |
+| **Windows** | [Download Portable Zip](https://github.com/tulcoturo/clovercut/releases/download/v0.1.4/Clovercut-0.1.4-windows-x86_64-portable.zip) | x86_64 | Standalone `.zip` |
+| **Windows (ARM)** | [Download Setup Installer](https://github.com/tulcoturo/clovercut/releases/download/v0.1.4/Clovercut-0.1.4-windows-aarch64-setup.exe) | aarch64 | Native `.exe` installer |
+| **Windows (ARM)** | [Download Portable Zip](https://github.com/tulcoturo/clovercut/releases/download/v0.1.4/Clovercut-0.1.4-windows-aarch64-portable.zip) | aarch64 | Standalone `.zip` |
+| **macOS (Apple Silicon)** | [Download DMG](https://github.com/tulcoturo/clovercut/releases/download/v0.1.4/Clovercut-0.1.4-macos-arm64.dmg) | arm64 | `.dmg` disk image |
+| **macOS (Intel)** | [Download DMG](https://github.com/tulcoturo/clovercut/releases/download/v0.1.4/Clovercut-0.1.4-macos-x86_64.dmg) | x86_64 | `.dmg` disk image |
+
+Version 0.1.4 is desktop-only. The previous [Android 0.1.3 APK](https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-android-arm64.apk) remains available.
+
 
 ### Running on Linux
 ```bash
-chmod +x Clovercut-0.1.3-x86_64.AppImage
-./Clovercut-0.1.3-x86_64.AppImage
+chmod +x Clovercut-0.1.4-x86_64.AppImage
+./Clovercut-0.1.4-x86_64.AppImage
 ```
 
 *(On systems without FUSE installed, launch with `APPIMAGE_EXTRACT_AND_RUN=1`).*
@@ -144,7 +152,7 @@ cargo test --manifest-path src/Cargo.toml -p concat-core -p concat-media -p conc
 * [Keyboard Shortcuts](docs/KEYBOARD_SHORTCUTS.md): List of editing shortcuts and key bindings.
 * [Audio & Content Libraries](docs/AUDIO_LIBRARY.md): Guide to OpenGameArt and GIPHY content.
 * [Model Context Protocol (MCP)](docs/MCP.md): Headless automation, CLI tools, and AI agent integration.
-* [Release Notes v0.1.3](docs/releases/0.1.3.md): Complete changelog for version 0.1.3.
+* [Release Notes v0.1.4](docs/releases/0.1.4.md): Complete changelog for version 0.1.4.
 * [Translating clovercut](TRANSLATING.md): Guide to contributing translations across 24 supported languages.
 
 ---

@@ -1,4 +1,4 @@
-# A version tag builds tested Linux AppImages and Windows packages and creates a draft release for review.
+# A version tag publishes tested desktop packages for Linux, Windows and macOS.
 name: Clovercut release
 'on':
   push:
@@ -7,7 +7,7 @@ name: Clovercut release
   workflow_dispatch:
     inputs:
       tag:
-        description: Version tag for the draft, e.g. v0.0.2
+        description: Version tag to publish, e.g. v0.0.2
         required: true
       ref:
         description: Full commit SHA, branch or tag to prepare (empty builds the existing tag)
@@ -68,6 +68,7 @@ jobs:
     uses: ./.github/workflows/build-app.yml
     with:
       ref: ${{ needs.check.outputs.commit }}
+      include_mobile: false
   publish:
     name: Publish release
     needs:
@@ -114,8 +115,15 @@ jobs:
           "Clovercut-${VERSION}-windows-x86_64-setup.exe"
           "Clovercut-${VERSION}-windows-x86_64-portable.zip"
         )
-        if [ -f "Clovercut-${VERSION}-android-arm64.apk" ]; then
-          expected+=("Clovercut-${VERSION}-android-arm64.apk")
+        expected+=(
+          "Clovercut-${VERSION}-windows-aarch64-setup.exe"
+          "Clovercut-${VERSION}-windows-aarch64-portable.zip"
+          "Clovercut-${VERSION}-macos-arm64.dmg"
+          "Clovercut-${VERSION}-macos-x86_64.dmg"
+        )
+        if find . -type f \( -name '*.apk' -o -name '*.ipa' \) | grep -q .; then
+          echo "::error::Mobile packages are excluded from this desktop release"
+          exit 1
         fi
         for file in "${expected[@]}"; do test -s "$file"; done
         sha256sum -- "${expected[@]}" manifest.json > SHA256SUMS
