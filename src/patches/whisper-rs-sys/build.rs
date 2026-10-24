@@ -119,6 +119,11 @@ fn main() {
         )
     });
 
+    println!("cargo:rustc-check-cfg=cfg(whisper_backend_dl)");
+    if backend_dl {
+        println!("cargo:rustc-cfg=whisper_backend_dl");
+    }
+
     let out = PathBuf::from(env::var("OUT_DIR").unwrap());
     let whisper_root = out.join("whisper.cpp");
 

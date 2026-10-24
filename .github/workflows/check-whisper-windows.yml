@@ -1,0 +1,65 @@
+name: Check Whisper Windows dynamic CPU linking
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Source ref to test
+        default: main
+        type: string
+permissions:
+  contents: read
+jobs:
+  link-and-start:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    env:
+      CARGO_BUILD_JOBS: "1"
+      GGML_BACKEND_DL: "ON"
+      GGML_CPU_ALL_VARIANTS: "ON"
+      GGML_NATIVE: "OFF"
+      WHISPER_DONT_GENERATE_BINDINGS: "1"
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ inputs.ref }}
+    - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+      with:
+        toolchain: "1.93.1"
+    - name: Prepare a minimal standalone probe
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $probe = "$env:RUNNER_TEMP/whisper-link-probe"
+        New-Item -ItemType Directory -Force "$probe/src" | Out-Null
+        Copy-Item scripts/ci/whisper-link-probe/main.rs "$probe/src/main.rs"
+        $patch = "$env:GITHUB_WORKSPACE/src/patches/whisper-rs-sys".Replace('\', '/')
+        @"
+        [package]
+        name = "clovercut-whisper-link-probe"
+        version = "0.0.0"
+        edition = "2024"
+        [workspace]
+        [dependencies]
+        whisper-rs = { version = "=0.16.0", features = ["raw-api"] }
+        [patch.crates-io]
+        whisper-rs-sys = { path = "$patch" }
+        "@ | Set-Content "$probe/Cargo.toml"
+        "PROBE=$probe" | Out-File -FilePath $env:GITHUB_ENV -Append
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      with:
+        workspaces: ${{ env.PROBE }}
+        key: windows-whisper-dynamic-probe
+        cache-on-failure: true
+        env-vars: CARGO CC CFLAGS CXX CMAKE RUST GGML WHISPER
+    - name: Link without LTO and start with runtime CPU variants
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        cargo build --manifest-path "$env:PROBE/Cargo.toml" --release --config 'profile.release.lto=false'
+        if ($LASTEXITCODE -ne 0) { throw 'The minimal Whisper link failed' }
+        $module = Get-ChildItem "$env:PROBE/target/release/build/whisper-rs-sys-*/out/bin/ggml-cpu-x64.dll" | Select-Object -First 1
+        if (-not $module) { throw 'No CPU variant DLLs were installed' }
+        $env:WHISPER_MODULE_DIR = $module.DirectoryName
+        $env:PATH = "$($module.DirectoryName);$env:PATH"
+        & "$env:PROBE/target/release/clovercut-whisper-link-probe.exe"
+        if ($LASTEXITCODE -ne 0) { throw 'The minimal Whisper startup probe failed' }

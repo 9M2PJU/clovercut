@@ -27,3 +27,19 @@ remain deferred; this release does not import them.
 Use 0.1.5 for the corrected source; preserve the failed v0.1.4 tag. The release
 continues to require all eight desktop artifacts, full CI and native startup
 smoke tests. Ordinary pushes still do not start engine/package builds.
+
+## Follow-up: Windows x64 still fails with LTO restored
+
+Run 40102255808 confirms that fat LTO does not resolve the four symbols. The
+previous LTO-only diagnosis/fix was insufficient. The actual boundary is the
+legacy whisper-rs SystemInfo wrapper calling CPU functions not present in the
+import libraries of ggml's dynamic backend build.
+
+For GGML_BACKEND_DL builds only, the patched sys crate now resolves those four
+queries via the selected CPU backend's public `ggml_backend_get_features`
+procedure. Static builds retain their original FFI. It does not implicitly load
+modules from the working directory or hard-code CPU capabilities. A standalone
+Windows probe forces all four wrappers to link without LTO, explicitly loads
+the packaged CPU variants and checks their reported instructions against the
+runner's available CPU features before another full editor build is attempted.
+Package jobs also retain dependency caches after a failure.

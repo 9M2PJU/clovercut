@@ -136,6 +136,7 @@ jobs:
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
       with:
         workspaces: src
+        cache-on-failure: true
         key: ${{ matrix.target }}
         env-vars: CARGO CC CFLAGS CXX CMAKE RUST GGML ORT
     - name: Memory headroom for the generated Linux UI
@@ -390,6 +391,7 @@ jobs:
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
       with:
         workspaces: src
+        cache-on-failure: true
         key: ${{ matrix.target }}
         env-vars: CARGO CC CFLAGS CXX CMAKE RUST GGML ORT
     - name: Build
@@ -398,10 +400,8 @@ jobs:
       working-directory: src
       run: |
         set -o pipefail
-        # Keep the original Windows LTO: unused whisper-rs SystemInfo code
-        # refers to symbols supplied only by runtime-loaded CPU modules.
         cargo build --locked --profile app -p concat --bin clovercut --target ${{ matrix.target }} \
-          --config 'profile.app.lto="fat"' \
+          --config 'profile.app.lto=false' \
           --config 'profile.app.package.concat.opt-level=0' \
           --config 'profile.app.package.concat.codegen-units=16' 2>&1 | tee build.log
     - name: Build log to the summary (failure only)
@@ -781,6 +781,7 @@ jobs:
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
       with:
         workspaces: src
+        cache-on-failure: true
         key: ${{ matrix.target }}
         env-vars: CARGO CC CFLAGS CXX CMAKE RUST GGML ORT
     - name: Build
