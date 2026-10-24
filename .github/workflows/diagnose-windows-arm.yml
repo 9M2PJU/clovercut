@@ -1,0 +1,35 @@
+name: Diagnose Windows ARM native libraries
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-libraries:
+    runs-on: windows-11-arm
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+    - name: Download the release's pinned native libraries
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $bash = "$env:ProgramFiles\Git\bin\bash.exe"
+        foreach ($item in @(@('ffmpeg-winarm64', 'ffmpeg.zip'), @('onnxruntime-win-arm64', 'ort.zip'), @('sherpa-onnx-win-arm64-shared-MT-Release-lib', 'sherpa.tar.bz2'))) {
+          & $bash scripts/ci/fetch.sh $item[0] $item[1]
+          if ($LASTEXITCODE -ne 0) { throw "Download failed: $($item[0])" }
+        }
+        Expand-Archive ffmpeg.zip ffmpeg
+        Expand-Archive ort.zip ort
+        New-Item -ItemType Directory -Force sherpa, bundle | Out-Null
+        tar -xf sherpa.tar.bz2 -C sherpa
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot unpack sherpa' }
+        Get-ChildItem ffmpeg -Recurse -File -Include *.dll,ffmpeg.exe | Copy-Item -Destination bundle
+        Get-ChildItem ort -Recurse -Filter *.dll | Copy-Item -Destination bundle
+        Get-ChildItem sherpa -Recurse -Filter sherpa-onnx-*.dll | Copy-Item -Destination bundle
+        $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath
+        $crt = Get-ChildItem "$vs\VC\Redist\MSVC\*\arm64\Microsoft.VC14*.CRT" -Directory | Sort-Object FullName -Descending | Select-Object -First 1
+        if (-not $crt) { throw 'No ARM64 Visual C++ runtime' }
+        Copy-Item "$($crt.FullName)\*.dll" bundle
+    - name: Isolate startup of each native library
+      shell: pwsh
+      run: scripts/ci/diagnose-windows-libraries.ps1 -Bundle bundle
