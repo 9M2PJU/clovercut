@@ -1007,5 +1007,19 @@
   "voices.styles": "스타일",
   "voices.stylesHint": "스타일은 효과가 걸린 목소리입니다. 하나를 고르면 그 목소리로 씁니다. 효과는 음성 클립에 들어가며 거기서 바꿀 수 있습니다.",
   "voices.voices": "목소리",
-  "voices.yours": "내 목소리"
+  "voices.yours": "내 목소리",
+  "library.all": "All",
+  "library.favourites": "Favourites",
+  "library.mostUsed": "Most used",
+  "library.recent": "Recent",
+  "library.addFavourite": "Add to favourites",
+  "library.removeFavourite": "Remove from favourites",
+  "library.empty": "No items in this list yet. Mark a star or use an item to find it here.",
+  "libraries.groupAudio": "Audio",
+  "libraries.groupStickers": "Stickers",
+  "libraries.groupTransitions": "Transitions",
+  "libraries.disabled": "Disabled",
+  "libraries.ready": "API key saved · ready to use",
+  "libraries.needsKey": "API key required · configure below",
+  "libraries.noKey": "Enabled · no account or API key required"
 }

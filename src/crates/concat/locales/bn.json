@@ -1007,5 +1007,19 @@
   "voices.styles": "স্টাইল",
   "voices.stylesHint": "স্টাইল মানে ইফেক্টসহ একটি কণ্ঠ। কোনোটি দিয়ে লিখতে সেটি বেছে নিন: ইফেক্টগুলো স্পিচ ক্লিপে যায়, সেখানে বদলানো যায়।",
   "voices.voices": "কণ্ঠ",
-  "voices.yours": "আপনার কণ্ঠ"
+  "voices.yours": "আপনার কণ্ঠ",
+  "library.all": "All",
+  "library.favourites": "Favourites",
+  "library.mostUsed": "Most used",
+  "library.recent": "Recent",
+  "library.addFavourite": "Add to favourites",
+  "library.removeFavourite": "Remove from favourites",
+  "library.empty": "No items in this list yet. Mark a star or use an item to find it here.",
+  "libraries.groupAudio": "Audio",
+  "libraries.groupStickers": "Stickers",
+  "libraries.groupTransitions": "Transitions",
+  "libraries.disabled": "Disabled",
+  "libraries.ready": "API key saved · ready to use",
+  "libraries.needsKey": "API key required · configure below",
+  "libraries.noKey": "Enabled · no account or API key required"
 }

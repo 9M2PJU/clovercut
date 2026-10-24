@@ -69,6 +69,8 @@ pub struct Preferences {
     /// library it happens to be filed in is not part of it.
     #[serde(default)]
     pub favourites: Vec<String>,
+    /// Successful library applications, shared across projects on this machine.
+    pub library_history: concat_host::library::History,
     /// The playhead stops at the end of the content instead of going where
     /// it is put. Off by default: a click past the last clip lands there, so
     /// a clip can be dropped at the playhead beyond everything else.

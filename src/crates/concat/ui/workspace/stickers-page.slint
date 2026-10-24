@@ -1,16 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Clovercut contributors
 
+import { LibraryTabs, LibraryStar } from "library-controls.slint";
 import { ContentLibraries } from "content-libraries.slint";
 import { I18n } from "../i18n.slint";
 import { Theme, Glyph, Icon, Payload } from "../primitives/primitives.slint";
 import { Button } from "../primitives/modal.slint";
 import { SearchField } from "../inspector/controls.slint";
 
-export struct StickerCardData { id: string, title: string, author: string, thumbnail: image }
+export struct StickerCardData { id: string, title: string, author: string, thumbnail: image, favourite: bool }
 export global Stickers {
     in property <[StickerCardData]> items;
     in property <bool> configured;
+    in property <int> mode;
+    callback mode-changed(mode: int);
+    callback favourite(id: string, on: bool);
     in property <bool> loading;
     in property <string> query;
     in property <string> error;
@@ -58,6 +62,7 @@ component StickerCard inherits Rectangle {
         Button { glyph: Glyph.plus; label: ""; enabled: Stickers.pending == ""; clicked => { Stickers.add(root.item.id); } }
         Button { glyph: Glyph.arrow-up-right; label: ""; clicked => { Stickers.source(root.item.id); } }
     }
+    LibraryStar { x: parent.width - self.width - 4px; y: 4px; checked: root.item.favourite; toggled(on) => { Stickers.favourite(root.item.id, on); } }
     if Stickers.pending == root.item.id: Rectangle {
         height: 3px; width: parent.width; background: Theme.accent;
     }
@@ -97,10 +102,11 @@ export component StickersPage inherits VerticalLayout {
         }
         Button { label: Stickers.loading ? I18n.t("sounds.loading") : I18n.t("sounds.search"); enabled: !Stickers.loading; clicked => { Stickers.search(query.text); } }
     }
+    if ContentLibraries.stickers-enabled && Stickers.configured: LibraryTabs { mode: Stickers.mode; selected(mode) => { Stickers.mode-changed(mode); } }
     if Stickers.error != "": Text { text: Stickers.error; color: Theme.danger; wrap: word-wrap; font-size: Theme.fs-sm; }
     if Stickers.pending != "": Text { text: I18n.t("stickers.downloading"); color: Theme.fg-muted; font-size: Theme.fs-sm; }
     if ContentLibraries.stickers-enabled && Stickers.configured && !Stickers.loading && Stickers.items.length == 0 && Stickers.error == "": Text {
-        text: I18n.t("stickers.empty"); color: Theme.fg-muted; font-size: Theme.fs-sm; wrap: word-wrap;
+        text: Stickers.mode > 0 ? I18n.t("library.empty") : I18n.t("stickers.empty"); color: Theme.fg-muted; font-size: Theme.fs-sm; wrap: word-wrap;
     }
     if ContentLibraries.stickers-enabled: StickerGrid { }
     if ContentLibraries.stickers-enabled && Stickers.configured && (Stickers.page-index > 0 || Stickers.more): HorizontalLayout {

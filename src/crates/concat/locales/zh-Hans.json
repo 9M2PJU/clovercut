@@ -1007,5 +1007,19 @@
   "voices.styles": "风格",
   "voices.stylesHint": "风格就是加了效果的嗓音。选一个用它来写：效果会加在语音片段上，之后可以修改。",
   "voices.voices": "嗓音",
-  "voices.yours": "你的嗓音"
+  "voices.yours": "你的嗓音",
+  "library.all": "All",
+  "library.favourites": "Favourites",
+  "library.mostUsed": "Most used",
+  "library.recent": "Recent",
+  "library.addFavourite": "Add to favourites",
+  "library.removeFavourite": "Remove from favourites",
+  "library.empty": "No items in this list yet. Mark a star or use an item to find it here.",
+  "libraries.groupAudio": "Audio",
+  "libraries.groupStickers": "Stickers",
+  "libraries.groupTransitions": "Transitions",
+  "libraries.disabled": "Disabled",
+  "libraries.ready": "API key saved · ready to use",
+  "libraries.needsKey": "API key required · configure below",
+  "libraries.noKey": "Enabled · no account or API key required"
 }

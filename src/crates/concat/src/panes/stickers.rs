@@ -20,6 +20,8 @@ use std::{
 pub enum StickersMsg {
     Key(String),
     Search(String),
+    Mode(i32),
+    Favourite(String, bool),
     Page(bool),
     Source(String),
     Preview(String),
@@ -37,6 +39,7 @@ pub enum StickersMsg {
     Adopted(
         u64,
         String,
+        String,
         Option<String>,
         f64,
         Box<Result<concat_host::media::MediaSummary, String>>,
@@ -47,6 +50,8 @@ impl std::fmt::Debug for StickersMsg {
         f.write_str(match self {
             Self::Key(_) => "Key",
             Self::Search(_) => "Search",
+            Self::Mode(_) => "Mode",
+            Self::Favourite(..) => "Favourite",
             Self::Page(_) => "Page",
             Self::Source(_) => "Source",
             Self::Preview(_) => "Preview",
@@ -66,6 +71,8 @@ pub struct StickersPane {
     scratch: Option<Arc<giphy::Scratch>>,
     generation: Arc<AtomicU64>,
     results: Vec<giphy::Sticker>,
+    known: HashMap<String, giphy::Sticker>,
+    pub mode: i32,
     thumbnails: HashMap<String, slint::Image>,
     pub query: String,
     pub page: usize,
@@ -85,6 +92,8 @@ impl Default for StickersPane {
             scratch: None,
             generation: Arc::new(AtomicU64::new(0)),
             results: Vec::new(),
+            known: HashMap::new(),
+            mode: 0,
             thumbnails: HashMap::new(),
             query: String::new(),
             page: 0,
@@ -110,7 +119,10 @@ impl StickersPane {
     }
     /// Find a public sticker by its opaque provider identifier.
     pub fn get(&self, id: &str) -> Option<&giphy::Sticker> {
-        self.results.iter().find(|item| item.id == id)
+        self.results
+            .iter()
+            .find(|item| item.id == id)
+            .or_else(|| self.known.get(id))
     }
     /// Stop browsing when this optional integration is disabled.
     pub fn suspend(&mut self) {
@@ -118,22 +130,34 @@ impl StickersPane {
         self.loading = false;
         self.pending.clear();
         self.results.clear();
+        self.known.clear();
         self.thumbnails.clear();
         self.error.clear();
     }
     /// Cards reuse decoded images rather than doing disk or network work at paint time.
-    pub fn rows(&self) -> Vec<crate::ui::StickerCardData> {
+    pub fn rows(&self, prefs: &crate::prefs::Preferences) -> Vec<crate::ui::StickerCardData> {
+        let query = self.query.to_lowercase();
         self.results
             .iter()
+            .filter(|item| {
+                self.mode == 0
+                    || query.is_empty()
+                    || item.title.to_lowercase().contains(&query)
+                    || item.author.to_lowercase().contains(&query)
+            })
+            .filter(|item| {
+                self.mode != 1 || prefs.favourites.contains(&format!("giphy:{}", item.id))
+            })
             .map(|item| crate::ui::StickerCardData {
                 id: item.id.as_str().into(),
                 title: item.title.as_str().into(),
                 author: item.author.as_str().into(),
+                favourite: prefs.favourites.contains(&format!("giphy:{}", item.id)),
                 thumbnail: self.thumbnails.get(&item.id).cloned().unwrap_or_default(),
             })
             .collect()
     }
-    fn search(&mut self, page: usize) {
+    fn search(&mut self, page: usize, prefs: &crate::prefs::Preferences) {
         if self.loading || !self.configured() {
             return;
         }
@@ -146,8 +170,74 @@ impl StickersPane {
         let generation = self.generation.fetch_add(1, Ordering::Relaxed) + 1;
         let key = self.key.clone();
         let query = self.query.clone();
+        let personal = self.mode > 0;
+        let mut saved: Vec<String> = if self.mode == 1 {
+            prefs.favourites.clone()
+        } else {
+            prefs
+                .library_history
+                .items
+                .keys()
+                .filter(|id| prefs.library_history.used(id))
+                .cloned()
+                .collect()
+        };
+        saved.retain(|id| id.starts_with("giphy:"));
+        if self.mode >= 2 {
+            saved.sort_by(|a, b| prefs.library_history.compare(self.mode, a, b));
+        }
+        if self.mode == 3 {
+            saved.truncate(50);
+        }
+        let searching_saved = personal && !query.trim().is_empty();
+        let more = saved.len() > (page + 1).saturating_mul(24);
+        let ids: Vec<String> = if searching_saved {
+            saved
+        } else {
+            saved
+                .into_iter()
+                .skip(page.saturating_mul(24))
+                .take(24)
+                .collect()
+        }
+        .into_iter()
+        .map(|id| id.trim_start_matches("giphy:").to_owned())
+        .collect();
+        let token = self.generation.clone();
         crate::host::spawn(
-            move || giphy::search(&key, &query, page),
+            move || {
+                if personal {
+                    let mut items = Vec::new();
+                    for chunk in ids.chunks(50) {
+                        if token.load(Ordering::Relaxed) != generation {
+                            return Ok(giphy::Page::default());
+                        }
+                        items.extend(giphy::by_ids(&key, chunk)?.stickers);
+                    }
+                    let more = if searching_saved {
+                        let query = query.to_lowercase();
+                        items.retain(|item| {
+                            item.title.to_lowercase().contains(&query)
+                                || item.author.to_lowercase().contains(&query)
+                        });
+                        let more = items.len() > (page + 1).saturating_mul(24);
+                        items = items
+                            .into_iter()
+                            .skip(page.saturating_mul(24))
+                            .take(24)
+                            .collect();
+                        more
+                    } else {
+                        more
+                    };
+                    Ok(giphy::Page {
+                        stickers: items,
+                        more,
+                    })
+                } else {
+                    giphy::search(&key, &query, page)
+                }
+            },
             move |studio, _, _, result| {
                 studio.handle(Msg::Stickers(StickersMsg::Loaded(generation, result)))
             },
@@ -189,6 +279,8 @@ impl StickersPane {
             && matches!(
                 &msg,
                 StickersMsg::Search(_)
+                    | StickersMsg::Mode(_)
+                    | StickersMsg::Favourite(..)
                     | StickersMsg::Page(_)
                     | StickersMsg::Preview(_)
                     | StickersMsg::Place(..)
@@ -216,19 +308,31 @@ impl StickersPane {
                 }
                 Err(error) => self.error = error,
             },
+            StickersMsg::Mode(mode) => {
+                self.mode = mode.clamp(0, 3);
+                self.query.clear();
+                self.loading = false;
+                self.search(0, &studio.prefs);
+            }
+            StickersMsg::Favourite(id, on) => {
+                studio.library_favourite(&format!("giphy:{id}"), on);
+            }
             StickersMsg::Search(query) => {
                 if !self.loading {
                     self.query = query.chars().take(50).collect();
-                    self.search(0);
+                    self.search(0, &studio.prefs);
                 }
             }
             StickersMsg::Page(next) => {
                 if !self.loading && (!next || self.more) {
-                    self.search(if next {
-                        self.page + 1
-                    } else {
-                        self.page.saturating_sub(1)
-                    });
+                    self.search(
+                        if next {
+                            self.page + 1
+                        } else {
+                            self.page.saturating_sub(1)
+                        },
+                        &studio.prefs,
+                    );
                 }
             }
             StickersMsg::Source(id) => {
@@ -250,6 +354,9 @@ impl StickersPane {
                     }
                     Ok(page) => {
                         self.more = page.more;
+                        for item in &page.stickers {
+                            self.known.insert(item.id.clone(), item.clone());
+                        }
                         self.results = page.stickers;
                         self.thumbnails.clear();
                         let items = self.results.clone();
@@ -301,13 +408,14 @@ impl StickersPane {
                                 self.error = t("sounds.openProjectFirst");
                                 return;
                             };
-                            self.pending = id;
+                            self.pending = id.clone();
                             let name = sticker.title.clone();
                             crate::host::spawn(
                                 move || giphy::adopt(&sticker, &path, &project),
                                 move |studio, _, _, result| {
                                     studio.handle(Msg::Stickers(StickersMsg::Adopted(
                                         epoch,
+                                        id,
                                         name,
                                         track,
                                         start,
@@ -319,7 +427,7 @@ impl StickersPane {
                     }
                 }
             }
-            StickersMsg::Adopted(epoch, name, track, start, result) => {
+            StickersMsg::Adopted(epoch, sticker_id, name, track, start, result) => {
                 self.pending.clear();
                 if epoch != crate::host::project_epoch() {
                     return;
@@ -349,6 +457,7 @@ impl StickersPane {
                             ripple: false,
                         }) {
                             studio.selection = vec![id];
+                            studio.record_library_use(&format!("giphy:{sticker_id}"));
                             studio.clip_set(crate::ui::ClipField::Scale, 0.35);
                             studio.flush_commit();
                         }

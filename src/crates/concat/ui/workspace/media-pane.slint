@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Jareer and Concat contributors
 
+import { LibraryTabs, LibraryStar } from "library-controls.slint";
 import { TransitionPreview } from "transition-preview.slint";
 import { I18n } from "../i18n.slint";
 import { Theme, Fmt, Glyph, Icon, Payload, Tip } from "../primitives/primitives.slint";
@@ -1092,6 +1093,9 @@ component CatalogueCard inherits Rectangle {
     /// Transitions and audio effects have nothing to show but their name,
     /// and a name in a box says it in a third of the room.
     in property <bool> compact;
+    in property <bool> star-enabled;
+    in property <bool> favourite;
+    callback starred(on: bool);
 
     property <bool> preview-pending;
     property <bool> preview-requested;
@@ -1269,6 +1273,11 @@ component CatalogueCard inherits Rectangle {
                 overflow: elide;
             }
         }
+    }
+    if root.star-enabled: LibraryStar {
+        x: parent.width - self.width - 4px; y: 4px;
+        checked: root.favourite;
+        toggled(on) => { root.starred(on); }
     }
 }
 
@@ -1493,6 +1502,9 @@ export component ShelfGrid inherits Rectangle {
             glyph: root.glyph,
         };
         compact: root.compact;
+        star-enabled: true;
+        favourite: entry.favourite;
+        starred(on) => { Library.favourite(entry.id, on); }
         payload: root.payload-kind == "" ? ""
             : "\{root.payload-kind}:\{entry.id}:\{entry.name}";
         auditions: root.auditions;
@@ -1548,7 +1560,7 @@ component AdjustmentShelf inherits Rectangle {
 // A shelf that reads packages off disk puts its reload in front of the
 // field: a square the field's own height, so the row is one control tall
 // and the button takes no line of its own.
-export component ShelfSearch inherits HorizontalLayout {
+export component ShelfSearch inherits VerticalLayout {
     in property <int> shelf;
     in property <string> placeholder;
     /// Show the reload square, for the shelves custom packages land on.
@@ -1562,6 +1574,7 @@ export component ShelfSearch inherits HorizontalLayout {
     padding-bottom: 8px;
     spacing: 6px;
 
+    HorizontalLayout { spacing: 6px;
     if root.reloads: Rectangle {
         width: root.field-height;
         height: root.field-height;
@@ -1597,6 +1610,9 @@ export component ShelfSearch inherits HorizontalLayout {
         property <string> held: Library.view(root.shelf).query;
         changed held => { self.text = self.held; }
     }
+
+    }
+    LibraryTabs { mode: Library.view(root.shelf).mode; selected(mode) => { Library.mode-changed(root.shelf, mode); } }
 }
 
 component CategoryPill inherits Rectangle {

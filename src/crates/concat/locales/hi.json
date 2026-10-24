@@ -1007,5 +1007,19 @@
   "voices.styles": "स्टाइल",
   "voices.stylesHint": "स्टाइल यानी इफ़ेक्ट वाली आवाज़। उसमें लिखने के लिए कोई एक चुनें: इफ़ेक्ट स्पीच क्लिप पर लगते हैं, जहाँ आप उन्हें बदल सकते हैं।",
   "voices.voices": "आवाज़ें",
-  "voices.yours": "आपकी आवाज़ें"
+  "voices.yours": "आपकी आवाज़ें",
+  "library.all": "All",
+  "library.favourites": "Favourites",
+  "library.mostUsed": "Most used",
+  "library.recent": "Recent",
+  "library.addFavourite": "Add to favourites",
+  "library.removeFavourite": "Remove from favourites",
+  "library.empty": "No items in this list yet. Mark a star or use an item to find it here.",
+  "libraries.groupAudio": "Audio",
+  "libraries.groupStickers": "Stickers",
+  "libraries.groupTransitions": "Transitions",
+  "libraries.disabled": "Disabled",
+  "libraries.ready": "API key saved · ready to use",
+  "libraries.needsKey": "API key required · configure below",
+  "libraries.noKey": "Enabled · no account or API key required"
 }

@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Clovercut contributors
+import { I18n } from "../i18n.slint";
+import { Theme } from "../primitives/primitives.slint";
+
+export component LibraryTabs inherits HorizontalLayout {
+    in property <int> mode;
+    callback selected(mode: int);
+    spacing: 3px;
+    height: 36px;
+    for label[index] in [I18n.t("library.all"), I18n.t("library.favourites"), I18n.t("library.mostUsed"), I18n.t("library.recent")]: Rectangle {
+        min-width: 0px;
+        horizontal-stretch: 1;
+        border-radius: Theme.r-sm;
+        background: root.mode == index ? Theme.accent-soft : hit.has-hover ? Theme.field-hover : Theme.field;
+        border-width: 1px;
+        border-color: root.mode == index ? Theme.accent : Theme.line;
+        Text { x: 2px; width: parent.width - 4px; height: parent.height; text: label; color: root.mode == index ? Theme.accent : Theme.fg-muted; font-size: Theme.fs-xs; horizontal-alignment: center; vertical-alignment: center; wrap: word-wrap; overflow: elide; }
+        hit := TouchArea { mouse-cursor: pointer; clicked => { root.selected(index); } }
+    }
+}
+
+export component LibraryStar inherits Rectangle {
+    in property <bool> checked;
+    callback toggled(on: bool);
+    width: 24px;
+    height: 24px;
+    border-radius: Theme.r-sm;
+    background: hit.has-hover ? Theme.field-hover : Theme.scrim;
+    accessible-role: button;
+    accessible-label: root.checked ? I18n.t("library.removeFavourite") : I18n.t("library.addFavourite");
+    Text { text: root.checked ? "★" : "☆"; color: root.checked ? Theme.accent : Theme.on-scrim; font-size: 20px; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
+    hit := TouchArea { mouse-cursor: pointer; clicked => { root.toggled(!root.checked); } }
+}

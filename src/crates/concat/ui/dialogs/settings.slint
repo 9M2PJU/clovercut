@@ -586,6 +586,36 @@ component ShortcutRow inherits Rectangle {
     }
 }
 
+// A provider keeps activation, connection status and credentials together.
+component LibraryProvider inherits Rectangle {
+    in property <string> title;
+    in property <bool> on;
+    in property <bool> needs-key;
+    in property <bool> configured;
+    callback switched(on: bool);
+    background: Theme.field;
+    border-radius: Theme.r;
+    border-width: 1px;
+    border-color: Theme.line;
+    vertical-stretch: 0;
+    VerticalLayout {
+        padding: 12px;
+        spacing: 8px;
+        DialogSection {
+            first: true; ruled: false; title: root.title;
+            switchable: true; on: root.on;
+            switched(on) => { root.switched(on); }
+            @children
+        }
+        Text {
+            text: !root.on ? I18n.t("libraries.disabled") : root.needs-key ? (root.configured ? I18n.t("libraries.ready") : I18n.t("libraries.needsKey")) : I18n.t("libraries.noKey");
+            color: root.on && (!root.needs-key || root.configured) ? Theme.accent : Theme.fg-muted;
+            font-size: Theme.fs-sm;
+            wrap: word-wrap;
+        }
+    }
+}
+
 export component SettingsDialog inherits Modal {
     in property <SettingsData> data;
     in property <[ModelData]> transcribers;
@@ -855,19 +885,19 @@ export component SettingsDialog inherits Modal {
             if root.data.tab == 8: VerticalLayout {
                 spacing: 16px;
                 Text { text: I18n.t("libraries.hint"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs; }
-                DialogSection {
-                    first: true;
-                    title: "OpenGameArt"; switchable: true; on: ContentLibraries.audio-enabled;
+                Text { text: I18n.t("libraries.groupAudio"); color: Theme.fg; font-size: Theme.fs + 2px; font-weight: 600; }
+                LibraryProvider {
+                    title: "OpenGameArt"; on: ContentLibraries.audio-enabled;
                     switched(enabled) => { ContentLibraries.enable-audio(enabled); }
                     Text { text: I18n.t("libraries.audioDescription"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs; }
                 }
-                DialogSection {
-                    title: "YouTube Audio Library"; switchable: true; on: ContentLibraries.youtube-audio-enabled;
+                LibraryProvider {
+                    title: "YouTube Audio Library"; on: ContentLibraries.youtube-audio-enabled;
                     switched(enabled) => { ContentLibraries.enable-youtube-audio(enabled); }
                     Text { text: I18n.t("libraries.youtubeAudioDescription"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs; }
                 }
-                DialogSection {
-                    title: "Freesound"; switchable: true; on: ContentLibraries.freesound-enabled;
+                LibraryProvider {
+                    title: "Freesound"; needs-key: true; configured: ContentLibraries.freesound-configured; on: ContentLibraries.freesound-enabled;
                     switched(enabled) => { ContentLibraries.enable-freesound(enabled); }
                     Text { text: I18n.t("libraries.freesoundDescription"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs; }
                     if ContentLibraries.freesound-enabled: VerticalLayout {
@@ -895,8 +925,9 @@ export component SettingsDialog inherits Modal {
                         }
                     }
                 }
-                DialogSection {
-                    title: "GIPHY"; switchable: true; on: ContentLibraries.stickers-enabled;
+                Text { text: I18n.t("libraries.groupStickers"); color: Theme.fg; font-size: Theme.fs + 2px; font-weight: 600; }
+                LibraryProvider {
+                    title: "GIPHY"; needs-key: true; configured: Stickers.configured; on: ContentLibraries.stickers-enabled;
                     switched(enabled) => { ContentLibraries.enable-stickers(enabled); }
                     Text { text: I18n.t("libraries.stickerDescription"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs; }
                     if ContentLibraries.stickers-enabled: VerticalLayout {
@@ -927,8 +958,9 @@ export component SettingsDialog inherits Modal {
 
                     if Stickers.error != "": Text { text: Stickers.error; color: Theme.danger; wrap: word-wrap; }
                 }
-                DialogSection {
-                    title: "GL Transitions"; switchable: true; on: ContentLibraries.gl-transitions-enabled;
+                Text { text: I18n.t("libraries.groupTransitions"); color: Theme.fg; font-size: Theme.fs + 2px; font-weight: 600; }
+                LibraryProvider {
+                    title: "GL Transitions"; on: ContentLibraries.gl-transitions-enabled;
                     switched(enabled) => { ContentLibraries.enable-gl-transitions(enabled); }
                     Text { text: I18n.t("libraries.glTransitionsDescription"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs; }
                 }

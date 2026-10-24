@@ -1387,6 +1387,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         library.on_group_changed(on_window!(|state, shelf: i32, index: i32| {
             state.library_group(shelf, index);
         }));
+        library.on_mode_changed(on_window!(|state, shelf: i32, mode: i32| {
+            state.library_mode(shelf, mode);
+        }));
         library.on_favourites_changed(on_window!(|state, shelf: i32, on: bool| {
             state.library_favourites(shelf, on);
         }));
@@ -1542,6 +1545,16 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
             state.handle(Msg::Stickers(crate::panes::stickers::StickersMsg::Key(
                 key.to_string(),
             )));
+        }));
+        stickers.on_mode_changed(on_window!(|state, mode: i32| {
+            state.handle(Msg::Stickers(crate::panes::stickers::StickersMsg::Mode(
+                mode,
+            )));
+        }));
+        stickers.on_favourite(on_window!(|state, id: SharedString, on: bool| {
+            state.handle(Msg::Stickers(
+                crate::panes::stickers::StickersMsg::Favourite(id.to_string(), on),
+            ));
         }));
         stickers.on_search(on_window!(|state, query: SharedString| {
             state.handle(Msg::Stickers(crate::panes::stickers::StickersMsg::Search(

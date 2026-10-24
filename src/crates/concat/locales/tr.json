@@ -1007,5 +1007,19 @@
   "voices.styles": "Stiller",
   "voices.stylesHint": "Stil, efekt uygulanmış bir sestir. Onunla yazmak için birini seçin: efektler konuşma klibine eklenir, orada değiştirebilirsiniz.",
   "voices.voices": "Ses tonları",
-  "voices.yours": "Sizin sesleriniz"
+  "voices.yours": "Sizin sesleriniz",
+  "library.all": "All",
+  "library.favourites": "Favourites",
+  "library.mostUsed": "Most used",
+  "library.recent": "Recent",
+  "library.addFavourite": "Add to favourites",
+  "library.removeFavourite": "Remove from favourites",
+  "library.empty": "No items in this list yet. Mark a star or use an item to find it here.",
+  "libraries.groupAudio": "Audio",
+  "libraries.groupStickers": "Stickers",
+  "libraries.groupTransitions": "Transitions",
+  "libraries.disabled": "Disabled",
+  "libraries.ready": "API key saved · ready to use",
+  "libraries.needsKey": "API key required · configure below",
+  "libraries.noKey": "Enabled · no account or API key required"
 }

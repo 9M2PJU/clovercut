@@ -1007,5 +1007,19 @@
   "voices.styles": "Styles",
   "voices.stylesHint": "Un style est une voix avec des effets. Choisissez-en un pour écrire avec : les effets vont sur le clip de parole, où vous pouvez les modifier.",
   "voices.voices": "Voix",
-  "voices.yours": "Vos voix"
+  "voices.yours": "Vos voix",
+  "library.all": "All",
+  "library.favourites": "Favourites",
+  "library.mostUsed": "Most used",
+  "library.recent": "Recent",
+  "library.addFavourite": "Add to favourites",
+  "library.removeFavourite": "Remove from favourites",
+  "library.empty": "No items in this list yet. Mark a star or use an item to find it here.",
+  "libraries.groupAudio": "Audio",
+  "libraries.groupStickers": "Stickers",
+  "libraries.groupTransitions": "Transitions",
+  "libraries.disabled": "Disabled",
+  "libraries.ready": "API key saved · ready to use",
+  "libraries.needsKey": "API key required · configure below",
+  "libraries.noKey": "Enabled · no account or API key required"
 }

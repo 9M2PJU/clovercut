@@ -128,6 +128,7 @@ component Ramps inherits Rectangle {
 // ── one clip ─────────────────────────────────────────────────────────────────
 
 component Clip inherits Rectangle {
+    out property <length> grab-y: root.height / 2;
     in property <ClipData> item;
     in property <length> px-per-second;
     in property <length> viewport-width: 1920px;
@@ -593,6 +594,7 @@ component Clip inherits Rectangle {
                 }
                 self.origin-x = self.absolute-position.x + self.mouse-x;
                 self.origin-y = self.absolute-position.y + self.mouse-y;
+                root.grab-y = self.origin-y - root.absolute-position.y;
                 self.travelled = false;
                 self.on-edge = root.edge-at >= 0;
                 // A finger on a phone moved the clip by brushing it: a
@@ -1350,6 +1352,7 @@ export component Lanes inherits Rectangle {
     property <length> pointer-x;
     property <float> drag-seconds;
     property <length> drag-pixels;
+    property <length> drag-grab-offset;
     /// `scroll-left` when the clip was pressed; see the clip's `dragged`.
     property <float> press-scroll;
     property <length> edge-zone: 40px;
@@ -1634,6 +1637,7 @@ export component Lanes inherits Rectangle {
                 root.press-scroll = root.scroll-left;
                 root.drag-seconds = 0;
                 root.drag-pixels = 0;
+                root.drag-grab-offset = 4px + self.grab-y - root.tracks[entry.row].height / 2;
                 root.clip-dragging = false;
                 root.clip-pressed(entry.id, additive, edge);
             }
@@ -1649,9 +1653,9 @@ export component Lanes inherits Rectangle {
             // pointer while the edge scrolls it along.
             dragged(seconds, pixels) => {
                 root.drag-seconds = seconds;
-                root.drag-pixels = pixels;
+                root.drag-pixels = pixels + root.drag-grab-offset;
                 root.clip-dragging = true;
-                root.clip-dragged(seconds + (root.scroll-left - root.press-scroll), pixels);
+                root.clip-dragged(seconds + (root.scroll-left - root.press-scroll), root.drag-pixels);
             }
             pointer-at(x) => { root.pointer-x = self.x + x; }
             cancelled => {

@@ -1007,5 +1007,19 @@
   "voices.styles": "انداز",
   "voices.stylesHint": "انداز ایفیکٹس والی صوت ہے۔ اس میں لکھنے کے لیے کوئی ایک چنیں: ایفیکٹس تقریر کی کلپ پر لگتے ہیں، جہاں آپ انہیں بدل سکتے ہیں۔",
   "voices.voices": "صوتیں",
-  "voices.yours": "آپ کی صوتیں"
+  "voices.yours": "آپ کی صوتیں",
+  "library.all": "All",
+  "library.favourites": "Favourites",
+  "library.mostUsed": "Most used",
+  "library.recent": "Recent",
+  "library.addFavourite": "Add to favourites",
+  "library.removeFavourite": "Remove from favourites",
+  "library.empty": "No items in this list yet. Mark a star or use an item to find it here.",
+  "libraries.groupAudio": "Audio",
+  "libraries.groupStickers": "Stickers",
+  "libraries.groupTransitions": "Transitions",
+  "libraries.disabled": "Disabled",
+  "libraries.ready": "API key saved · ready to use",
+  "libraries.needsKey": "API key required · configure below",
+  "libraries.noKey": "Enabled · no account or API key required"
 }

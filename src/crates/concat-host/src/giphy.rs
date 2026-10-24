@@ -43,9 +43,10 @@ pub struct Page {
 #[derive(Deserialize)]
 struct Response {
     data: Vec<Item>,
+    #[serde(default)]
     pagination: Pagination,
 }
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 struct Pagination {
     total_count: usize,
     count: usize,
@@ -125,6 +126,44 @@ fn agent() -> ureq::Agent {
     crate::net::agent_builder(Duration::from_secs(15), Duration::from_secs(30))
         .redirects(0)
         .build()
+}
+
+/// Resolves saved sticker IDs with fresh provider metadata. Only IDs are persisted.
+/// The provider response is reordered to the user's own saved/ranked ID list.
+pub fn by_ids(key: &str, ids: &[String]) -> Result<Page, String> {
+    if ids.is_empty() {
+        return Ok(Page::default());
+    }
+    if key.trim().is_empty() {
+        return Err("Configure a GIPHY API key first".into());
+    }
+    if ids.len() > 50 || ids.iter().any(|id| !valid_id(id)) {
+        return Err("Invalid saved sticker IDs".into());
+    }
+    let mut url = Url::parse("https://api.giphy.com/v1/gifs").expect("constant URL");
+    url.query_pairs_mut()
+        .append_pair("api_key", key)
+        .append_pair("ids", &ids.join(","));
+    let response = agent().get(url.as_str()).call().map_err(|_| {
+        "Could not load saved stickers; check the connection and API key".to_owned()
+    })?;
+    let mut bytes = Vec::new();
+    response
+        .into_reader()
+        .take(4 * 1024 * 1024 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| "GIPHY's response was interrupted")?;
+    if bytes.len() > 4 * 1024 * 1024 {
+        return Err("GIPHY's response was too large".into());
+    }
+    let mut page = parse(&bytes)?;
+    page.stickers.sort_by_key(|item| {
+        ids.iter()
+            .position(|id| id == &item.id)
+            .unwrap_or(usize::MAX)
+    });
+    page.more = false;
+    Ok(page)
 }
 
 /// Search, or load trending stickers when the query is empty. No background
@@ -303,6 +342,16 @@ pub fn adopt(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn saved_lookup_accepts_responses_without_search_pagination() {
+        let payload = br#"{"data":[{"id":"saved123","title":"Saved sticker","username":"artist","url":"https://giphy.com/stickers/saved123","images":{"original":{"url":"https://media.giphy.com/media/saved123/giphy.gif"},"fixed_width_still":{"url":"https://media.giphy.com/media/saved123/200w_s.gif"}}}]}"#;
+        let page = parse(payload).unwrap();
+        assert_eq!(page.stickers[0].id, "saved123");
+        assert!(!page.more);
+        assert!(by_ids("", &["saved123".into()]).is_err());
+        assert!(by_ids("test", &["../unsafe".into()]).is_err());
+    }
+
     #[test]
     fn result_order_transparency_rendition_and_url_parameters_are_preserved() {
         let entry = |id: &str| serde_json::json!({"id":id,"title":"A sticker","username":"artist","url":format!("https://giphy.com/stickers/{id}"),"images":{"original":{"url":format!("https://media.giphy.com/media/{id}/giphy.gif?cid=keep&rid=giphy.gif")},"fixed_width_still":{"url":"https://media.giphy.com/media/a/200w_s.gif"}}});

@@ -83,6 +83,7 @@ export struct LibraryViewData {
     group: int,
     /// The star is down: only favourites show, whatever shelf they are on.
     favourites: bool,
+    mode: int,
     /// Active category filter (e.g. "All", "Featured", "Retro & Film", etc.).
     category: string,
 }
@@ -105,6 +106,7 @@ export global Library {
     callback group-changed(shelf: int, index: int);
     /// The star chip was pressed.
     callback favourites-changed(shelf: int, on: bool);
+    callback mode-changed(shelf: int, mode: int);
     /// A category pill was selected.
     callback category-changed(shelf: int, category: string);
     /// A package was starred or unstarred. Not per shelf: a star is a fact
@@ -113,7 +115,7 @@ export global Library {
 
     pure public function view(shelf: int) -> LibraryViewData {
         if (Library.views.length < 4) {
-            return { query: "", group: 0, favourites: false, category: "" };
+            return { query: "", group: 0, favourites: false, mode: 0, category: "" };
         }
         return Library.views[shelf];
     }

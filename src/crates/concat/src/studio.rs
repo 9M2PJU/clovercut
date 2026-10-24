@@ -365,6 +365,8 @@ pub struct LibraryView {
     pub group: i32,
     /// Only starred packages show, whatever shelf they are on.
     pub favourites: bool,
+    /// 0 all, 1 favourites, 2 most used, 3 recent.
+    pub mode: i32,
     /// Active category filter (e.g. "All", "Featured", "Retro & Film", etc.).
     pub category: String,
 }
@@ -1327,13 +1329,16 @@ fn shelves(
         let name = meta.name.clone();
         let description = meta.description.clone();
         let starred = favourites.iter().any(|held| held == &meta.id);
-        let shown = if view.favourites {
-            starred
-        } else if !query.is_empty() {
+        if view.favourites && !starred {
+            continue;
+        }
+        let shown = if !query.is_empty() {
             // Across every shelf while a query is live. Someone typing
             // "echo" wants the echo, not the echo that happens to be filed
             // where they were already looking.
             name.to_lowercase().contains(&query) || description.to_lowercase().contains(&query)
+        } else if view.mode > 0 || view.favourites {
+            true
         } else if !view.category.is_empty() {
             package.matches_category(&view.category)
         } else if view.group >= 0 {
@@ -1359,6 +1364,25 @@ fn shelves(
         groups.into_iter().map(SharedString::from).collect(),
         entries,
     )
+}
+
+/// Applies local ordering only to personal lists, keeping normal catalogue order.
+fn personalize(entries: &mut Vec<CatalogueEntryData>, view: &LibraryView, prefs: &Preferences) {
+    let mode = if view.favourites { 1 } else { view.mode };
+    if mode == 1 {
+        entries.retain(|e| prefs.favourites.iter().any(|id| id == e.id.as_str()));
+    }
+    if mode >= 2 {
+        entries.retain(|e| prefs.library_history.used(e.id.as_str()));
+        entries.sort_by(|a, b| {
+            prefs
+                .library_history
+                .compare(mode, a.id.as_str(), b.id.as_str())
+        });
+        if mode == 3 {
+            entries.truncate(50);
+        }
+    }
 }
 
 /// How a manifest's unit is read out. Anything the inspector has no words
@@ -1460,10 +1484,11 @@ struct ShelfStamp {
     catalogue: usize,
     cards: u64,
     lang: String,
-    views: Vec<(String, i32, bool, String)>,
+    views: Vec<(String, i32, bool, String, i32)>,
     favourites: Vec<String>,
     gl_transitions: bool,
     gl_entries: usize,
+    usage_clock: u64,
 }
 
 /// The built-in colour package's id; see `adjust_rows` and `Studio::adjust_set`.
@@ -2765,7 +2790,7 @@ impl Studio {
         let main_h = heights[main_row as usize];
         let main_bot = main_top + main_h;
         let is_audio = item_kind == model::TrackKind::Audio;
-        let edge_thresh = 14.0_f32;
+        let edge_thresh = concat_host::timeline_drop::INSERT_MARGIN;
 
         if is_audio {
             // Audio zone is strictly below the main track (UI rows > main_row).
@@ -3135,6 +3160,32 @@ impl Studio {
         // Anything but an inspector commit ends the coalescing window; the
         // commit path sets `last_commit` again right after calling here.
         self.last_commit = None;
+        let mut used = Vec::new();
+        match &command {
+            Command::AddLayerClip { effect_id, .. } => used.push(effect_id.clone()),
+            Command::UpdateClip { clip_id, patch } => {
+                if let Some(clip) = self.clip(clip_id) {
+                    for (next, old) in [
+                        (&patch.video_effects, &clip.video_effects),
+                        (&patch.filters, &clip.filters),
+                    ] {
+                        if let Some(next) = next
+                            && next.len() > old.len()
+                            && next[..old.len()] == old[..]
+                        {
+                            used.extend(next[old.len()..].iter().map(|f| f.id.clone()));
+                        }
+                    }
+                    if let Some(Some(next)) = &patch.transition_in
+                        && clip.transition_in.as_ref().map(|t| t.id.as_str())
+                            != Some(next.id.as_str())
+                    {
+                        used.push(next.id.clone());
+                    }
+                }
+            }
+            _ => {}
+        }
         let session = self.session.as_mut()?;
         let chosen = matches!(command, Command::SetTimelineVideo { .. });
         let before = session.video().color_space;
@@ -3145,7 +3196,11 @@ impl Studio {
                 if !chosen {
                     self.tell_of_hdr(before, after);
                 }
-                view.created_id
+                let created = view.created_id;
+                for id in used {
+                    self.record_library_use(&id);
+                }
+                created
             }
             Err(error) => {
                 self.notify(&error, true);
@@ -5868,7 +5923,11 @@ impl Studio {
                     .map(|origin| origin.start)
                     .fold(f64::INFINITY, f64::min);
                 let shift = (seconds + self.snap_shift(&edges, threshold, &moving)).max(-earliest);
-                let current_y = row_top(lanes, anchor.row) + pixels;
+                let current_y = concat_host::timeline_drop::pointer_y(
+                    row_top(lanes, anchor.row),
+                    lanes.get(anchor.row as usize).copied().unwrap_or(60.0),
+                    pixels,
+                );
                 let anchor_clip = self.clip(&anchor.clip).cloned();
 
                 let anchor_track_kind = if let Some(clip) = anchor_clip.as_ref() {
@@ -5878,7 +5937,21 @@ impl Studio {
                     model::TrackKind::Video
                 };
 
-                let target = self.resolve_track_target(anchor_track_kind, current_y);
+                let mut target = self.resolve_track_target(anchor_track_kind, current_y);
+                // A move within its own track is a move, including a grab on
+                // the clip border. Only leaving the original track can insert.
+                if target.new_track
+                    && concat_host::timeline_drop::inside_source(
+                        row_top(lanes, anchor.row),
+                        lanes.get(anchor.row as usize).copied().unwrap_or(60.0),
+                        current_y,
+                    )
+                {
+                    target.new_track = false;
+                    target.row = anchor.row;
+                    target.insert_at = self.timeline().tracks.len() - 1 - anchor.row as usize;
+                    target.insert_y = row_top(lanes, anchor.row);
+                }
 
                 if target.new_track {
                     if let Some(clip) = anchor_clip.as_ref() {
@@ -10975,6 +11048,7 @@ impl Studio {
             view.category.clear();
             view.query.clear();
             view.favourites = false;
+            view.mode = 0;
         }
     }
 
@@ -10993,8 +11067,25 @@ impl Studio {
     pub fn library_favourites(&mut self, shelf: i32, on: bool) {
         if let Some(view) = self.library_at(shelf) {
             view.favourites = on;
+            view.mode = if on { 1 } else { 0 };
             view.query.clear();
         }
+    }
+
+    /// Picks a personal library view without changing its remembered stars.
+    pub fn library_mode(&mut self, shelf: i32, mode: i32) {
+        if let Some(view) = self.library_at(shelf) {
+            view.mode = mode.clamp(0, 3);
+            view.favourites = mode == 1;
+            view.query.clear();
+            view.category.clear();
+            view.group = -1;
+        }
+    }
+    /// Records only a successfully committed library application.
+    pub fn record_library_use(&mut self, id: &str) {
+        self.prefs.library_history.record(id);
+        self.prefs.save(&self.host.dirs);
     }
 
     /// Star or unstar a package, and remember it. Not per library: a star is
@@ -12555,12 +12646,14 @@ impl Studio {
                         view.group,
                         view.favourites,
                         view.category.clone(),
+                        view.mode,
                     )
                 })
                 .collect(),
             favourites: starred.clone(),
             gl_transitions: self.prefs.gl_transitions_library,
             gl_entries: self.gl_transitions.entries.len(),
+            usage_clock: self.prefs.library_history.clock,
         };
         if self.shelf_stamp.borrow().as_ref() != Some(&stamp) {
             // The looks made from tables are the Adjustments page's, not
@@ -12574,6 +12667,8 @@ impl Studio {
                 |package| !is_lut(package),
             );
             sync(&models.filter_groups, groups);
+            let mut entries = entries;
+            personalize(&mut entries, &self.library[0], &self.prefs);
             sync(&models.catalogue_filters, entries);
             // Every one of them, on every shelf: the user's own tables
             // are one short list, browsed whole.
@@ -12613,6 +12708,8 @@ impl Studio {
                 |_| true,
             );
             sync(&models.effect_groups, groups);
+            let mut entries = entries;
+            personalize(&mut entries, &self.library[1], &self.prefs);
             sync(&models.catalogue_effects, entries);
             let (groups, entries) = shelves(
                 SHELF_KINDS[2],
@@ -12623,6 +12720,8 @@ impl Studio {
                 |_| true,
             );
             sync(&models.audio_groups, groups);
+            let mut entries = entries;
+            personalize(&mut entries, &self.library[2], &self.prefs);
             sync(&models.catalogue_audio, entries);
             let gl_transitions_enabled = self.prefs.gl_transitions_library;
             let (groups, entries) = shelves(
@@ -12661,11 +12760,14 @@ impl Studio {
                         "{} — {} · {}",
                         remote.description, remote.author, remote.license
                     );
-                    let shown = if view.favourites {
-                        favourite
-                    } else if !query.is_empty() {
+                    if view.favourites && !favourite {
+                        continue;
+                    }
+                    let shown = if !query.is_empty() {
                         remote.name.to_lowercase().contains(&query)
                             || description.to_lowercase().contains(&query)
+                    } else if view.mode > 0 || view.favourites {
+                        true
                     } else if !view.category.is_empty() {
                         view.category == "GL Transitions"
                     } else {
@@ -12685,6 +12787,7 @@ impl Studio {
                 }
             }
             sync(&models.transition_groups, groups);
+            personalize(&mut entries, &self.library[3], &self.prefs);
             sync(&models.catalogue_transitions, entries);
             *self.shelf_stamp.borrow_mut() = Some(stamp);
         }
@@ -12696,6 +12799,7 @@ impl Studio {
                     query: view.query.as_str().into(),
                     group: view.group,
                     favourites: view.favourites,
+                    mode: view.mode,
                     category: view.category.as_str().into(),
                 })
                 .collect(),
@@ -13009,7 +13113,8 @@ impl Studio {
             page.set_pending(self.stickers.pending.as_str().into());
             page.set_page_index(self.stickers.page as i32);
             page.set_more(self.stickers.more);
-            sync(&models.stickers, self.stickers.rows());
+            sync(&models.stickers, self.stickers.rows(&self.prefs));
+            page.set_mode(self.stickers.mode);
             page.set_items(models.stickers.clone().into());
         }
         app.global::<crate::ui::ContentLibraries>()

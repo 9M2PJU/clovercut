@@ -1007,5 +1007,19 @@
   "voices.styles": "Стили",
   "voices.stylesHint": "Стиль — это голос с эффектами. Выберите стиль, чтобы писать им: эффекты лягут на речевой клип, где их можно изменить.",
   "voices.voices": "Голоса",
-  "voices.yours": "Ваши голоса"
+  "voices.yours": "Ваши голоса",
+  "library.all": "All",
+  "library.favourites": "Favourites",
+  "library.mostUsed": "Most used",
+  "library.recent": "Recent",
+  "library.addFavourite": "Add to favourites",
+  "library.removeFavourite": "Remove from favourites",
+  "library.empty": "No items in this list yet. Mark a star or use an item to find it here.",
+  "libraries.groupAudio": "Audio",
+  "libraries.groupStickers": "Stickers",
+  "libraries.groupTransitions": "Transitions",
+  "libraries.disabled": "Disabled",
+  "libraries.ready": "API key saved · ready to use",
+  "libraries.needsKey": "API key required · configure below",
+  "libraries.noKey": "Enabled · no account or API key required"
 }
