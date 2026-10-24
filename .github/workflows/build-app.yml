@@ -7,6 +7,11 @@ name: Build Clovercut packages
         description: Git ref to build
         type: string
         default: main
+      desktop_target:
+        description: Desktop package to validate (all for a release)
+        type: choice
+        default: all
+        options: [all, linux-x86_64, linux-aarch64, windows-x86_64, windows-aarch64, macos-arm64, macos-x86_64]
       include_mobile:
         description: Also build Android (desktop releases leave this disabled)
         type: boolean
@@ -17,6 +22,9 @@ name: Build Clovercut packages
         description: The ref to build, when it is not the one this runs on
         type: string
         default: ''
+      desktop_target:
+        type: string
+        default: all
       include_mobile:
         type: boolean
         default: false
@@ -27,29 +35,30 @@ env:
   ORT_VERSION: 1.28.0
   GGML_NATIVE: 'OFF'
 jobs:
+  plan:
+    name: Select desktop packages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      app_matrix: ${{ steps.matrix.outputs.app_matrix }}
+      windows_matrix: ${{ steps.matrix.outputs.windows_matrix }}
+      macos_matrix: ${{ steps.matrix.outputs.macos_matrix }}
+      run_app: ${{ steps.matrix.outputs.run_app }}
+      run_windows: ${{ steps.matrix.outputs.run_windows }}
+      run_macos: ${{ steps.matrix.outputs.run_macos }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+    - id: matrix
+      env:
+        DESKTOP_TARGET: ${{ inputs.desktop_target || 'all' }}
+      run: python3 scripts/ci/select-desktop-targets.py --target "$DESKTOP_TARGET" --github-output "$GITHUB_OUTPUT"
   app:
+    needs: plan
+    if: needs.plan.outputs.run_app == 'true'
     name: ${{ matrix.platform }}-${{ matrix.arch }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-        - platform: linux
-          arch: x86_64
-          os: ubuntu-22.04
-          target: x86_64-unknown-linux-gnu
-          ffmpeg: linux64
-          sherpa: linux-x64
-          ort: x64
-          appimage: x86_64
-          ggml: variants
-        - platform: linux
-          arch: aarch64
-          os: ubuntu-22.04-arm
-          target: aarch64-unknown-linux-gnu
-          ffmpeg: linuxarm64
-          sherpa: linux-aarch64
-          ort: aarch64
-          appimage: aarch64
+      matrix: ${{ fromJSON(needs.plan.outputs.app_matrix) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 190
     env:
@@ -266,36 +275,14 @@ jobs:
         if-no-files-found: error
 
   windows:
+    needs: plan
+    if: needs.plan.outputs.run_windows == 'true'
     name: windows-${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 190
     strategy:
       fail-fast: false
-      matrix:
-        include:
-        - platform: windows
-          arch: x86_64
-          os: windows-2022
-          target: x86_64-pc-windows-msvc
-          ffmpeg: win64
-          sherpa: win-x64
-          ort: win-x64
-          llvm: win64
-          vc: x64
-          inno: x64compatible
-          wix: x64
-          ggml: variants
-        - platform: windows
-          arch: aarch64
-          os: windows-11-arm
-          target: aarch64-pc-windows-msvc
-          ffmpeg: winarm64
-          sherpa: win-arm64
-          ort: win-arm64
-          llvm: woa64
-          vc: arm64
-          inno: arm64
-          wix: arm64
+      matrix: ${{ fromJSON(needs.plan.outputs.windows_matrix) }}
     env:
       GGML_BACKEND_DL: ${{ matrix.ggml == 'variants' && 'ON' || 'OFF' }}
       GGML_CPU_ALL_VARIANTS: ${{ matrix.ggml == 'variants' && 'ON' || 'OFF' }}
@@ -687,23 +674,14 @@ jobs:
           if-no-files-found: error
 
   macos:
+    needs: plan
+    if: needs.plan.outputs.run_macos == 'true'
     name: macos-${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 190
     strategy:
       fail-fast: false
-      matrix:
-        include:
-        - platform: macos
-          arch: arm64
-          os: macos-15
-          target: aarch64-apple-darwin
-          sherpa: osx-arm64
-        - platform: macos
-          arch: x86_64
-          os: macos-15-intel
-          target: x86_64-apple-darwin
-          sherpa: osx-x64
+      matrix: ${{ fromJSON(needs.plan.outputs.macos_matrix) }}
     env:
       MACOSX_DEPLOYMENT_TARGET: '12.0'
       ORT_INTEL_MAC_VERSION: 1.23.2

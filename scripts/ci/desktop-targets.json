@@ -1,0 +1,70 @@
+{
+  "app": [
+    {
+      "platform": "linux",
+      "arch": "x86_64",
+      "os": "ubuntu-22.04",
+      "target": "x86_64-unknown-linux-gnu",
+      "ffmpeg": "linux64",
+      "sherpa": "linux-x64",
+      "ort": "x64",
+      "appimage": "x86_64",
+      "ggml": "variants"
+    },
+    {
+      "platform": "linux",
+      "arch": "aarch64",
+      "os": "ubuntu-22.04-arm",
+      "target": "aarch64-unknown-linux-gnu",
+      "ffmpeg": "linuxarm64",
+      "sherpa": "linux-aarch64",
+      "ort": "aarch64",
+      "appimage": "aarch64"
+    }
+  ],
+  "windows": [
+    {
+      "platform": "windows",
+      "arch": "x86_64",
+      "os": "windows-2022",
+      "target": "x86_64-pc-windows-msvc",
+      "ffmpeg": "win64",
+      "sherpa": "win-x64",
+      "ort": "win-x64",
+      "llvm": "win64",
+      "vc": "x64",
+      "inno": "x64compatible",
+      "wix": "x64",
+      "ggml": "variants"
+    },
+    {
+      "platform": "windows",
+      "arch": "aarch64",
+      "os": "windows-11-arm",
+      "target": "aarch64-pc-windows-msvc",
+      "ffmpeg": "winarm64",
+      "sherpa": "win-arm64",
+      "ort": "win-arm64",
+      "llvm": "woa64",
+      "vc": "arm64",
+      "inno": "arm64",
+      "wix": "arm64"
+    }
+  ],
+  "macos": [
+    {
+      "platform": "macos",
+      "arch": "arm64",
+      "os": "macos-15",
+      "target": "aarch64-apple-darwin",
+      "sherpa": "osx-arm64"
+    },
+    {
+      "platform": "macos",
+      "arch": "x86_64",
+      "os": "macos-15-intel",
+      "target": "x86_64-apple-darwin",
+      "sherpa": "osx-x64"
+    }
+  ]
+}
