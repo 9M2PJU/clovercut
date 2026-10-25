@@ -510,7 +510,7 @@ mod tests {
             config: root.path().into(),
             data: root.path().into(),
         };
-        for (category, query) in [(5, "Mess Call"), (6, "Straw Squeak")] {
+        for (category, query) in [(5, "Mess Call"), (5, "Country Music"), (6, "Straw Squeak")] {
             let page = search(&dirs, query, category, 0, DEFAULT_API).unwrap();
             let sound = page.sounds.first().expect("live track exists");
             assert!(sound.duration > 0.0);

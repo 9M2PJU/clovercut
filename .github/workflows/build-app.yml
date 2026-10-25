@@ -912,7 +912,22 @@ jobs:
           codesign --force --deep -s - "$app"
         fi
 
-        hdiutil create -volname Clovercut -srcfolder "$app" -ov -format UDZO "$dmg"
+        # Signing / filesystem indexing can briefly leave the source busy.
+        # Retry only that transient failure, preserving other packaging errors.
+        for attempt in 1 2 3 4; do
+          if hdiutil create -volname Clovercut -srcfolder "$app" -ov -format UDZO "$dmg" > dmg-create.log 2>&1; then
+            cat dmg-create.log
+            break
+          else
+            status=$?
+            cat dmg-create.log >&2
+            if ! grep -qi 'Resource busy' dmg-create.log || [ "$attempt" -eq 4 ]; then
+              exit "$status"
+            fi
+            sleep 5
+          fi
+        done
+        test -s "$dmg"
 
         if [ -n "${APPLE_ID}" ] && [ -n "${TEAM_ID}" ] && [ -n "${APP_PASSWORD}" ] && [ -n "${IDENTITY}" ]; then
           codesign --force --timestamp -s "$IDENTITY" "$dmg"
