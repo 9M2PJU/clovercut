@@ -184,7 +184,7 @@ export enum ClipField {
     scale, offset-x, offset-y, rotation, stretch-x, stretch-y, opacity,
     volume, speed, preserve-pitch, fade-in, fade-out,
     flip-h, flip-v, blend, crop-left, crop-top, crop-right, crop-bottom,
-    font-size, font-weight, italic, underline, vertical-align, text-vertical, text-color, text-green-key, text-blue-key, stroke-color-key, stroke-green-key, stroke-blue-key, text-opacity, align,
+    font-size, font-weight, italic, underline, strikethrough, text-case, vertical-align, text-vertical, text-color, text-green-key, text-blue-key, stroke-color-key, stroke-green-key, stroke-blue-key, text-opacity, align,
     stroke-width, shadow, line-height, tracking, text-width, text-height,
     stroke-opacity,
     /// the background's opacity is its colour's alpha, as the stroke's is;
@@ -520,6 +520,8 @@ export struct SelectedClipData {
     font-weight: float,
     italic: bool,
     underline: bool,
+    strikethrough: bool,
+    text-case: int,
     vertical-align: int,
     text-vertical: bool,
     fill: color,

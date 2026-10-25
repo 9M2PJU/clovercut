@@ -73,6 +73,8 @@ pub struct TitleStyle {
     pub italic: bool,
     /// Draw an underline with the text fill and outline.
     pub underline: bool,
+    /// Strike through glyphs, sharing their fill, outline and shadow.
+    pub strikethrough: bool,
     /// Vertical alignment within a fixed-height box: top, centre, bottom.
     pub vertical_align: u8,
     /// Top-to-bottom mixed writing: upright CJK, sideways Latin, right-to-left columns.
@@ -1783,6 +1785,17 @@ fn paint(
                 words.push_rect(rect);
             }
         }
+        if style.strikethrough && line.width > 0.0 {
+            let thickness = (em * 0.055).max(1.0);
+            let rect = if style.vertical {
+                Rect::from_xywh(x - thickness / 2.0, y, thickness, line.width)
+            } else {
+                Rect::from_xywh(x, y - ascent * 0.35, line.width, thickness)
+            };
+            if let Some(rect) = rect {
+                words.push_rect(rect);
+            }
+        }
         for &(start, end) in &line.words {
             word_rects.push(if style.vertical {
                 WordRect {
@@ -2307,6 +2320,7 @@ mod tests {
             font_weight: 700.0,
             italic: false,
             underline: false,
+            strikethrough: false,
             vertical_align: 1,
             vertical: false,
             color: "#ffffff".to_owned(),
@@ -2424,6 +2438,30 @@ mod tests {
             rendered.words.windows(2).any(|w| w[0].x > w[1].x),
             "wrap progresses to the left"
         );
+    }
+
+    #[test]
+    fn strike_changes_pixels_without_moving_horizontal_or_vertical_text() {
+        let fonts = Fonts::new();
+        for vertical in [false, true] {
+            let mut plain = style("First line\nSecond line");
+            plain.vertical = vertical;
+            let base = render_frame(&fonts, &plain, 640, 640).unwrap();
+            for underline in [false, true] {
+                let decorated = TitleStyle {
+                    strikethrough: true,
+                    underline,
+                    ..plain.clone()
+                };
+                let painted = render_frame(&fonts, &decorated, 640, 640).unwrap();
+                assert_ne!(painted.rgba, base.rgba);
+                assert_eq!(painted.words, base.words);
+                assert_eq!(painted.block_width, base.block_width);
+                assert_eq!(painted.block_height, base.block_height);
+                let exported = render(&fonts, &decorated, 640, 640).unwrap();
+                assert_eq!(exported.words, painted.words);
+            }
+        }
     }
 
     #[test]

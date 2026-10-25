@@ -371,6 +371,26 @@ export component TextPanel inherits VerticalLayout {
                 active: root.selected.underline;
                 toggled => { root.set(ClipField.underline, root.selected.underline ? 0 : 1); root.commit(); }
             }
+            TextFormatToggle {
+                letter: "S"; label: I18n.t("textPanel.strikethrough"); struck: true;
+                active: root.selected.strikethrough;
+                toggled => { root.set(ClipField.strikethrough, root.selected.strikethrough ? 0 : 1); root.commit(); }
+            }
+        }
+
+        Row {
+            label: I18n.t("textPanel.letterCase");
+            label-width: root.label-w;
+            for option in [
+                { letter: "AA", label: I18n.t("textPanel.uppercase"), value: 1 },
+                { letter: "aa", label: I18n.t("textPanel.lowercase"), value: 2 },
+                { letter: "Aa", label: I18n.t("textPanel.sentenceCase"), value: 3 },
+            ]: TextFormatToggle {
+                letter: option.letter;
+                label: option.label;
+                active: root.selected.text-case == option.value;
+                toggled => { root.set(ClipField.text-case, root.selected.text-case == option.value ? 0 : option.value); root.commit(); }
+            }
         }
 
         // The fill has no alpha of its own: the title's Opacity below is

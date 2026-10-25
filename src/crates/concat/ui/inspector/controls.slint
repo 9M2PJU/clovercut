@@ -434,6 +434,7 @@ export component TextFormatToggle inherits Rectangle {
     in property <bool> bold;
     in property <bool> italic;
     in property <bool> underlined;
+    in property <bool> struck;
     callback toggled();
     width: 30px; height: Theme.h; horizontal-stretch: 0;
     border-radius: 4px;
@@ -449,6 +450,10 @@ export component TextFormatToggle inherits Rectangle {
     if root.underlined: Rectangle {
         x: (parent.width - self.width) / 2; y: parent.height - 5px;
         width: 11px; height: 1px; background: root.active ? Theme.accent : Theme.fg-muted;
+    }
+    if root.struck: Rectangle {
+        x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+        width: 13px; height: 1px; background: root.active ? Theme.accent : Theme.fg-muted;
     }
     focus := FocusScope {
         key-pressed(event) => { if event.text == " " || event.text == Key.Return { root.toggled(); return accept; } return reject; }

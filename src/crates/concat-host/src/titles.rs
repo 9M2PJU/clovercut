@@ -713,12 +713,13 @@ fn reveal_of(words: &[WordRect], width: u32, height: u32) -> Arc<RevealMap> {
 /// The document's style, field for field, in the painter's terms.
 fn title_style(style: &TextStyle) -> TitleStyle {
     TitleStyle {
-        content: style.content.clone(),
+        content: style.display_content(),
         font_family: style.font_family.clone(),
         font_size: style.font_size,
         font_weight: style.font_weight,
         italic: style.italic,
         underline: style.underline,
+        strikethrough: style.strikethrough,
         vertical_align: style.vertical_align,
         vertical: style.vertical,
         color: style.color.clone(),
@@ -764,6 +765,30 @@ fn shape_style(style: &ShapeStyle) -> concat_text::ShapeStyle {
 mod tests {
     use super::*;
     use concat_project::{Command, Editor};
+
+    #[test]
+    fn typography_reaches_preview_export_and_cache_without_rewriting_captions() {
+        use concat_project::model::TextCase;
+        let project = Editor::new();
+        let plain = TextStyle {
+            content: "Olá mundo!".into(),
+            ..Default::default()
+        };
+        let styled = TextStyle {
+            text_case: TextCase::Upper,
+            strikethrough: true,
+            vertical: true,
+            ..plain.clone()
+        };
+        let paint = title_style(&styled);
+        assert_eq!(paint.content, "OLÁ MUNDO!");
+        assert!(paint.strikethrough && paint.vertical);
+        assert_eq!(styled.content, plain.content);
+        assert_ne!(
+            key_of(project.project(), Painting::Title(&plain), 640, 360),
+            key_of(project.project(), Painting::Title(&styled), 640, 360)
+        );
+    }
 
     fn scratch(name: &str) -> AppDirs {
         let dir =

@@ -760,6 +760,7 @@ fn phase6_performance_and_memory_suite() {
                     font_weight: 700.0,
                     italic: false,
                     underline: false,
+                    strikethrough: false,
                     vertical_align: 1,
                     vertical: false,
                     color: "#ffffff".into(),

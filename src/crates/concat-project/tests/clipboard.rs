@@ -98,6 +98,9 @@ fn decorated(kind: ClipKind, lane: &str) -> Clip {
     if kind == ClipKind::Text {
         c.text = Some(TextStyle {
             content: "Words".into(),
+            text_case: concat_project::model::TextCase::Upper,
+            strikethrough: true,
+            underline: true,
             ..Default::default()
         });
     }

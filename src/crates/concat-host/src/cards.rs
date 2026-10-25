@@ -421,6 +421,7 @@ impl Painter {
             font_weight: 800.0,
             italic: false,
             underline: false,
+            strikethrough: false,
             vertical_align: 1,
             vertical: false,
             color: "#ffffff".to_owned(),
