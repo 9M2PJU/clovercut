@@ -74,7 +74,8 @@ sections, with search and pagination. The default API address is
 `http://127.0.0.1:8917`; it can be changed in these settings. Remote addresses
 must use HTTPS.
 
-For local development, start the companion service in `clovercut-audio-api`
+For local development, clone the [companion Audio API](https://github.com/tulcoturo/clovercut-audio-api)
+and start the service in `clovercut-audio-api`
 with `npm start`. Its authenticated Studio connector must be connected with
 `npm run connect` before resolving uncached audio. The service's README covers
 browser setup and catalogue synchronization. The service is currently a local
