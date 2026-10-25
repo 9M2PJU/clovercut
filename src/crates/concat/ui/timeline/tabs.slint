@@ -179,7 +179,6 @@ export component TimelineTabs inherits Rectangle {
     callback selected(index: int);
     callback renamed(index: int, name: string);
     callback close-requested(index: int);
-    callback added();
     /// Tab `from` was dropped at `to`, a slot counted over the strip as it
     /// stands - so `to` may be one past the end, and may sit either side
     /// of `from` itself. Rust discounts the moving tab.
@@ -199,8 +198,8 @@ export component TimelineTabs inherits Rectangle {
     HorizontalLayout {
         padding-left: 8px;
         padding-right: 8px;
-        // Bottom-aligned: the tabs stand on the strip's edge, and the add
-        // button beside them sits on the same baseline rather than floating.
+        // The add-timeline action lives in the tray, including when this
+        // strip is absent for a project with one timeline.
         alignment: start;
         spacing: 2px;
 
@@ -266,33 +265,6 @@ export component TimelineTabs inherits Rectangle {
             }
         }
 
-        VerticalLayout {
-            alignment: end;
-            padding-left: 2px;
-            padding-bottom: 4px;
-
-            add := Rectangle {
-                width: 22px;
-                height: 22px;
-                border-radius: Theme.r-xs;
-                background: plus.has-hover ? Theme.field : Colors.transparent;
-
-                animate background { duration: 100ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
-
-                Icon {
-                    x: (parent.width - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
-                    glyph: Glyph.plus;
-                    size: 12px;
-                    tint: plus.has-hover ? Theme.fg : Theme.fg-dim;
-                }
-
-                plus := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { root.added(); }
-                }
-            }
-        }
     }
 
     // The trailing slot, for whatever the pane wants in the corner of its

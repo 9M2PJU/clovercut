@@ -100,13 +100,12 @@ component LibraryTab inherits Rectangle {
     // shared, so "Transitions" is never crammed to make room for padding
     // around "Text". A Slint layout distributes spare width on top of each
     // child's own preferred width, which is the same rule.
+    min-width: 60px;
     horizontal-stretch: 1;
     border-radius: Theme.r-sm;
-    // The current page is a chip lifted out of the track. Slint has no
-    // box-shadow, so the value step carries the lift alone — which is why this
-    // is `field` and not the lighter `field-hover`, whose job is to answer the
-    // pointer.
-    background: root.current ? Theme.field : Colors.transparent;
+    // A soft accent surface distinguishes the active category; hover stays
+    // neutral so it cannot be confused with the selected page.
+    background: root.current ? Theme.accent-soft : touch.has-hover ? Theme.field : Colors.transparent;
 
     animate background { duration: 120ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
@@ -117,24 +116,20 @@ component LibraryTab inherits Rectangle {
 
     animate tint { duration: 140ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
-    // Two lines in the 40px a chip gets inside the strip: 13px of mark, 2px of
-    // air, then the label at fs-sm, with 5px above and below so the two
-    // lines sit in the chip rather than against its edges. The strip is 52px
-    // so the three pane headers keep one edge across the window (see
-    // PaneHeader).
+    // Larger marks fit the existing header by sharing 44px with one label.
     VerticalLayout {
-        padding-top: 5px;
-        padding-bottom: 5px;
-        padding-left: 5px;
-        padding-right: 5px;
-        spacing: 2px;
+        padding-top: 4px;
+        padding-bottom: 4px;
+        padding-left: 8px;
+        padding-right: 8px;
+        spacing: 3px;
         alignment: center;
 
         HorizontalLayout {
             alignment: center;
             Icon {
                 glyph: root.glyph;
-                size: 13px;
+                size: 20px;
                 tint: root.tint;
             }
         }
@@ -388,9 +383,9 @@ component CategoryHeading inherits Rectangle {
 
     callback toggled();
 
-    height: 26px;
+    height: 30px;
     border-radius: Theme.r-sm;
-    background: heading.has-hover ? Theme.field : Colors.transparent;
+    background: heading.has-hover ? Theme.field-hover : Theme.field;
 
     animate background { duration: 100ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
@@ -436,11 +431,12 @@ component CategoryRow inherits Rectangle {
 
     callback clicked();
 
-    height: 24px;
+    height: 30px;
     border-radius: Theme.r-sm;
-    background: root.current ? Theme.field-active
-        : touch.has-hover ? Theme.field
-        : Colors.transparent;
+    background: root.current ? Theme.accent-soft
+        : touch.has-hover ? Theme.field-hover : Theme.field;
+    border-width: 1px;
+    border-color: root.current ? Theme.accent : Colors.transparent;
 
     animate background { duration: 100ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
@@ -454,7 +450,7 @@ component CategoryRow inherits Rectangle {
         Text {
             horizontal-stretch: 1;
             text: root.label;
-            color: root.current ? Theme.fg : Theme.fg-muted;
+            color: root.current ? Theme.accent : Theme.fg-muted;
             font-size: Theme.fs-sm;
             vertical-alignment: center;
             overflow: elide;
@@ -2231,7 +2227,7 @@ export component MediaPane inherits Rectangle {
                             width: strip.content-width;
                             height: strip.height;
                             padding: 2px;
-                            spacing: 2px;
+                            spacing: 6px;
 
                         LibraryTab {
                             glyph: Glyph.film;
@@ -2409,378 +2405,382 @@ export component MediaPane inherits Rectangle {
                 // sat a dozen pixels below Media. A conditional group costs a
                 // rebuild on a tab switch — which the pages themselves already
                 // pay, a few lines down — and cannot drift.
-                VerticalLayout {
+                PaneScroll {
                     x: 0;
                     y: 0;
                     width: parent.width;
-                    alignment: start;
-                    padding: 4px;
+                    height: parent.height;
 
-                    if root.tab == 0: VerticalLayout {
-                        spacing: 1px;
-                        CategoryHeading {
-                            height: 26px;
-                            title: I18n.t("common.media");
-                            open: root.categories-open;
-                            toggled => { root.categories-open = !root.categories-open; }
-                        }
-                        if root.categories-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("mediaPane.allMedia");
-                            count: root.count-all;
-                            current: root.filter == MediaFilter.all;
-                            clicked => { root.narrow(MediaFilter.all); }
-                        }
-                        if root.categories-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("common.video");
-                            count: root.count-video;
-                            current: root.filter == MediaFilter.video;
-                            clicked => { root.narrow(MediaFilter.video); }
-                        }
-                        if root.categories-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("common.audio");
-                            count: root.count-audio;
-                            current: root.filter == MediaFilter.audio;
-                            clicked => { root.narrow(MediaFilter.audio); }
-                        }
-                        if root.categories-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("mediaPane.images");
-                            count: root.count-images;
-                            current: root.filter == MediaFilter.images;
-                            clicked => { root.narrow(MediaFilter.images); }
-                        }
+                    VerticalLayout {
+                        alignment: start;
+                        padding: 6px;
 
-                        // What the editor made rather than the user
-                        // imported, one shelf per origin. A voice read
-                        // aloud is here and not under Audio, so the sound
-                        // the user brought stays tellable from the sound
-                        // the app wrote.
-                        CategoryHeading {
-                            height: 26px;
-                            title: I18n.t("mediaPane.generated");
-                            open: root.generated-open;
-                            toggled => { root.generated-open = !root.generated-open; }
-                        }
-                        if root.generated-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("common.speech");
-                            count: root.count-speech;
-                            current: root.filter == MediaFilter.speech;
-                            clicked => { root.narrow(MediaFilter.speech); }
-                        }
-                        // A clip's sound written out as it played, from
-                        // the clip's own menu: a file of its own, apart
-                        // from the import it was cut from.
-                        if root.generated-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("mediaPane.processed");
-                            count: root.count-processed;
-                            current: root.filter == MediaFilter.processed;
-                            clicked => { root.narrow(MediaFilter.processed); }
-                        }
-                    }
-
-                    // Audio: the user's own sounds.
-                    if root.tab == 8: VerticalLayout {
-                        spacing: 1px;
-                        CategoryHeading {
-                            height: 26px;
-                            title: I18n.t("sounds.sounds");
-                            open: root.sounds-open;
-                            toggled => { root.sounds-open = !root.sounds-open; }
-                        }
-                        if root.sounds-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("sounds.mine");
-                            count: Sounds.mine.length;
-                            current: root.audio-category == 0;
-                            clicked => { root.audio-category = 0; }
-                        }
-                        // Concat's own sounds, by category. The list is
-                        // fetched only when the shelf asks for it.
-                        if ContentLibraries.audio-enabled: CategoryHeading {
-                            height: 26px;
-                            title: I18n.t("sounds.concat");
-                            open: root.concat-open;
-                            toggled => { root.concat-open = !root.concat-open; }
-                        }
-                        if root.concat-open && ContentLibraries.audio-enabled: VerticalLayout {
-                            spacing: 1px;
-                            CategoryRow {
-                                height: 28px;
-                                label: I18n.t("sounds.catMusic");
-                                current: root.audio-category == 1 && Sounds.concat-category == 5 && Sounds.provider == 0;
-                                clicked => { root.audio-category = 1; Sounds.provider-changed(0); Sounds.concat-category-changed(5); }
+                        if root.tab == 0: VerticalLayout {
+                            spacing: 5px;
+                            CategoryHeading {
+                                height: 26px;
+                                title: I18n.t("common.media");
+                                open: root.categories-open;
+                                toggled => { root.categories-open = !root.categories-open; }
                             }
-                            CategoryRow {
-                                height: 28px;
-                                label: I18n.t("sounds.catEffects");
-                                current: root.audio-category == 1 && Sounds.concat-category == 6 && Sounds.provider == 0;
-                                clicked => { root.audio-category = 1; Sounds.provider-changed(0); Sounds.concat-category-changed(6); }
-                            }
-                        }
-                        if ContentLibraries.youtube-audio-enabled: CategoryHeading {
-                            height: 26px;
-                            title: "YouTube Audio";
-                            open: root.youtube-open;
-                            toggled => { root.youtube-open = !root.youtube-open; }
-                        }
-                        if root.youtube-open && ContentLibraries.youtube-audio-enabled: VerticalLayout {
-                            spacing: 1px;
-                            CategoryRow {
-                                height: 28px;
-                                label: I18n.t("sounds.catMusic");
-                                current: root.audio-category == 2 && Sounds.provider == 1;
-                                clicked => { root.audio-category = 2; Sounds.provider-changed(1); }
-                            }
-                        }
-                        if ContentLibraries.freesound-enabled: CategoryHeading {
-                            height: 26px;
-                            title: "Freesound";
-                            open: root.freesound-open;
-                            toggled => { root.freesound-open = !root.freesound-open; }
-                        }
-                        if root.freesound-open && ContentLibraries.freesound-enabled: VerticalLayout {
-                            spacing: 1px;
-                            CategoryRow {
-                                height: 28px;
-                                label: I18n.t("sounds.catEffects");
-                                current: root.audio-category == 3 && Sounds.provider == 2;
-                                clicked => { root.audio-category = 3; Sounds.provider-changed(2); }
-                            }
-                        }
-                        CategoryHeading {
-                            height: 26px;
-                            title: I18n.t("voices.voices");
-                            open: root.voices-open;
-                            toggled => { root.voices-open = !root.voices-open; }
-                        }
-                        if root.voices-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("voices.voices");
-                            count: Sounds.voices-saved.length;
-                            current: root.audio-category == 10;
-                            clicked => { root.audio-category = 10; }
-                        }
-                        if root.voices-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("voices.styles");
-                            current: root.audio-category == 11;
-                            clicked => { root.audio-category = 11; }
-                        }
-                    }
-
-                    if root.tab == 9: VerticalLayout {
-                        spacing: 1px;
-                        CategoryHeading {
-                            height: 26px;
-                            title: I18n.t("captions.captions");
-                            open: root.captions-open;
-                            toggled => { root.captions-open = !root.captions-open; }
-                        }
-                        if root.captions-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("captions.autoCaptions");
-                            current: root.captions-category == 0;
-                            clicked => { root.captions-category = 0; }
-                        }
-                        if root.captions-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("captions.manualCaptions");
-                            current: root.captions-category == 1;
-                            clicked => { root.captions-category = 1; }
-                        }
-                        if root.captions-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("captions.subtitleLibrary");
-                            count: CaptionsLibrary.sources.length;
-                            current: root.captions-category == 2;
-                            clicked => { root.captions-category = 2; }
-                        }
-                    }
-                    if root.tab == 1: VerticalLayout {
-                        spacing: 1px;
-                        CategoryHeading {
-                            height: 26px;
-                            title: I18n.t("common.text");
-                            open: root.text-open;
-                            toggled => { root.text-open = !root.text-open; }
-                        }
-                        if root.text-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("mediaPane.titles");
-                            current: root.text-category == 0;
-                            clicked => { root.text-category = 0; }
-                        }
-                        if root.text-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("mediaPane.styles");
-                            current: root.text-category == 1;
-                            clicked => { root.text-category = 1; }
-                        }
-                        // Beside Styles: the looks for other writing.
-                        if root.text-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("mediaPane.languages");
-                            current: root.text-category == 2;
-                            clicked => { root.text-category = 2; }
-                        }
-                    }
-
-                    // Stickers: the one shelf there is, Shapes, so its row
-                    // is always the current one. Pictures and animated
-                    // stickers are shelves for another day.
-                    if root.tab == 2: VerticalLayout {
-                        spacing: 1px;
-                        CategoryHeading {
-                            height: 26px;
-                            title: I18n.t("mediaPane.stickers");
-                            open: root.stickers-open;
-                            toggled => { root.stickers-open = !root.stickers-open; }
-                        }
-                        if root.stickers-open: CategoryRow {
-                            height: 28px;
-                            label: "GIPHY";
-                            current: root.sticker-category == 0;
-                            clicked => { root.sticker-category = 0; }
-                        }
-                        if root.stickers-open: CategoryRow {
-                            height: 28px;
-                            label: I18n.t("mediaPane.shapes");
-                            current: root.sticker-category == 1;
-                            clicked => { root.sticker-category = 1; }
-                        }
-                    }
-
-                    if root.tab == 3: VerticalLayout {
-                        spacing: 1px;
-                        CategoryHeading {
-                            height: 26px;
-                            title: I18n.t("mediaPane.transitions");
-                            open: root.transitions-open;
-                            toggled => { root.transitions-open = !root.transitions-open; }
-                        }
-                        if root.transitions-open: VerticalLayout {
-                            spacing: 1px;
-                            CategoryRow {
+                            if root.categories-open: CategoryRow {
                                 height: 24px;
-                                label: I18n.t("common.all");
-                                current: Library.view(3).group == -1;
-                                clicked => { Library.group-changed(3, -1); }
+                                label: I18n.t("mediaPane.allMedia");
+                                count: root.count-all;
+                                current: root.filter == MediaFilter.all;
+                                clicked => { root.narrow(MediaFilter.all); }
                             }
-                            for label[index] in root.transition-groups: CategoryRow {
+                            if root.categories-open: CategoryRow {
                                 height: 24px;
-                                label: label;
-                                current: Library.view(3).group == index;
-                                clicked => { Library.group-changed(3, index); }
+                                label: I18n.t("common.video");
+                                count: root.count-video;
+                                current: root.filter == MediaFilter.video;
+                                clicked => { root.narrow(MediaFilter.video); }
                             }
-                        }
-                    }
+                            if root.categories-open: CategoryRow {
+                                height: 24px;
+                                label: I18n.t("common.audio");
+                                count: root.count-audio;
+                                current: root.filter == MediaFilter.audio;
+                                clicked => { root.narrow(MediaFilter.audio); }
+                            }
+                            if root.categories-open: CategoryRow {
+                                height: 24px;
+                                label: I18n.t("mediaPane.images");
+                                count: root.count-images;
+                                current: root.filter == MediaFilter.images;
+                                clicked => { root.narrow(MediaFilter.images); }
+                            }
 
-                    // The picture's shelves and the sound's, from the
-                    // catalogue's own groups, on one page called Effects.
-                    if root.tab == 4: VerticalLayout {
-                        spacing: 1px;
-                        CategoryHeading {
-                            height: 26px;
-                            title: I18n.t("mediaPane.videoEffects");
-                            open: root.effects-open;
-                            toggled => { root.effects-open = !root.effects-open; }
-                        }
-                        if root.effects-open: VerticalLayout {
-                            spacing: 1px;
-                            for label[index] in root.effect-groups: CategoryRow {
+                            // What the editor made rather than the user
+                            // imported, one shelf per origin. A voice read
+                            // aloud is here and not under Audio, so the sound
+                            // the user brought stays tellable from the sound
+                            // the app wrote.
+                            CategoryHeading {
+                                height: 26px;
+                                title: I18n.t("mediaPane.generated");
+                                open: root.generated-open;
+                                toggled => { root.generated-open = !root.generated-open; }
+                            }
+                            if root.generated-open: CategoryRow {
                                 height: 24px;
-                                label: label;
-                                current: !root.audio-shelf && Library.view(1).group == index;
-                                clicked => {
-                                    root.audio-shelf = false;
-                                    Library.group-changed(1, index);
+                                label: I18n.t("common.speech");
+                                count: root.count-speech;
+                                current: root.filter == MediaFilter.speech;
+                                clicked => { root.narrow(MediaFilter.speech); }
+                            }
+                            // A clip's sound written out as it played, from
+                            // the clip's own menu: a file of its own, apart
+                            // from the import it was cut from.
+                            if root.generated-open: CategoryRow {
+                                height: 24px;
+                                label: I18n.t("mediaPane.processed");
+                                count: root.count-processed;
+                                current: root.filter == MediaFilter.processed;
+                                clicked => { root.narrow(MediaFilter.processed); }
+                            }
+                        }
+
+                        // Audio: the user's own sounds.
+                        if root.tab == 8: VerticalLayout {
+                            spacing: 5px;
+                            CategoryHeading {
+                                height: 26px;
+                                title: I18n.t("sounds.sounds");
+                                open: root.sounds-open;
+                                toggled => { root.sounds-open = !root.sounds-open; }
+                            }
+                            if root.sounds-open: CategoryRow {
+                                height: 24px;
+                                label: I18n.t("sounds.mine");
+                                count: Sounds.mine.length;
+                                current: root.audio-category == 0;
+                                clicked => { root.audio-category = 0; }
+                            }
+                            // Concat's own sounds, by category. The list is
+                            // fetched only when the shelf asks for it.
+                            if ContentLibraries.audio-enabled: CategoryHeading {
+                                height: 26px;
+                                title: I18n.t("sounds.concat");
+                                open: root.concat-open;
+                                toggled => { root.concat-open = !root.concat-open; }
+                            }
+                            if root.concat-open && ContentLibraries.audio-enabled: VerticalLayout {
+                                spacing: 1px;
+                                CategoryRow {
+                                    height: 28px;
+                                    label: I18n.t("sounds.catMusic");
+                                    current: root.audio-category == 1 && Sounds.concat-category == 5 && Sounds.provider == 0;
+                                    clicked => { root.audio-category = 1; Sounds.provider-changed(0); Sounds.concat-category-changed(5); }
+                                }
+                                CategoryRow {
+                                    height: 28px;
+                                    label: I18n.t("sounds.catEffects");
+                                    current: root.audio-category == 1 && Sounds.concat-category == 6 && Sounds.provider == 0;
+                                    clicked => { root.audio-category = 1; Sounds.provider-changed(0); Sounds.concat-category-changed(6); }
+                                }
+                            }
+                            if ContentLibraries.youtube-audio-enabled: CategoryHeading {
+                                height: 26px;
+                                title: "YouTube Audio";
+                                open: root.youtube-open;
+                                toggled => { root.youtube-open = !root.youtube-open; }
+                            }
+                            if root.youtube-open && ContentLibraries.youtube-audio-enabled: VerticalLayout {
+                                spacing: 1px;
+                                CategoryRow {
+                                    height: 28px;
+                                    label: I18n.t("sounds.catMusic");
+                                    current: root.audio-category == 2 && Sounds.provider == 1;
+                                    clicked => { root.audio-category = 2; Sounds.provider-changed(1); }
+                                }
+                            }
+                            if ContentLibraries.freesound-enabled: CategoryHeading {
+                                height: 26px;
+                                title: "Freesound";
+                                open: root.freesound-open;
+                                toggled => { root.freesound-open = !root.freesound-open; }
+                            }
+                            if root.freesound-open && ContentLibraries.freesound-enabled: VerticalLayout {
+                                spacing: 1px;
+                                CategoryRow {
+                                    height: 28px;
+                                    label: I18n.t("sounds.catEffects");
+                                    current: root.audio-category == 3 && Sounds.provider == 2;
+                                    clicked => { root.audio-category = 3; Sounds.provider-changed(2); }
+                                }
+                            }
+                            CategoryHeading {
+                                height: 26px;
+                                title: I18n.t("voices.voices");
+                                open: root.voices-open;
+                                toggled => { root.voices-open = !root.voices-open; }
+                            }
+                            if root.voices-open: CategoryRow {
+                                height: 24px;
+                                label: I18n.t("voices.voices");
+                                count: Sounds.voices-saved.length;
+                                current: root.audio-category == 10;
+                                clicked => { root.audio-category = 10; }
+                            }
+                            if root.voices-open: CategoryRow {
+                                height: 24px;
+                                label: I18n.t("voices.styles");
+                                current: root.audio-category == 11;
+                                clicked => { root.audio-category = 11; }
+                            }
+                        }
+
+                        if root.tab == 9: VerticalLayout {
+                            spacing: 5px;
+                            CategoryHeading {
+                                height: 26px;
+                                title: I18n.t("captions.captions");
+                                open: root.captions-open;
+                                toggled => { root.captions-open = !root.captions-open; }
+                            }
+                            if root.captions-open: CategoryRow {
+                                height: 24px;
+                                label: I18n.t("captions.autoCaptions");
+                                current: root.captions-category == 0;
+                                clicked => { root.captions-category = 0; }
+                            }
+                            if root.captions-open: CategoryRow {
+                                height: 24px;
+                                label: I18n.t("captions.manualCaptions");
+                                current: root.captions-category == 1;
+                                clicked => { root.captions-category = 1; }
+                            }
+                            if root.captions-open: CategoryRow {
+                                height: 24px;
+                                label: I18n.t("captions.subtitleLibrary");
+                                count: CaptionsLibrary.sources.length;
+                                current: root.captions-category == 2;
+                                clicked => { root.captions-category = 2; }
+                            }
+                        }
+                        if root.tab == 1: VerticalLayout {
+                            spacing: 5px;
+                            CategoryHeading {
+                                height: 26px;
+                                title: I18n.t("common.text");
+                                open: root.text-open;
+                                toggled => { root.text-open = !root.text-open; }
+                            }
+                            if root.text-open: CategoryRow {
+                                height: 24px;
+                                label: I18n.t("mediaPane.titles");
+                                current: root.text-category == 0;
+                                clicked => { root.text-category = 0; }
+                            }
+                            if root.text-open: CategoryRow {
+                                height: 24px;
+                                label: I18n.t("mediaPane.styles");
+                                current: root.text-category == 1;
+                                clicked => { root.text-category = 1; }
+                            }
+                            // Beside Styles: the looks for other writing.
+                            if root.text-open: CategoryRow {
+                                height: 24px;
+                                label: I18n.t("mediaPane.languages");
+                                current: root.text-category == 2;
+                                clicked => { root.text-category = 2; }
+                            }
+                        }
+
+                        // Stickers: the one shelf there is, Shapes, so its row
+                        // is always the current one. Pictures and animated
+                        // stickers are shelves for another day.
+                        if root.tab == 2: VerticalLayout {
+                            spacing: 5px;
+                            CategoryHeading {
+                                height: 26px;
+                                title: I18n.t("mediaPane.stickers");
+                                open: root.stickers-open;
+                                toggled => { root.stickers-open = !root.stickers-open; }
+                            }
+                            if root.stickers-open: CategoryRow {
+                                height: 28px;
+                                label: "GIPHY";
+                                current: root.sticker-category == 0;
+                                clicked => { root.sticker-category = 0; }
+                            }
+                            if root.stickers-open: CategoryRow {
+                                height: 28px;
+                                label: I18n.t("mediaPane.shapes");
+                                current: root.sticker-category == 1;
+                                clicked => { root.sticker-category = 1; }
+                            }
+                        }
+
+                        if root.tab == 3: VerticalLayout {
+                            spacing: 5px;
+                            CategoryHeading {
+                                height: 26px;
+                                title: I18n.t("mediaPane.transitions");
+                                open: root.transitions-open;
+                                toggled => { root.transitions-open = !root.transitions-open; }
+                            }
+                            if root.transitions-open: VerticalLayout {
+                                spacing: 1px;
+                                CategoryRow {
+                                    height: 24px;
+                                    label: I18n.t("common.all");
+                                    current: Library.view(3).group == -1;
+                                    clicked => { Library.group-changed(3, -1); }
+                                }
+                                for label[index] in root.transition-groups: CategoryRow {
+                                    height: 24px;
+                                    label: label;
+                                    current: Library.view(3).group == index;
+                                    clicked => { Library.group-changed(3, index); }
                                 }
                             }
                         }
-                        CategoryHeading {
-                            height: 26px;
-                            title: I18n.t("mediaPane.audioEffects");
-                            open: root.audio-open;
-                            toggled => { root.audio-open = !root.audio-open; }
-                        }
-                        if root.audio-open: VerticalLayout {
-                            spacing: 1px;
-                            for label[index] in root.audio-groups: CategoryRow {
-                                height: 24px;
-                                label: label;
-                                current: root.audio-shelf && Library.view(2).group == index;
-                                clicked => {
-                                    root.audio-shelf = true;
-                                    Library.group-changed(2, index);
+
+                        // The picture's shelves and the sound's, from the
+                        // catalogue's own groups, on one page called Effects.
+                        if root.tab == 4: VerticalLayout {
+                            spacing: 5px;
+                            CategoryHeading {
+                                height: 26px;
+                                title: I18n.t("mediaPane.videoEffects");
+                                open: root.effects-open;
+                                toggled => { root.effects-open = !root.effects-open; }
+                            }
+                            if root.effects-open: VerticalLayout {
+                                spacing: 1px;
+                                for label[index] in root.effect-groups: CategoryRow {
+                                    height: 24px;
+                                    label: label;
+                                    current: !root.audio-shelf && Library.view(1).group == index;
+                                    clicked => {
+                                        root.audio-shelf = false;
+                                        Library.group-changed(1, index);
+                                    }
+                                }
+                            }
+                            CategoryHeading {
+                                height: 26px;
+                                title: I18n.t("mediaPane.audioEffects");
+                                open: root.audio-open;
+                                toggled => { root.audio-open = !root.audio-open; }
+                            }
+                            if root.audio-open: VerticalLayout {
+                                spacing: 1px;
+                                for label[index] in root.audio-groups: CategoryRow {
+                                    height: 24px;
+                                    label: label;
+                                    current: root.audio-shelf && Library.view(2).group == index;
+                                    clicked => {
+                                        root.audio-shelf = true;
+                                        Library.group-changed(2, index);
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    // Filters are colour looks, the way every video editor's
-                    // users understand the word. What a voice or a room does
-                    // to the sound is on the Effects page.
-                    if root.tab == 5: VerticalLayout {
-                        spacing: 1px;
-                        CategoryHeading {
-                            height: 26px;
-                            title: I18n.t("mediaPane.filters");
-                            open: root.filters-open;
-                            toggled => { root.filters-open = !root.filters-open; }
-                        }
-                        if root.filters-open: VerticalLayout {
-                            spacing: 1px;
-                            for label[index] in root.filter-groups: CategoryRow {
-                                height: 24px;
-                                label: label;
-                                current: Library.view(0).group == index;
-                                clicked => { Library.group-changed(0, index); }
+                        // Filters are colour looks, the way every video editor's
+                        // users understand the word. What a voice or a room does
+                        // to the sound is on the Effects page.
+                        if root.tab == 5: VerticalLayout {
+                            spacing: 5px;
+                            CategoryHeading {
+                                height: 26px;
+                                title: I18n.t("mediaPane.filters");
+                                open: root.filters-open;
+                                toggled => { root.filters-open = !root.filters-open; }
+                            }
+                            if root.filters-open: VerticalLayout {
+                                spacing: 1px;
+                                for label[index] in root.filter-groups: CategoryRow {
+                                    height: 24px;
+                                    label: label;
+                                    current: Library.view(0).group == index;
+                                    clicked => { Library.group-changed(0, index); }
+                                }
                             }
                         }
-                    }
 
-                    // Adjustments: the layer that grades everything beneath
-                    // it, and the user's own tables beside it.
-                    if root.tab == 7: VerticalLayout {
-                        spacing: 1px;
-                        CategoryHeading {
-                            height: 26px;
-                            title: I18n.t("mediaPane.adjustments");
-                            open: root.adjustments-open;
-                            toggled => { root.adjustments-open = !root.adjustments-open; }
+                        // Adjustments: the layer that grades everything beneath
+                        // it, and the user's own tables beside it.
+                        if root.tab == 7: VerticalLayout {
+                            spacing: 5px;
+                            CategoryHeading {
+                                height: 26px;
+                                title: I18n.t("mediaPane.adjustments");
+                                open: root.adjustments-open;
+                                toggled => { root.adjustments-open = !root.adjustments-open; }
+                            }
+                            if root.adjustments-open: CategoryRow {
+                                height: 24px;
+                                label: I18n.t("mediaPane.adjustmentLayer");
+                                current: root.adjustments-category == 0;
+                                clicked => { root.adjustments-category = 0; }
+                            }
+                            if root.adjustments-open: CategoryRow {
+                                height: 24px;
+                                label: I18n.t("mediaPane.luts");
+                                count: root.catalogue-luts.length;
+                                current: root.adjustments-category == 1;
+                                clicked => { root.adjustments-category = 1; }
+                            }
                         }
-                        if root.adjustments-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("mediaPane.adjustmentLayer");
-                            current: root.adjustments-category == 0;
-                            clicked => { root.adjustments-category = 0; }
-                        }
-                        if root.adjustments-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("mediaPane.luts");
-                            count: root.catalogue-luts.length;
-                            current: root.adjustments-category == 1;
-                            clicked => { root.adjustments-category = 1; }
-                        }
-                    }
 
-                    if root.tab == 6: VerticalLayout {
-                        spacing: 1px;
-                        CategoryHeading {
-                            height: 26px;
-                            title: I18n.t("mediaPane.templates");
-                            open: root.templates-open;
-                            toggled => { root.templates-open = !root.templates-open; }
-                        }
-                        if root.templates-open: CategoryRow {
-                            height: 24px;
-                            label: I18n.t("mediaPane.myTemplates");
-                            current: true;
+                        if root.tab == 6: VerticalLayout {
+                            spacing: 5px;
+                            CategoryHeading {
+                                height: 26px;
+                                title: I18n.t("mediaPane.templates");
+                                open: root.templates-open;
+                                toggled => { root.templates-open = !root.templates-open; }
+                            }
+                            if root.templates-open: CategoryRow {
+                                height: 24px;
+                                label: I18n.t("mediaPane.myTemplates");
+                                current: true;
+                            }
                         }
                     }
                 }

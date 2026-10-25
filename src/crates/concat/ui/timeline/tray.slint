@@ -11,7 +11,7 @@ import { Editor } from "../editor.slint";
 
 // The timeline's tool tray.
 //
-// The tool set: add-track first, then undo and redo, then the three edit
+// The tool set: add-timeline first, then undo and redo, then the three edit
 // actions, then snapping, then the tools a clip's sound and words need
 // - captions, a spoken title, detaching the sound - and the view controls
 // pushed to the far end. The metrics: 40px
@@ -56,100 +56,6 @@ component Divider inherits Rectangle {
 // switched off, and a switched-off one has nothing dimmer left to be.
 component TrayButton inherits IconButton {
     idle: Theme.fg;
-}
-
-// One row of the add menu and its submenu: a word, a mark at the end.
-component MenuItem inherits Rectangle {
-    in property <string> text;
-    in property <Glyph> trailing: Glyph.none;
-    out property <bool> hovered: touch.has-hover;
-
-    callback clicked();
-
-    height: 26px;
-    border-radius: Theme.r-sm;
-    background: touch.has-hover ? Theme.field-hover : Colors.transparent;
-
-    HorizontalLayout {
-        padding-left: 8px;
-        padding-right: 6px;
-        spacing: 6px;
-
-        Text {
-            horizontal-stretch: 1;
-            text: root.text;
-            color: Theme.fg;
-            font-size: Theme.fs;
-            vertical-alignment: center;
-        }
-
-        if root.trailing != Glyph.none: VerticalLayout {
-            alignment: center;
-            Icon { glyph: root.trailing; size: 12px; tint: Theme.fg-muted; }
-        }
-    }
-
-    touch := TouchArea {
-        mouse-cursor: pointer;
-        clicked => { root.clicked(); }
-    }
-}
-
-// The plus at the head of the tray: a menu that adds a lane on top of the
-// stack or under it, one row each. Flat rather than a row that flies a
-// submenu out beside it: a PopupWindow inside a PopupWindow draws, but the
-// part of it hanging outside its parent never takes the click, so top and
-// bottom could be seen and neither pressed.
-// https://github.com/slint-ui/slint/issues/7322
-component AddMenu inherits Rectangle {
-    callback add-track(bottom: bool);
-
-    width: 26px;
-    height: 26px;
-
-    property <length> row-h: 26px;
-
-    TrayButton {
-        glyph: Glyph.plus;
-        label: I18n.t("tray.addTrack");
-        icon-size: 14px;
-        clicked => { list.show(); }
-    }
-
-    list := PopupWindow {
-        x: 0;
-        y: root.height + 4px;
-        width: 168px;
-        height: 2 * root.row-h + 8px;
-        close-policy: close-on-click-outside;
-
-        Rectangle {
-            background: Theme.raised;
-            border-width: 1px;
-            border-color: Theme.line-strong;
-            border-radius: Theme.r;
-
-            VerticalLayout {
-                padding: 4px;
-                alignment: start;
-
-                MenuItem {
-                    text: I18n.t("tray.addTrackTop");
-                    clicked => {
-                        list.close();
-                        root.add-track(false);
-                    }
-                }
-                MenuItem {
-                    text: I18n.t("tray.addTrackBottom");
-                    clicked => {
-                        list.close();
-                        root.add-track(true);
-                    }
-                }
-            }
-        }
-    }
 }
 
 export component TimelineTray inherits Rectangle {
@@ -215,8 +121,8 @@ export component TimelineTray inherits Rectangle {
     callback captions();
     callback speak();
     callback record-voiceover();
-    /// Add a lane: on top of the stack, or with `bottom` under it.
-    callback add-track(bottom: bool);
+    /// Create a sequence; lanes are created by placing media.
+    callback add-timeline();
     callback fit();
     callback zoom(factor: float);
     callback meters-shown-changed(on: bool);
@@ -239,8 +145,11 @@ export component TimelineTray inherits Rectangle {
         padding-bottom: 7px;
         spacing: 4px;
 
-        AddMenu {
-            add-track(bottom) => { root.add-track(bottom); }
+        TrayButton {
+            glyph: Glyph.plus;
+            label: I18n.t("tray.addTimeline");
+            icon-size: 18px;
+            clicked => { root.add-timeline(); }
         }
 
         Divider { }
@@ -553,5 +462,6 @@ export component TimelineTray inherits Rectangle {
             checked: root.meters-shown;
             clicked => { root.meters-shown-changed(!root.meters-shown); }
         }
+        @children
     }
 }

@@ -80,7 +80,7 @@ Most open-source video editors leave you hunting across the web for stickers, so
 
 ## In development
 
-The next version adds complete clip snapshots for copy/paste and grouped duplication, including paste between projects in the same window. See the [clipboard integration notes](docs/CLIPBOARD_2026-10-24.md). These changes are not included in the published 0.1.5 packages.
+The next version adds complete clip snapshots for copy/paste and grouped duplication, including paste between projects in the same window. See the [clipboard integration notes](docs/CLIPBOARD_2026-10-24.md). The development build also includes a more compact timeline layout, larger library category icons and transition indicators that cover both adjacent clips. These changes are not included in the published 0.1.5 packages.
 
 ## Downloads (Version 0.1.5)
 

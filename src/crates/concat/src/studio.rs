@@ -87,17 +87,12 @@ pub const OUTPUTS: [(i32, i32); 6] = [
 /// splits both floor at this, as the engine's own `MIN_CLIP_DURATION` does.
 pub const MIN_DURATION: f32 = 1.0 / 60.0;
 
-/// The three lane heights, in logical pixels.
-///
-/// Picture gets the tallest because a filmstrip is the one thing that needs
-/// the room; sound the middle, where an envelope still has shape. The ladder
-/// is what `TrackSize::Auto` picks from - see `lane_height`. Raised from
-/// 80/60/40: with the name strip and the sound band taken off, a video's
-/// frames had under forty pixels and a waveform under thirty, and both
-/// read as crammed.
+/// Manual lane heights, in logical pixels. Auto uses a compact common
+/// height just above Small; explicit user sizes keep their existing values.
 const LANE_LARGE: f32 = 108.0;
 const LANE_MEDIUM: f32 = 80.0;
 const LANE_SMALL: f32 = 44.0;
+const LANE_AUTO: f32 = 52.0;
 
 /// How long a title runs when it is placed: long enough to read, short
 /// enough that trimming it is a nudge rather than a fight.
@@ -2918,20 +2913,13 @@ impl Studio {
             .collect()
     }
 
-    /// How tall one lane is drawn: auto height adapts cleanly to the track kind.
+    /// Auto stays compact; explicit per-lane size preferences take precedence.
     fn lane_height(&self, lane: &Track) -> f32 {
         match self.lane_size(&lane.id) {
             TrackSize::Small => LANE_SMALL,
             TrackSize::Medium => LANE_MEDIUM,
             TrackSize::Large => LANE_LARGE,
-            TrackSize::Auto => match self.track_kind(lane) {
-                model::TrackKind::Video => LANE_LARGE,
-                model::TrackKind::Audio => LANE_MEDIUM,
-                model::TrackKind::Text
-                | model::TrackKind::Captions
-                | model::TrackKind::Sticker
-                | model::TrackKind::Filter => LANE_SMALL,
-            },
+            TrackSize::Auto => LANE_AUTO,
         }
     }
 

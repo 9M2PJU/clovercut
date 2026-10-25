@@ -300,14 +300,13 @@ export component TimelinePane inherits Rectangle {
             background: Theme.line;
         }
 
-        TimelineTabs {
+        if root.tabs.length > 1: TimelineTabs {
             tabs: root.tabs;
             current: root.current-tab;
 
             selected(index) => { root.tab-selected(index); }
             renamed(index, name) => { root.tab-renamed(index, name); }
             close-requested(index) => { root.tab-close-requested(index); }
-            added => { root.tab-added(); }
             moved(from, to) => { root.tab-moved(from, to); }
 
             PaneSwitcher {
@@ -371,12 +370,20 @@ export component TimelinePane inherits Rectangle {
             captions => { root.captions(); }
             speak => { root.speak(); }
             record-voiceover => { root.record-voiceover(); }
-            add-track(bottom) => { root.add-track(bottom); }
+            add-timeline => { root.tab-added(); }
             fit => { root.zoom-to-fit(lanes.width); }
             // No anchor from a button: a wheel zooms about the pointer and a
             // press zooms about the view, since a press has no pointer to
             // speak of. -1 is read as "keep the left edge".
             zoom(factor) => { root.zoom(factor, -1); }
+
+            if root.tabs.length <= 1: PaneSwitcher {
+                kind: PaneKind.timeline;
+                seat: root.pane-seat;
+                removable: root.pane-removable;
+                picked(kind) => { root.pane-picked(kind); }
+                removed => { root.pane-removed(); }
+            }
         }
 
         // The lane grid. Positioned by hand for the reason the workspace is:
