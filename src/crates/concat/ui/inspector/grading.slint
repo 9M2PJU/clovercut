@@ -8,6 +8,41 @@ import { NumberField } from "../primitives/number-field.slint";
 import { ClipField } from "../timeline/model.slint";
 import { KeyCluster, ValueControl, InspectorInput } from "controls.slint";
 
+// Standard grading words are UI labels, not serialized parameter keys.
+export global GradingLabels {
+    public pure function parameter(key: string, label: string) -> string {
+        if (key == "temperature" && label == "Temperature") { return I18n.t("grading.temperature"); }
+        if (key == "tint" && label == "Tint") { return I18n.t("grading.tint"); }
+        if (key == "saturation" && label == "Saturation") { return I18n.t("grading.saturation"); }
+        if (key == "exposure" && label == "Exposure") { return I18n.t("grading.exposure"); }
+        if (key == "brightness" && label == "Brightness") { return I18n.t("grading.brightness"); }
+        if (key == "contrast" && label == "Contrast") { return I18n.t("grading.contrast"); }
+        if (key == "highlights" && label == "Highlights") { return I18n.t("grading.highlights"); }
+        if (key == "shadows" && label == "Shadows") { return I18n.t("grading.shadows"); }
+        if (key == "whites" && label == "Whites") { return I18n.t("grading.whites"); }
+        if (key == "blacks" && label == "Blacks") { return I18n.t("grading.blacks"); }
+        if (key == "sharpen" && label == "Sharpen") { return I18n.t("grading.sharpen"); }
+        if (key == "fade" && label == "Fade") { return I18n.t("grading.fade"); }
+        if (key == "vignette" && label == "Vignette") { return I18n.t("grading.vignette"); }
+        if (key == "lift" && label == "Lift") { return I18n.t("grading.lift"); }
+        if (key == "gamma" && label == "Gamma") { return I18n.t("grading.gamma"); }
+        if (key == "gain" && label == "Gain") { return I18n.t("grading.gain"); }
+        if (key == "luma" && label == "Luma") { return I18n.t("grading.luma"); }
+        if (key == "red" && label == "Red") { return I18n.t("grading.red"); }
+        if (key == "green" && label == "Green") { return I18n.t("grading.green"); }
+        if (key == "blue" && label == "Blue") { return I18n.t("grading.blue"); }
+        return label;
+    }
+    public pure function group(key: string) -> string {
+        if (key == "Color") { return I18n.t("clipInspector.colorTab"); }
+        if (key == "Lightness") { return I18n.t("grading.lightness"); }
+        if (key == "Effects") { return I18n.t("common.effects"); }
+        if (key == "Wheels") { return I18n.t("clipInspector.wheelsTab"); }
+        if (key == "Curves") { return I18n.t("clipInspector.curvesTab"); }
+        return key;
+    }
+}
+
 // The colour wheels and the curves: lift, gamma and gain as three wheels in
 // a row, and one graph for the curves with a tab a channel. Both draw what
 // Rust publishes and hand every change straight back, so the picture moves
@@ -118,7 +153,7 @@ export component ColorWheel inherits VerticalLayout {
             min-width: 0px;
             horizontal-stretch: 1;
             overflow: elide;
-            text: root.data.label;
+            text: GradingLabels.parameter(root.data.key, root.data.label);
             color: Theme.fg-muted;
             font-size: Theme.fs;
             vertical-alignment: center;
@@ -340,7 +375,7 @@ export component CurveEditor inherits VerticalLayout {
             background: i == root.current ? Theme.field-active : tab.has-hover ? Theme.field-hover : Theme.field;
 
             Text {
-                text: curve.label;
+                text: GradingLabels.parameter(curve.key, curve.label);
                 color: i == root.current ? CurveTint.of(i) : Theme.fg-muted;
                 font-size: Theme.fs-sm;
                 horizontal-alignment: center;

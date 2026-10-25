@@ -17,9 +17,9 @@ string belongs to (`common` for one used all over), then a name for it.
 Every string a person reads passes through `I18n.t("key")` (or `t1`, `t2`,
 `upper`) in the .slint tree, or `t("key")` / `tf("key", ...)` in the window's
 Rust. Those keys' English is written in en.json by whoever adds the string.
-Effects, filters, transitions and text presets are data, not interface:
-their words are always the English their manifests write, and have no
-lines here.
+Package names and descriptions remain source metadata. Standard colour-grading
+control labels are interface text and are localized at the display boundary
+without changing manifest keys.
 
 en.json is the inventory a translator starts from; see TRANSLATING.md.
 
@@ -31,6 +31,7 @@ import json
 import pathlib
 import re
 import sys
+import tomllib
 
 # A Windows console prints in its code page - cp1252, most often - which
 # has no Bengali, no Persian and no CJK, and the first locale name printed
@@ -131,14 +132,25 @@ def write(path: pathlib.Path, data: dict) -> None:
     path.write_text(json.dumps(body, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def grading_parity(used: set[str], parameters: set[str]) -> list[str]:
+    """Every built-in grading knob needs a display translation, not metadata fallback."""
+    expected = {f"grading.{key}" for key in parameters} | {"grading.lightness"}
+    actual = {key for key in used if key.startswith("grading.")}
+    return ([f"grading label missing from UI: {key}" for key in sorted(expected - actual)]
+            + [f"grading label no longer matches a parameter: {key}" for key in sorted(actual - expected)])
+
+
 def inventory() -> tuple[dict[str, str], list[str]]:
     """en.json as the source has it, and what cannot be made so: a key used
     in code whose English nobody has written, or a literal in a call that
     is not a key."""
     current = read(LOCALES / "en.json")
-    problems = []
+    used = code_keys()
+    manifest = CRATE.parent / "concat-effects" / "packages" / "concat.adjust" / "effect.toml"
+    parameters = {param["key"] for param in tomllib.loads(manifest.read_text(encoding="utf-8"))["param"]}
+    problems = grading_parity(used, parameters)
     wanted: dict[str, str] = {}
-    for key in sorted(code_keys()):
+    for key in sorted(used):
         if not KEY.match(key):
             problems.append(f"not a key: {key!r} - calls take a key such as \"common.export\"")
         elif key in current:

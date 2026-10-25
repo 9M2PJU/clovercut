@@ -174,7 +174,7 @@ export component TimelinePane inherits Rectangle {
     /// pane that grows again finds its column where it left it.
     property <length> headers-w: Math.max(0px,
         Math.min(root.header-width, root.width / 2));
-    in property <length> ruler-height: 28px;
+    in property <length> ruler-height: 44px;
     /// The meters' column: the ruler, two bars and their gaps, a few
     /// pixels of air, and nothing when they are put away.
     property <length> meters-w: root.meters-shown ? 60px : 0px;

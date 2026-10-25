@@ -42,6 +42,17 @@ class TranslationChecks(unittest.TestCase):
         self.assertTrue(locales.same_is_fine("sounds.concat", "OpenGameArt"))
         self.assertTrue(locales.same_is_fine("format.hoursMinutes", "{0} h {1} min"))
 
+    def test_new_grading_parameter_cannot_silently_fall_back_to_manifest_english(self):
+        problems = locales.grading_parity({"grading.temperature", "grading.lightness"}, {"temperature", "contrast"})
+        self.assertEqual(problems, ["grading label missing from UI: grading.contrast"])
+
+    def test_removed_grading_parameter_is_reported(self):
+        problems = locales.grading_parity({"grading.temperature", "grading.lightness", "grading.obsolete"}, {"temperature"})
+        self.assertEqual(problems, ["grading label no longer matches a parameter: grading.obsolete"])
+
+    def test_grading_parameters_and_heading_have_complete_ui_inventory(self):
+        self.assertEqual(locales.grading_parity({"grading.temperature", "grading.lightness", "common.effects"}, {"temperature"}), [])
+
 
 if __name__ == "__main__":
     unittest.main()

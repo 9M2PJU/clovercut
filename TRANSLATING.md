@@ -27,4 +27,7 @@ A file for a shipped language overrides only the lines it contains.
 
 Developers should use `I18n.t("area.key")` in Slint and `t`/`tf` in Rust,
 write the English value into `en.json`, then run `python3 scripts/locales.py`.
-Names inside effect and preset manifests are data and remain in English.
+Names inside effect and preset manifests remain source metadata. Standard colour
+grading controls are translated at the inspector display boundary using the
+`grading.*` keys; their serialized parameter and reset-group identifiers stay
+unchanged.

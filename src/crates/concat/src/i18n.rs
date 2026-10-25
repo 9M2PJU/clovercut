@@ -13,10 +13,9 @@
 //! yet reads in English rather than as a key, and adding a language is
 //! adding a file.
 //!
-//! Only the app's own interface is translated. Effects, filters,
-//! transitions and text presets are data: a package's words are the
-//! English its manifest carries, shipped or not, and no locale lists them,
-//! so the locales stay the size of the interface.
+//! The app's interface includes the standard colour-grading control labels.
+//! Those are translated at the inspector boundary; serialized parameter keys
+//! remain unchanged. Package names and descriptions remain source metadata.
 //!
 //! Two places hold locales. The ones the app ships live in `locales/` next
 //! to this crate's `src/` and are compiled in. Anyone can add or correct a

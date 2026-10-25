@@ -39,7 +39,9 @@
     "voiceover.pause": "Pause",
     "voiceover.teleprompter": "Teleprompter",
     "voices.styleRadio": "Radio",
-    "libraries.groupAudio": "Audio"
+    "libraries.groupAudio": "Audio",
+    "grading.vignette": "Vignette",
+    "grading.gamma": "Gamma"
   },
   "es": {
     "captions.horizontalWriting": "Horizontal",
@@ -132,7 +134,10 @@
     "voices.styleRobot": "Robot",
     "voices.styles": "Styles",
     "libraries.groupAudio": "Audio",
-    "libraries.groupTransitions": "Transitions"
+    "libraries.groupTransitions": "Transitions",
+    "grading.saturation": "Saturation",
+    "grading.gamma": "Gamma",
+    "grading.gain": "Gain"
   },
   "hr": {
     "common.auto": "Auto",
@@ -172,7 +177,8 @@
     "voiceover.teleprompter": "Teleprompter",
     "voices.styleRadio": "Radio",
     "voices.styleRobot": "Robot",
-    "libraries.groupAudio": "Audio"
+    "libraries.groupAudio": "Audio",
+    "grading.gamma": "Gamma"
   },
   "it": {
     "clipInspector.chromaKey": "Chroma key",
@@ -200,7 +206,8 @@
     "voiceover.teleprompter": "Teleprompter",
     "voices.styleRadio": "Radio",
     "voices.styleRobot": "Robot",
-    "libraries.groupAudio": "Audio"
+    "libraries.groupAudio": "Audio",
+    "grading.gamma": "Gamma"
   },
   "nl": {
     "clipInspector.volume": "Volume",
@@ -243,7 +250,10 @@
     "voices.styleRobot": "Robot",
     "library.recent": "Recent",
     "libraries.groupAudio": "Audio",
-    "libraries.groupStickers": "Stickers"
+    "libraries.groupStickers": "Stickers",
+    "grading.tint": "Tint",
+    "grading.contrast": "Contrast",
+    "grading.gamma": "Gamma"
   },
   "pl": {
     "common.audio": "Audio",
@@ -255,7 +265,8 @@
     "studio.mono": "mono",
     "studio.stereo": "stereo",
     "voices.styleRadio": "Radio",
-    "voices.styleRobot": "Robot"
+    "voices.styleRobot": "Robot",
+    "grading.gamma": "Gamma"
   },
   "pt-BR": {
     "captions.horizontalWriting": "Horizontal",
@@ -298,6 +309,7 @@
   },
   "vi": {
     "common.video": "Video",
-    "speech.hindi": "Hindi"
+    "speech.hindi": "Hindi",
+    "grading.gamma": "Gamma"
   }
 }

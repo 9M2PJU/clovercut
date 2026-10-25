@@ -39,6 +39,7 @@ import {
     CurveGroupData,
     WheelData,
     WheelGroupData,
+    GradingLabels,
 } from "grading.slint";
 import {
     Backdrop,
@@ -408,7 +409,7 @@ export component PresetStack inherits VerticalLayout {
                             changed data => { knob.value = self.data.value; }
 
                             knob := Param {
-                                label: p.label;
+                                label: GradingLabels.parameter(p.key, p.label);
                                 color-key: p.key;
                                 value: p.value;
                                 minimum: p.min;
@@ -685,7 +686,7 @@ component Processor inherits VerticalLayout {
         changed data => { knob.value = self.data.value; }
 
         knob := Param {
-            label: p.label;
+            label: GradingLabels.parameter(p.key, p.label);
             value: p.value;
             minimum: p.min;
             maximum: p.max;
@@ -1619,7 +1620,7 @@ export component VideoPanel inherits VerticalLayout {
                 changed data => { knob.value = self.data.value; }
 
                 knob := Param {
-                    label: p.label;
+                    label: GradingLabels.parameter(p.key, p.label);
                     value: p.value;
                     minimum: p.min;
                     maximum: p.max;
@@ -2172,7 +2173,7 @@ export component TransitionPanel inherits VerticalLayout {
 
                 knob := Param {
                     unit: p.unit;
-                    label: p.label;
+                    label: GradingLabels.parameter(p.key, p.label);
                     value: p.value;
                     minimum: p.min;
                     maximum: p.max;
@@ -2535,9 +2536,9 @@ component AdjustGroup inherits VerticalLayout {
     padding-top: Theme.gap;
     header := SectionHeader {
         height: 30px;
-        title: root.group;
+        title: GradingLabels.group(root.group);
         collapsible: true;
-        IconButton { glyph: Glyph.reset; label: I18n.t1("controls.resetGroup", root.group); clicked => { root.reset(root.group); } }
+        IconButton { glyph: Glyph.reset; label: I18n.t1("controls.resetGroup", GradingLabels.group(root.group)); clicked => { root.reset(root.group); } }
     }
     if header.open: VerticalLayout {
         spacing: 0px;
@@ -2550,7 +2551,7 @@ component AdjustGroup inherits VerticalLayout {
 
                         knob := Param {
                             unit: p.unit;
-                            label: p.label;
+                            label: GradingLabels.parameter(p.key, p.label);
                             color-key: p.key;
                             value: p.value;
                             minimum: p.min;
@@ -2621,7 +2622,7 @@ export component AdjustPanel inherits VerticalLayout {
                 spacing: Theme.gap;
 
                 Subhead {
-                    title: root.wheels[0].group;
+                    title: GradingLabels.group(root.wheels[0].group);
                 }
 
                 HorizontalLayout {
@@ -2648,7 +2649,7 @@ export component AdjustPanel inherits VerticalLayout {
                 spacing: Theme.gap;
 
                 Subhead {
-                    title: root.curves[0].group;
+                    title: GradingLabels.group(root.curves[0].group);
                 }
 
                 CurveEditor {
