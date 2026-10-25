@@ -1,64 +1,74 @@
-# Clovercut releases
+# Building and releasing Clovercut
 
-Clovercut prepares Linux AppImages for x86_64 and aarch64, plus a Windows x64
-installer and portable ZIP. Linux builds use Ubuntu 22.04; Windows builds use
-Windows Server 2022. Native dependency downloads stay checksum-pinned in
-`scripts/ci/deps.lock`.
+Clovercut's primary release targets are desktop: Linux x86_64/aarch64 AppImages,
+Windows x86_64/ARM64 installers and portable ZIPs, and macOS Intel/Apple Silicon
+DMGs. The matrix is defined in `scripts/ci/desktop-targets.json`; native dependency
+downloads are checksum-pinned in `scripts/ci/deps.lock`. Mobile builds follow a
+separate schedule and are disabled in the desktop release workflow.
 
-Before creating a release:
+## Local development
 
-1. Set `[workspace.package].version` in `src/Cargo.toml` and update the workspace entries in `src/Cargo.lock`.
-2. Write the matching `docs/releases/<version>.md` and review the README.
-3. Run formatting, Clippy, tests, locale and model inventory checks. Compile the editor and check `clovercut --version`, `clovercut --smoke`, editing and export.
-4. Commit and push the reviewed changes. Create and push the matching tag only when ready (for this release, `v0.0.2`).
+Run Cargo from `src/` to use the pinned toolchain. Install the native dependencies
+described in the [source overview](../src/README.md), then use the existing profile:
 
-Before tagging, the manual **Build Clovercut packages** workflow can build a
-specific commit from the updated main branch. Push all intended changes first,
-then dispatch with that exact commit as `ref`; a successful build produces
-artifacts without publishing a release. Inspect those artifacts before tagging.
-Do not rerun an old version tag expecting it to include newer main-branch changes.
+```sh
+cargo build --profile quick -p concat
+./target/quick/clovercut --version
+./target/quick/clovercut --smoke
+```
 
-The **Clovercut release** workflow can prepare a complete draft before making a
-version tag. Dispatch it with `tag=v0.0.2` and `ref=<exact commit SHA>`. It resolves
-the ref once, runs CI and package builds against that commit, and uploads assets
-to the draft only if both succeed. It does not publish the draft. A later tag
-push can use the same workflow with an existing tag.
+Load any machine-local native-library environment without committing credentials
+or absolute machine paths. Keep one heavy graphical Rust target at a time. On a
+16 GiB machine, the generated UI can require temporary disk swap beyond zram;
+provision headroom before compiling and remove temporary swap after validation.
+Do not change build profiles or disable OOM protections to work around pressure.
 
-The release workflow runs CI, two Linux builds and a Windows x64 build, staged-binary
-checks, CPU compatibility checks on x86_64, AppImage packaging, and AppImage startup
-checks in Ubuntu 22.04 and Debian 12 containers. Windows checks validate DLL
-completeness, startup with a clean PATH, baseline CPU compatibility and the
-instruction set before creating the installer and portable ZIP. Windows ARM64,
-macOS, mobile, DEB, RPM and Arch packages are not built.
+A local development executable is not a portable release package.
 
-CI uses matching dev/test debug and codegen settings across lint and test
-steps. Cold test compilation has a 75-minute budget, separate from test execution;
-this avoids the previous 25-minute compilation timeout blocking packaging.
+## Prepare a release
 
-The result is a **draft** GitHub release containing:
+1. Set the workspace version in `src/Cargo.toml` and the workspace lockfile entries.
+2. Write `docs/releases/<version>.md`. Include only features present in that source.
+3. Run formatting, strict Clippy, tests, locale/model inventories and applicable
+   native startup/editing/export checks.
+4. Commit and push the intended source. The manual **Build Clovercut packages**
+   workflow accepts an exact `ref`, a desktop target and `include_mobile=false`.
+   It produces artifacts without publishing. A successful build of an older tag
+   does not include newer branch changes.
+5. Push the matching version tag when ready to publish. **Clovercut release**
+   resolves one source commit and runs CI plus all desktop package jobs. It
+   publishes automatically only after both CI and packaging succeed.
+
+The release workflow also supports manual `tag` and `ref` inputs. Use a consistent
+source/tag identity; do not silently replace a published version. Workflow files
+are authoritative for triggers, runners, build settings and checks.
+
+## Package validation
+
+Linux jobs validate staged binaries, portable AppImage startup and x86_64 CPU
+compatibility. Windows jobs validate native DLL loading, clean-PATH startup and
+architecture/CPU compatibility. macOS jobs check the app bundle and native startup.
+FFmpeg packages must include the required Rubber Band filters. Windows dynamic
+GGML builds retain their backend feature probes and checksum-pinned dependencies.
+
+Every desktop release requires these eight nonempty packages:
 
 - `Clovercut-<version>-x86_64.AppImage`
 - `Clovercut-<version>-aarch64.AppImage`
 - `Clovercut-<version>-windows-x86_64-setup.exe`
 - `Clovercut-<version>-windows-x86_64-portable.zip`
-- `manifest.json` (binary URLs and digests, read by the in-app updater)
-- `SHA256SUMS`
+- `Clovercut-<version>-windows-aarch64-setup.exe`
+- `Clovercut-<version>-windows-aarch64-portable.zip`
+- `Clovercut-<version>-macos-arm64.dmg`
+- `Clovercut-<version>-macos-x86_64.dmg`
 
-Download and try the AppImages, Windows installation/uninstallation and portable
-Windows launch before publishing the draft manually. The installer has a
-Clovercut-specific application ID and does not replace Concat. Signing is not
-configured; Windows packages are unsigned. All four files must be present before
-the release workflow creates its checksums. Preparing
-code or pushing the main branch does not publish a release. The Build Clovercut
-AppImages workflow can also be run manually to test packaging without making a tag.
+The workflow adds `manifest.json` for the updater and `SHA256SUMS`. Verify the
+published assets and source identity before updating the README/site download
+links. Ordinary main-branch pushes do not publish a release or start package builds.
 
-`scripts/build-appimage.sh STAGE ARCH OUTPUT.AppImage` can package a prepared
-stage locally. The stage needs the `clovercut` executable with an `$ORIGIN/lib`
-RPATH, its runtime libraries in `lib/`, `clovercut.png`, the desktop entry,
-`LICENSE` and `THIRD_PARTY_NOTICES.md`. A normal development binary is not a
-portable release: use the workflow's dependency setup and shipping build profile.
+`scripts/build-appimage.sh STAGE ARCH OUTPUT.AppImage` packages a prepared Linux
+stage. It needs the executable, runtime libraries, desktop entry, icon, licence
+and third-party notices. Use the workflow's shipping profile and dependency setup.
 
 Application state belongs to `io.github.tulcoturo.clovercut`. Project folders
-retain the inherited format; the original application's settings are not moved.
-The model mirror and community sound catalogue remain upstream services with
-upstream attribution; binary updates are fetched exclusively from Clovercut.
+retain the inherited format, and updater metadata points to Clovercut releases.

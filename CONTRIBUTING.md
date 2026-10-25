@@ -9,7 +9,7 @@ logs and a small sample project or media file when possible.
 
 Follow the dependency and build instructions in [README.md](README.md).
 The Rust workspace is in `src/`; [src/README.md](src/README.md) describes its crates.
-Release packaging targets Linux AppImages only; see [docs/RELEASING.md](docs/RELEASING.md).
+Release packaging targets Linux AppImages, Windows x64/ARM64 and macOS; see [docs/RELEASING.md](docs/RELEASING.md).
 
 Before opening a pull request, run from `src/`:
 

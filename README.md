@@ -169,8 +169,9 @@ cargo test --manifest-path src/Cargo.toml -p concat-core -p concat-media -p conc
 
 ## Documentation
 
+* [Documentation](docs/README.md): Editing, content libraries, automation and release guides.
 * [Keyboard Shortcuts](docs/KEYBOARD_SHORTCUTS.md): List of editing shortcuts and key bindings.
-* [Audio & Content Libraries](docs/AUDIO_LIBRARY.md): Guide to OpenGameArt and GIPHY content.
+* [Audio & Content Libraries](docs/AUDIO_LIBRARY.md): Guide to OpenGameArt, YouTube Audio Library, Freesound and GIPHY.
 * [Model Context Protocol (MCP)](docs/MCP.md): Headless automation, CLI tools, and AI agent integration.
 * [Release Notes v0.1.5](docs/releases/0.1.5.md): Complete changelog for version 0.1.5.
 * [Translating clovercut](TRANSLATING.md): Guide to contributing translations across 24 supported languages.

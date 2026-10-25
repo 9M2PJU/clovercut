@@ -140,7 +140,10 @@ fn window_geometry() -> Option<(i32, i32, u32, u32)> {
 
 fn capture_screenshot(name: &str) {
     let dir_override = std::env::var("CLOVERCUT_SCREENSHOT_DIR").unwrap_or_else(|_| {
-        "/home/turotulco/Projetos/clovercut/docs/screenshots/phase5_after".to_string()
+        std::env::temp_dir()
+            .join(format!("clovercut-ui-walkthrough-{}", std::process::id()))
+            .to_string_lossy()
+            .into_owned()
     });
     let screenshot_dir = Path::new(&dir_override);
     let _ = std::fs::create_dir_all(screenshot_dir);

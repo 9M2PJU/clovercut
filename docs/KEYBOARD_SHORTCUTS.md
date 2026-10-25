@@ -2,7 +2,7 @@
 
 Shortcuts work when the editor window has focus. On macOS, `Ctrl` below means `⌘`.
 
-These are the keys Concat ships with. Every one in the tables below except the window's own (see [Fixed keys](#fixed-keys)) can be changed in **Settings > Shortcuts**: click a row, press the new keys, or press `Escape` to cancel. A key another action already has moves to the new one, and the old action is left with no key until its row's Reset gives it back; **Reset all** puts every key back as shipped. The menus and the timeline's tooltips show the keys as they are now bound. The Shortcuts page is a desktop one; phones have no keyboard to bind.
+These are the keys Clovercut ships with. Every one in the tables below except the window's own (see [Fixed keys](#fixed-keys)) can be changed in **Settings > Shortcuts**: click a row, press the new keys, or press `Escape` to cancel. A key another action already has moves to the new one, and the old action is left with no key until its row's Reset gives it back; **Reset all** puts every key back as shipped. The menus and the timeline's tooltips show the keys as they are now bound. The Shortcuts page is a desktop one; phones have no keyboard to bind.
 
 Single-key shortcuts don't fire while typing in a text field.
 

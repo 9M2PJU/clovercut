@@ -173,8 +173,8 @@ envelope carrying the same JSON, with the token as `authorization: Bearer
   `concat_core::time::Rational`; persisted project and export clip ranges use
   `f64`, while Slint gestures and the displayed playhead use `f32`. Video
   resolution rounds to the frame grid; audio rounds to the 48 kHz sample grid.
-  Preserve and test each conversion and rounding policy. See
-  [the Phase 1 audit](../docs/ARCHITECTURE_AUDIT.md) for measured limits.
+  Preserve and test each conversion and rounding policy in the engine and
+  timeline regression suites.
 - **Graphs use handles, not pointers.** `concat_core::arena` explains why.
 - **Shallow generics.** Concrete types until three call sites demand otherwise.
 - **Threads, not async.** The render path is CPU-bound; `async` buys nothing here.
