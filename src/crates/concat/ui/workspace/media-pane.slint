@@ -145,15 +145,6 @@ component LibraryTab inherits Rectangle {
         }
     }
 
-    if root.current: Rectangle {
-        x: 6px;
-        y: parent.height - 2px;
-        width: Math.max(0px, parent.width - 12px);
-        height: 2px;
-        border-radius: 1px;
-        background: Theme.accent;
-    }
-
     touch := TouchArea {
         mouse-cursor: pointer;
         clicked => {
@@ -2111,6 +2102,35 @@ export component MediaPane inherits Rectangle {
     /// How far left the page strip can be pushed: nothing, while its chips
     /// fit. See `strip`.
     property <length> strip-floor: Math.min(0px, strip.width - strip.content-width);
+    // Page by complete categories. End-button overlays are excluded from
+    // the usable width, so the next group starts with an accessible chip.
+    property <[length]> strip-starts: [media-chip.x, audio-chip.x, text-chip.x, captions-chip.x, stickers-chip.x, transitions-chip.x, effects-chip.x, filters-chip.x, adjustments-chip.x, templates-chip.x];
+    property <[length]> strip-ends: [media-chip.x + media-chip.width, audio-chip.x + audio-chip.width, text-chip.x + text-chip.width, captions-chip.x + captions-chip.width, stickers-chip.x + stickers-chip.width, transitions-chip.x + transitions-chip.width, effects-chip.x + effects-chip.width, filters-chip.x + filters-chip.width, adjustments-chip.x + adjustments-chip.width, templates-chip.x + templates-chip.width];
+    pure function strip-index(at: length) -> int {
+        return (root.strip-starts[1] <= at ? 1 : 0)
+            + (root.strip-starts[2] <= at ? 1 : 0)
+            + (root.strip-starts[3] <= at ? 1 : 0)
+            + (root.strip-starts[4] <= at ? 1 : 0)
+            + (root.strip-starts[5] <= at ? 1 : 0)
+            + (root.strip-starts[6] <= at ? 1 : 0)
+            + (root.strip-starts[7] <= at ? 1 : 0)
+            + (root.strip-starts[8] <= at ? 1 : 0)
+            + (root.strip-starts[9] <= at ? 1 : 0);
+    }
+    function jump-strip(forward: bool) {
+        let inset = 24px;
+        let page = Math.max(60px, strip.width - 2 * inset);
+        let current = root.strip-index(-strip.content-x + inset);
+        let target = forward ? -strip.content-x + strip.width - inset
+            : Math.max(0px, -strip.content-x - page);
+        let near = root.strip-index(target);
+        let first-unread = root.strip-ends[near] <= target ? near + 1 : near;
+        let index = forward
+            ? Math.min(root.strip-starts.length - 1, Math.max(current + 1, first-unread))
+            : Math.max(0, Math.min(current - 1, near));
+        let offset = index == 0 ? 0px : inset - root.strip-starts[index];
+        strip.content-x = Math.max(root.strip-floor, Math.min(0px, offset));
+    }
     property <bool> categories-open: true;
     property <bool> generated-open: true;
     property <bool> text-open: true;
@@ -2229,7 +2249,7 @@ export component MediaPane inherits Rectangle {
                             padding: 2px;
                             spacing: 6px;
 
-                        LibraryTab {
+                        media-chip := LibraryTab {
                             glyph: Glyph.film;
                             label: I18n.t("common.media");
                             current: root.tab == 0;
@@ -2238,49 +2258,49 @@ export component MediaPane inherits Rectangle {
                         }
                         // Beside Media, where CapCut keeps it: the page
                         // number is the last one handed out, not the place.
-                        LibraryTab {
+                        audio-chip := LibraryTab {
                             glyph: Glyph.music;
                             label: I18n.t("common.audio");
                             current: root.tab == 8;
                             clicked => { root.tab = 8; }
                             scrolled(d) => { strip.content-x = Math.max(root.strip-floor, Math.min(0px, strip.content-x + d)); }
                         }
-                        LibraryTab {
+                        text-chip := LibraryTab {
                             glyph: Glyph.text-mark;
                             label: I18n.t("common.text");
                             current: root.tab == 1;
                             clicked => { root.tab = 1; }
                             scrolled(d) => { strip.content-x = Math.max(root.strip-floor, Math.min(0px, strip.content-x + d)); }
                         }
-                        LibraryTab {
+                        captions-chip := LibraryTab {
                             glyph: Glyph.captions;
                             label: I18n.t("captions.captions");
                             current: root.tab == 9;
                             clicked => { root.tab = 9; }
                             scrolled(d) => { strip.content-x = Math.max(root.strip-floor, Math.min(0px, strip.content-x + d)); }
                         }
-                        LibraryTab {
+                        stickers-chip := LibraryTab {
                             glyph: Glyph.sticker;
                             label: I18n.t("mediaPane.stickers");
                             current: root.tab == 2;
                             clicked => { root.tab = 2; }
                             scrolled(d) => { strip.content-x = Math.max(root.strip-floor, Math.min(0px, strip.content-x + d)); }
                         }
-                        LibraryTab {
+                        transitions-chip := LibraryTab {
                             glyph: Glyph.transition;
                             label: I18n.t("mediaPane.transitions");
                             current: root.tab == 3;
                             clicked => { root.tab = 3; }
                             scrolled(d) => { strip.content-x = Math.max(root.strip-floor, Math.min(0px, strip.content-x + d)); }
                         }
-                        LibraryTab {
+                        effects-chip := LibraryTab {
                             glyph: Glyph.sparkle;
                             label: I18n.t("common.effects");
                             current: root.tab == 4;
                             clicked => { root.tab = 4; }
                             scrolled(d) => { strip.content-x = Math.max(root.strip-floor, Math.min(0px, strip.content-x + d)); }
                         }
-                        LibraryTab {
+                        filters-chip := LibraryTab {
                             glyph: Glyph.filter;
                             label: I18n.t("mediaPane.filters");
                             current: root.tab == 5;
@@ -2289,14 +2309,14 @@ export component MediaPane inherits Rectangle {
                         }
                         // Beside Filters, where CapCut keeps it: the page
                         // number is the last one handed out, not the place.
-                        LibraryTab {
+                        adjustments-chip := LibraryTab {
                             glyph: Glyph.sun;
                             label: I18n.t("mediaPane.adjustments");
                             current: root.tab == 7;
                             clicked => { root.tab = 7; }
                             scrolled(d) => { strip.content-x = Math.max(root.strip-floor, Math.min(0px, strip.content-x + d)); }
                         }
-                        LibraryTab {
+                        templates-chip := LibraryTab {
                             glyph: Glyph.slot;
                             label: I18n.t("mediaPane.templates");
                             current: root.tab == 6;
@@ -2314,7 +2334,7 @@ export component MediaPane inherits Rectangle {
                         glyph: Glyph.chevron-left;
                         fade: @linear-gradient(90deg, Theme.panel 60%, transparent);
                         clicked => {
-                            strip.content-x = Math.min(0px, strip.content-x + strip.width * 0.6);
+                            root.jump-strip(false);
                         }
                     }
                     if strip.content-x > root.strip-floor: StripEnd {
@@ -2323,7 +2343,7 @@ export component MediaPane inherits Rectangle {
                         glyph: Glyph.chevron-right;
                         fade: @linear-gradient(270deg, Theme.panel 60%, transparent);
                         clicked => {
-                            strip.content-x = Math.max(root.strip-floor, strip.content-x - strip.width * 0.6);
+                            root.jump-strip(true);
                         }
                     }
                 }

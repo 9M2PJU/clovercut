@@ -2524,6 +2524,57 @@ export component SpeedPanel inherits VerticalLayout {
 /// picture's chain the first time a knob moves; until then the rows show the
 /// package's defaults, which are the picture as shot. The rows come from the
 /// manifest, so a knob added there appears here without a line of UI.
+// Each colour group owns its disclosure state, independent of parameter values.
+component AdjustGroup inherits VerticalLayout {
+    in property <[AppliedParamData]> params;
+    in property <string> group;
+    callback set(key: string, value: float);
+    callback commit();
+    callback reset(group: string);
+    spacing: 0px;
+    padding-top: Theme.gap;
+    header := SectionHeader {
+        height: 30px;
+        title: root.group;
+        collapsible: true;
+        IconButton { glyph: Glyph.reset; label: I18n.t1("controls.resetGroup", root.group); clicked => { root.reset(root.group); } }
+    }
+    if header.open: VerticalLayout {
+        spacing: 0px;
+        for p in root.params: VerticalLayout {
+            if p.group == root.group: VerticalLayout {
+                    Rectangle {
+                        property <AppliedParamData> data: p;
+                        height: knob.preferred-height + Theme.gap;
+                        changed data => { knob.value = self.data.value; }
+
+                        knob := Param {
+                            unit: p.unit;
+                            label: p.label;
+                            color-key: p.key;
+                            value: p.value;
+                            minimum: p.min;
+                            maximum: p.max;
+                            step: p.step;
+                            default-value: p.default-value;
+                            fmt: p.fmt;
+                            keyable: p.keyable;
+                            key-name: p.key;
+                            key-state: {
+                                field: ClipField.scale,
+                                keyed: p.keyed,
+                                here: p.here,
+                                prev: p.prev,
+                                next: p.next,
+                            };
+                            changed(v) => { root.set(p.key, v); root.commit(); }
+                        }
+                    }
+            }
+        }
+    }
+}
+
 export component AdjustPanel inherits VerticalLayout {
     in property <[AppliedParamData]> params;
     in property <[WheelData]> wheels;
@@ -2536,6 +2587,7 @@ export component AdjustPanel inherits VerticalLayout {
     property <[bool]> adjust-disabled: [false, root.no-curves, root.no-wheels];
 
     callback set(key: string, value: float);
+    callback reset-group(group: string);
     /// A curve's point moved, or put down when `point` is -1, or taken off.
     callback curve-point(key: string, point: int, x: float, y: float);
     callback curve-remove(key: string, point: int);
@@ -2557,6 +2609,7 @@ export component AdjustPanel inherits VerticalLayout {
                 padding-left: Theme.pad;
                 padding-right: Theme.pad;
                 SegmentedControl {
+                    tabs: true;
                     options: root.adjust-options;
                     current <=> root.tab;
                     disabled: root.adjust-disabled;
@@ -2614,41 +2667,15 @@ export component AdjustPanel inherits VerticalLayout {
             }
 
             if root.tab == 0: VerticalLayout {
-                spacing: Theme.gap;
+                spacing: 0px;
                 LutPanel { }
                 for p[i] in root.params: VerticalLayout {
-                    spacing: Theme.gap;
-
-                    if p.group != "" && (i == 0 || root.params[i - 1].group != p.group): Subhead {
-                        title: p.group;
-                    }
-
-                    Rectangle {
-                        property <AppliedParamData> data: p;
-                        height: knob.preferred-height;
-                        changed data => { knob.value = self.data.value; }
-
-                        knob := Param {
-                            unit: p.unit;
-                            label: p.label;
-                            color-key: p.key;
-                            value: p.value;
-                            minimum: p.min;
-                            maximum: p.max;
-                            step: p.step;
-                            default-value: p.default-value;
-                            fmt: p.fmt;
-                            keyable: p.keyable;
-                            key-name: p.key;
-                            key-state: {
-                                field: ClipField.scale,
-                                keyed: p.keyed,
-                                here: p.here,
-                                prev: p.prev,
-                                next: p.next,
-                            };
-                            changed(v) => { root.set(p.key, v); root.commit(); }
-                        }
+                    if i == 0 || root.params[i - 1].group != p.group: AdjustGroup {
+                        params: root.params;
+                        group: p.group;
+                        set(key, value) => { root.set(key, value); }
+                        commit => { root.commit(); }
+                        reset(group) => { root.reset-group(group); }
                     }
                 }
             }

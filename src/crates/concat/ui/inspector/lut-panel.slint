@@ -3,6 +3,7 @@ import { I18n } from "../i18n.slint";
 import { Theme } from "../theme/theme.slint";
 import { Select } from "../primitives/select.slint";
 import { Button } from "../primitives/modal.slint";
+import { Glyph } from "../icons.slint";
 import { SectionBody } from "../primitives/panel.slint";
 import { Param, SwitchRow, Subhead, Note } from "controls.slint";
 
@@ -41,6 +42,9 @@ export component LutPanel inherits VerticalLayout {
             }
             Button {
                 label: I18n.t("clipEffects.importCube");
+                glyph: Glyph.import;
+                square: true;
+                ghost: true;
                 clicked => { ClipLuts.import-file(); }
             }
         }
@@ -51,7 +55,7 @@ export component LutPanel inherits VerticalLayout {
                 label: lut.name;
                 checked: lut.on;
                 toggled(on) => { ClipLuts.toggle(lut.index); }
-                Button { label: I18n.t("common.remove"); clicked => { ClipLuts.remove(lut.index); } }
+                Button { ghost: true; label: I18n.t("common.remove"); clicked => { ClipLuts.remove(lut.index); } }
             }
             Rectangle {
                 height: knob.preferred-height + 8px;

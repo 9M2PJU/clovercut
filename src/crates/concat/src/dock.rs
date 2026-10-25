@@ -4,6 +4,8 @@
 //! The workspace's arrangement: a tree of splits and views, walked flat
 //! for Slint, which has no recursion.
 
+use std::collections::HashMap;
+
 use crate::ui::{DockDivider, DockSide, PaneKind, SeatBox};
 
 pub const SEAT_MIN_W: f32 = 240.0;
@@ -164,6 +166,38 @@ impl Dock {
         }
     }
 
+    fn leaf_count(&self) -> usize {
+        match self {
+            Dock::Leaf(_) => 1,
+            Dock::Split { first, second, .. } => first.leaf_count() + second.leaf_count(),
+        }
+    }
+
+    fn min_width_with(&self, start: usize, minimums: &HashMap<usize, f32>) -> f32 {
+        if minimums.is_empty() {
+            return self.min_width();
+        }
+        match self {
+            Dock::Leaf(PaneKind::Inspector) => minimums
+                .get(&start)
+                .copied()
+                .filter(|width| width.is_finite())
+                .unwrap_or(SEAT_MIN_W)
+                .clamp(SEAT_MIN_W, 600.0),
+            Dock::Leaf(_) => SEAT_MIN_W,
+            Dock::Split {
+                columns,
+                first,
+                second,
+                ..
+            } => {
+                let a = first.min_width_with(start, minimums);
+                let b = second.min_width_with(start + first.leaf_count(), minimums);
+                if *columns { a + SEAT_GAP + b } else { a.max(b) }
+            }
+        }
+    }
+
     /// Minimum height required so every leaf in this subtree keeps at least `SEAT_MIN_H`.
     pub fn min_height(&self) -> f32 {
         match self {
@@ -234,7 +268,19 @@ pub struct DockLayout {
     pub extents: Vec<f32>,
 }
 
-pub fn lay_out(node: &Dock, (x, y, w, h): (f32, f32, f32, f32), out: &mut DockLayout) {
+#[cfg(test)]
+pub fn lay_out(node: &Dock, bounds: (f32, f32, f32, f32), out: &mut DockLayout) {
+    lay_out_with_minimums(node, bounds, out, &HashMap::new());
+}
+
+/// Content minimums follow leaf indices, matching the live Slint seats.
+/// Values on non-inspector seats are ignored after a pane changes kind.
+pub fn lay_out_with_minimums(
+    node: &Dock,
+    (x, y, w, h): (f32, f32, f32, f32),
+    out: &mut DockLayout,
+    minimums: &HashMap<usize, f32>,
+) {
     match node {
         Dock::Leaf(kind) => out.seats.push(SeatBox {
             index: out.seats.len() as i32,
@@ -260,7 +306,10 @@ pub fn lay_out(node: &Dock, (x, y, w, h): (f32, f32, f32, f32), out: &mut DockLa
             let along = if *columns { w } else { h };
             let usable = (along - SEAT_GAP).max(0.0);
             let (min_first, min_second) = if *columns {
-                (first.min_width(), second.min_width())
+                (
+                    first.min_width_with(out.seats.len(), minimums),
+                    second.min_width_with(out.seats.len() + first.leaf_count(), minimums),
+                )
             } else {
                 (first.min_height(), second.min_height())
             };
@@ -293,11 +342,21 @@ pub fn lay_out(node: &Dock, (x, y, w, h): (f32, f32, f32, f32), out: &mut DockLa
             };
 
             if *columns {
-                lay_out(first, (x, y, head, h), out);
-                lay_out(second, (x + head + SEAT_GAP, y, usable - head, h), out);
+                lay_out_with_minimums(first, (x, y, head, h), out, minimums);
+                lay_out_with_minimums(
+                    second,
+                    (x + head + SEAT_GAP, y, usable - head, h),
+                    out,
+                    minimums,
+                );
             } else {
-                lay_out(first, (x, y, w, head), out);
-                lay_out(second, (x, y + head + SEAT_GAP, w, usable - head), out);
+                lay_out_with_minimums(first, (x, y, w, head), out, minimums);
+                lay_out_with_minimums(
+                    second,
+                    (x, y + head + SEAT_GAP, w, usable - head),
+                    out,
+                    minimums,
+                );
             }
         }
     }
@@ -517,6 +576,61 @@ pub fn nearest_row(heights: &[f32], y: f32) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn inspector_minimums_follow_content_and_ignore_other_pane_kinds() {
+        let dock = Dock::Split {
+            columns: true,
+            ratio: 0.95,
+            first: Dock::leaf(PaneKind::Media),
+            second: Dock::leaf(PaneKind::Inspector),
+        };
+        let mut minimums = HashMap::from([(0, 500.0), (1, 336.0)]);
+        let mut out = DockLayout::default();
+        lay_out_with_minimums(&dock, (0.0, 0.0, 900.0, 600.0), &mut out, &minimums);
+        assert_eq!(out.seats[1].width, 336.0);
+        minimums.insert(1, 240.0);
+        let mut smaller = DockLayout::default();
+        lay_out_with_minimums(&dock, (0.0, 0.0, 900.0, 600.0), &mut smaller, &minimums);
+        assert_eq!(smaller.seats[1].width, 240.0);
+        assert!(smaller.seats[0].width > out.seats[0].width);
+        let mut narrow = DockLayout::default();
+        lay_out_with_minimums(&dock, (0.0, 0.0, 300.0, 600.0), &mut narrow, &minimums);
+        assert!(narrow.seats.iter().all(|seat| seat.width > 0.0));
+        assert_eq!(
+            narrow.seats[0].width + narrow.seats[1].width + SEAT_GAP,
+            300.0
+        );
+    }
+
+    #[test]
+    fn nested_inspectors_have_independent_content_minimums() {
+        let dock = Dock::Split {
+            columns: false,
+            ratio: 0.5,
+            first: Box::new(Dock::Split {
+                columns: true,
+                ratio: 0.99,
+                first: Dock::leaf(PaneKind::Media),
+                second: Dock::leaf(PaneKind::Inspector),
+            }),
+            second: Box::new(Dock::Split {
+                columns: true,
+                ratio: 0.99,
+                first: Dock::leaf(PaneKind::Preview),
+                second: Dock::leaf(PaneKind::Inspector),
+            }),
+        };
+        let mut out = DockLayout::default();
+        lay_out_with_minimums(
+            &dock,
+            (0.0, 0.0, 1000.0, 800.0),
+            &mut out,
+            &HashMap::from([(1, 336.0), (3, 280.0)]),
+        );
+        assert_eq!(out.seats[1].width, 336.0);
+        assert_eq!(out.seats[3].width, 280.0);
+    }
 
     #[test]
     fn default_dock_lays_out_three_upper_panels_and_full_width_lower_timeline() {

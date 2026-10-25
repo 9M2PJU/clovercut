@@ -97,6 +97,15 @@ component FactHeading inherits HorizontalLayout {
 }
 
 export component ConfigPane inherits Rectangle {
+    // Derived only from the active controls, never from edited numeric values
+    // or hover. Other pane kinds retain the workspace's ordinary minimum.
+    out property <length> content-minimum: !root.has-selection ? 240px
+        : Math.max(240px, Math.max(root.single ? 0px : root.tabs.length * 76px + 52px,
+            root.sections.length > 1 ? root.sections.length * 70px + 16px : 0px));
+    callback minimum-changed(width: length);
+    changed content-minimum => { root.minimum-changed(root.content-minimum); }
+    changed pane-seat => { root.minimum-changed(root.content-minimum); }
+
     // ── the demo-era seams, kept so main.rs keeps compiling ──────────────
     // The meter/mute machinery has nothing to drive since the demo effects
     // panel left the pane; the properties stay declared because app.slint
@@ -167,6 +176,7 @@ export component ConfigPane inherits Rectangle {
     /// selected clip's values or the defaults.
     in property <[AppliedParamData]> adjust-params;
     callback adjust-set(key: string, value: float);
+    callback adjust-group-reset(group: string);
     /// The colour panel's wheels and curves, and the picture chain's by link.
     in property <[WheelData]> adjust-wheels;
     in property <[CurveData]> adjust-curves;
@@ -370,7 +380,7 @@ export component ConfigPane inherits Rectangle {
             : root.jump-section == "Enhance" || root.jump-section == "AudioEffects" ? 1 : 0);
     }
     changed jump-token => { root.jump(); }
-    init => { root.jump(); if root.is-caption { root.tab = 1; } }
+    init => { root.jump(); if root.is-caption { root.tab = 1; } root.minimum-changed(root.content-minimum); }
 
     Pane {
         // ── details ──────────────────────────────────────────────────────
@@ -597,6 +607,7 @@ export component ConfigPane inherits Rectangle {
                 if !root.single: VerticalLayout {
                     alignment: center;
                     SegmentedControl {
+                        tabs: true;
                         options: root.tabs-shown;
                         current <=> root.tab;
                     }
@@ -619,7 +630,7 @@ export component ConfigPane inherits Rectangle {
         // same segmented style. One section needs no strip: the tab already
         // says where you are.
         if root.has-selection && root.sections.length > 1: Rectangle {
-            height: 40px;
+            height: 36px;
             background: Theme.panel;
 
             Rectangle {
@@ -636,6 +647,7 @@ export component ConfigPane inherits Rectangle {
                 VerticalLayout {
                     alignment: center;
                     SegmentedControl {
+                        tabs: true;
                         options: root.sections-shown;
                         // A press on a segment assigns `current` inside the
                         // control, which ends a plain binding here: the
@@ -711,6 +723,7 @@ export component ConfigPane inherits Rectangle {
                 if root.showing == "Animation": VideoMotionPanel { }
 
                 if root.showing == "Adjust": AdjustPanel {
+                    reset-group(group) => { root.adjust-group-reset(group); }
                     params: root.adjust-params;
                     wheels: root.adjust-wheels;
                     curves: root.adjust-curves;

@@ -483,13 +483,19 @@ impl SoundsPane {
                     duration: sound.duration as f32,
                     wave: SharedString::new(),
                     detail: if sound.id.starts_with("ytal-") {
-                        "Music · Royalty Free · YouTube Audio Library".into()
+                        format!("{} · YouTube", t("sounds.catMusic")).into()
                     } else if sound.id.starts_with("fs-") {
                         if sound.author.is_empty() {
-                            format!("Effects · {} · Freesound", sound.license).into()
-                        } else {
-                            format!("Effects · {} · {} · Freesound", sound.author, sound.license)
+                            format!("{} · {} · Freesound", t("sounds.catEffects"), sound.license)
                                 .into()
+                        } else {
+                            format!(
+                                "{} · {} · {} · Freesound",
+                                t("sounds.catEffects"),
+                                sound.author,
+                                sound.license
+                            )
+                            .into()
                         }
                     } else if sound.author.is_empty() {
                         format!("{} · CC0 · OpenGameArt", category_label(&sound.category)).into()

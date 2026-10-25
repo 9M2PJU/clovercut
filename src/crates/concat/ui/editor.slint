@@ -47,6 +47,7 @@ export global Editor {
     /// because the minimum a pane may be squeezed to is a number of pixels,
     /// and it cannot know the window's size any other way.
     callback workspace-resized(width: length, height: length);
+    callback inspector-minimum(seat: int, width: length);
 
     /// A seat's dropdown was used: show this view in this seat, and leave
     /// every other seat alone.
@@ -197,6 +198,7 @@ export global Editor {
     /// The Adjust tab: the colour package's knobs for the selected clip.
     in-out property <[AppliedParamData]> adjust-params;
     callback adjust-set(key: string, value: float);
+    callback adjust-group-reset(group: string);
     /// The Adjust tab's wheels and curves, and the picture chain's, a
     /// group a link: see `grading.slint`. A wheel's puck and master are set
     /// as knobs, `<key>.x`, `<key>.y` and `<key>.m`; a curve's points by

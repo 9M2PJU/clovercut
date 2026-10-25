@@ -342,7 +342,21 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         let theme = app.global::<Theme>();
         let names = theme.get_accent_names();
         let count = slint::Model::row_count(&names);
-        match studio.prefs.custom_accent().and_then(format::parse_colour) {
+        // Clovercut's brand green is the default. A saved named or custom
+        // choice remains authoritative; the palette indices stay unchanged.
+        let colour = studio
+            .prefs
+            .custom_accent()
+            .and_then(format::parse_colour)
+            .or_else(|| {
+                studio
+                    .prefs
+                    .accent
+                    .as_deref()
+                    .is_none_or(|name| name.trim().is_empty())
+                    .then_some(slint::Color::from_rgb_u8(0x24, 0xd4, 0x7a))
+            });
+        match colour {
             Some(colour) => {
                 theme.set_accent_custom(colour);
                 theme.set_accent_choice(count as i32);
@@ -753,6 +767,28 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     }));
 
     // ── the workspace's arrangement ──
+    editor.on_inspector_minimum(|seat: i32, width: f32| {
+        // Components can report their minimum while model publication holds
+        // an immutable Studio borrow. Apply it on the next event-loop turn.
+        if seat < 0 || !width.is_finite() {
+            return;
+        }
+        let _ = slint::invoke_from_event_loop(move || {
+            Shell::with(|shell, app| {
+                let width = width.clamp(crate::dock::SEAT_MIN_W, 600.0);
+                {
+                    let mut state = shell.studio.borrow_mut();
+                    if state.dock.kind_at(seat as usize) != Some(PaneKind::Inspector)
+                        || state.inspector_minimums.get(&(seat as usize)) == Some(&width)
+                    {
+                        return;
+                    }
+                    state.inspector_minimums.insert(seat as usize, width);
+                }
+                shell.studio.borrow().publish_dock(&app, &shell.models);
+            })
+        });
+    });
     editor.on_workspace_resized(on_dock!(|state, width: f32, height: f32| {
         state.workspace = (width, height);
         // A narrow window - a phone, a tablet held upright, a desktop
@@ -1450,6 +1486,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         }
     ));
 
+    editor.on_adjust_group_reset(on_lanes!(|state, group: SharedString| {
+        state.reset_adjust_group(group.as_str());
+    }));
     editor.on_adjust_set(on_lanes!(|state, key: SharedString, value: f32| {
         state.adjust_set(key.as_str(), value);
     }));

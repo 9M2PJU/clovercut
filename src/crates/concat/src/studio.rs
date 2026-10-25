@@ -51,7 +51,7 @@ mod masking;
 use masking::{MaskFrame, MaskGrip};
 use slint::{Model, ModelRc, SharedString, VecModel};
 
-use crate::dock::{Dock, DockLayout, SEAT_GAP, default_dock, lay_out, row_at, row_top};
+use crate::dock::{Dock, DockLayout, SEAT_GAP, default_dock, row_at, row_top};
 use crate::format::{
     WAVE_BAR, WAVE_PITCH, colour_of, frames_timecode, hex_of, hex_with_alpha, rate_label,
     running_time, wave_columns, wave_path, when_phrase,
@@ -975,6 +975,7 @@ pub struct Studio {
     /// Whether `dock` is the compact one.
     pub compact: bool,
     pub workspace: (f32, f32),
+    pub inspector_minimums: HashMap<usize, f32>,
     pub divider_press: Option<(usize, f32, f32)>,
     pub gesture: Gesture,
     /// The snap lines of a stage move in flight; empty between moves.
@@ -2417,6 +2418,7 @@ impl Studio {
             dock_aside: crate::dock::compact_dock(),
             compact: false,
             workspace: (0.0, 0.0),
+            inspector_minimums: HashMap::new(),
             divider_press: None,
             gesture: Gesture::None,
             stage_guides: Vec::new(),
@@ -5437,6 +5439,41 @@ impl Studio {
         if !self.playing {
             self.request_preview();
         }
+    }
+
+    /// Reset the visible scalar group using the same keyed-value semantics
+    /// as an individual parameter reset, committed as one undo operation.
+    pub fn reset_adjust_group(&mut self, group: &str) {
+        self.flush_commit();
+        let Some(id) = self.sole_selection() else {
+            return;
+        };
+        let Some(clip) = self.clip(&id).filter(|clip| graded(clip.kind)) else {
+            return;
+        };
+        let at = self.key_point().map(|(_, at)| at);
+        let rows: Vec<_> = adjust_rows(&clip.video_effects, at)
+            .into_iter()
+            .filter(|row| {
+                row.group.as_str() == group && (row.value - row.default_value).abs() > 0.000001
+            })
+            .collect();
+        if rows.is_empty() {
+            return;
+        }
+        self.edit_adjust_link(|link| {
+            for row in rows {
+                let key = row.key.as_str();
+                if let Some(at) = at.filter(|_| link.is_keyed(key)) {
+                    let ease = ease_before(link.keys_on(key), at);
+                    link.set_key(key, at, f64::from(row.default_value), ease);
+                } else {
+                    link.params
+                        .insert(key.to_owned(), f64::from(row.default_value));
+                }
+            }
+        });
+        self.clip_commit();
     }
 
     /// The Speed tab's Constant | Curve, on the echo. A curve starts flat
@@ -10448,7 +10485,7 @@ impl Studio {
         let mut out = DockLayout::default();
         let (width, height) = self.workspace;
         if width > SEAT_GAP * 2.0 && height > SEAT_GAP * 2.0 {
-            lay_out(
+            crate::dock::lay_out_with_minimums(
                 &self.dock,
                 (
                     SEAT_GAP,
@@ -10457,6 +10494,7 @@ impl Studio {
                     height - 2.0 * SEAT_GAP,
                 ),
                 &mut out,
+                &self.inspector_minimums,
             );
         }
         out
@@ -12762,9 +12800,9 @@ impl Studio {
         app.set_project_name(self.project_name.as_str().into());
         app.set_project_status(
             if self.dirty {
-                "unsaved changes"
+                t("common.unsavedChanges")
             } else {
-                "saved"
+                t("common.saved")
             }
             .into(),
         );
@@ -13361,9 +13399,9 @@ impl Studio {
                 rows.push(action(
                     "toggle-group-captions",
                     if is_ungrouped {
-                        "Group with Captions".to_string()
+                        t("captions.groupWithCaptions")
                     } else {
-                        "Ungroup Captions".to_string()
+                        t("captions.ungroupCaptions")
                     },
                     Glyph::TextMark,
                     "",

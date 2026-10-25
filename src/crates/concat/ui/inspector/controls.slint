@@ -523,7 +523,7 @@ export component PositionRow inherits VerticalLayout {
 // Each adjustment has a label, then a slider, an editable value with
 // vertical step buttons, and a keyframe diamond where supported. The model's
 // units and change callbacks remain shared by every way of setting it.
-export component Param inherits VerticalLayout {
+export component Param inherits Rectangle {
     in property <string> label;
     in-out property <float> value;
     in property <float> minimum;
@@ -557,29 +557,42 @@ export component Param inherits VerticalLayout {
 
     callback changed(value: float);
 
-    padding-left: Theme.pad;
-    padding-right: Theme.pad;
-    spacing: 4px;
+    property <length> inset-left: Theme.pad;
+    property <length> inset-right: Theme.pad;
+    // Explicit geometry prevents width-dependent row placement feeding back
+    // into the parent's horizontal layout constraints.
+    property <bool> inline-row: !InspectorInput.touch && root.width >= 400px;
+    min-width: 200px;
+    max-width: 100000px;
+    preferred-width: 240px;
+    preferred-height: root.inline-row ? Math.max(InspectorInput.field-height, caption.preferred-height)
+        : caption.preferred-height + 6px + InspectorInput.field-height;
+    height: self.preferred-height;
 
-    HorizontalLayout {
-        Text {
-            text: root.label;
-            color: Theme.fg-muted;
-            font-size: Theme.fs;
-            vertical-alignment: center;
-            TouchArea {
-                enabled: root.enabled;
-                double-clicked => {
-                    root.value = root.default-value;
-                    root.changed(root.default-value);
-                }
+    caption := Text {
+        x: root.inset-left;
+        y: 0;
+        width: root.inline-row ? 112px : root.width - root.inset-left - root.inset-right;
+        height: root.inline-row ? root.height : self.preferred-height;
+        text: root.label;
+        color: Theme.fg-muted;
+        font-size: Theme.fs;
+        vertical-alignment: center;
+        wrap: word-wrap;
+        TouchArea {
+            enabled: root.enabled;
+            double-clicked => {
+                root.value = root.default-value;
+                root.changed(root.default-value);
             }
         }
-        Rectangle { horizontal-stretch: 1; }
-
     }
 
     HorizontalLayout {
+        x: root.inset-left + (root.inline-row ? 120px : 0px);
+        y: root.inline-row ? 0px : caption.preferred-height + 6px;
+        width: Math.max(0px, root.width - self.x - root.inset-right);
+        height: InspectorInput.field-height;
         spacing: 6px;
         if root.rail: Rail {
             horizontal-stretch: 1;

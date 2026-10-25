@@ -145,7 +145,8 @@ jobs:
       # Every string the interface shows is a key in a locale file; this
       # keeps en.json the inventory of them and every shipped language
       # keyed off it. See TRANSLATING.md.
-      - run: python3 scripts/locales.py --check
+      - run: python3 -m unittest discover -s scripts -p test_locales.py
+      - run: python3 scripts/locales.py --check --strict
       # The models Concat downloads are mirrored onto a release of this
       # repository; models/manifest.toml is what fills that mirror and the
       # engine's tables are what a download is checked against. This keeps

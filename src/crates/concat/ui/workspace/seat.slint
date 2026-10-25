@@ -220,6 +220,7 @@ export component Seat inherits Rectangle {
         }
 
     if root.kind == PaneKind.inspector: ConfigPane {
+            minimum-changed(width) => { Editor.inspector-minimum(root.index, width); }
             x: 0;
             y: 0;
             width: root.width;
@@ -247,6 +248,7 @@ export component Seat inherits Rectangle {
             visual-params: Editor.visual-params;
             audio-params: Editor.audio-params;
             adjust-params: Editor.adjust-params;
+            adjust-group-reset(group) => { Editor.adjust-group-reset(group); }
             adjust-set(key, value) => { Editor.adjust-set(key, value); }
             adjust-wheels: Editor.adjust-wheels;
             adjust-curves: Editor.adjust-curves;

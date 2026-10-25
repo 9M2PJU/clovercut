@@ -42,8 +42,8 @@ pub struct Preferences {
     pub last_project_location: Option<String>,
     /// The accent, by the lower-cased name the theme lists it under —
     /// "lime", "sky", ... — or as "#rrggbb" for a colour picked by hand.
-    /// `None`, or a name no longer on the list, is the first one, which is
-    /// Lime.
+    /// `None` uses Clovercut brand green. A name no longer on the list
+    /// falls back to the first named palette color.
     pub accent: Option<String>,
     /// The playhead's colour as "#rrggbb", when one was picked by hand in
     /// Settings > Appearance. `None` is the palette's own, which is lime.

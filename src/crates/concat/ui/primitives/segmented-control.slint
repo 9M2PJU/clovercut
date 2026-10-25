@@ -3,6 +3,7 @@
 
 import { Theme } from "../theme/theme.slint";
 import { Glyph, Icon } from "../icons.slint";
+import { Tip } from "tooltip.slint";
 import { FocusRing } from "focus-ring.slint";
 
 // Single-select tab row with a thumb that slides to the active segment.
@@ -18,6 +19,8 @@ export component SegmentedControl inherits Rectangle {
     in property <[Glyph]> icons;
     in-out property <int> current;
     in property <bool> enabled: true;
+    /// Inspector navigation uses a quiet underline instead of nested wells.
+    in property <bool> tabs: false;
     /// Segments that cannot be picked, by index: greyed, and refused
     /// by a click or the arrow keys. Shorter than `options` is fine; a
     /// segment past the end can be picked.
@@ -36,8 +39,8 @@ export component SegmentedControl inherits Rectangle {
     height: Theme.h;
     min-width: 84px;
     horizontal-stretch: 1;
-    background: Theme.well;
-    border-width: 1px;
+    background: root.tabs ? Colors.transparent : Theme.well;
+    border-width: root.tabs ? 0px : 1px;
     border-color: Theme.line;
     border-radius: Theme.r;
     opacity: root.enabled ? 1.0 : 0.45;
@@ -73,11 +76,11 @@ export component SegmentedControl inherits Rectangle {
 
     thumb := Rectangle {
         x: root.inset + root.current * root.seg-w;
-        y: root.inset;
+        y: root.tabs ? root.height - 2px : root.inset;
         width: root.seg-w;
-        height: root.height - 2 * root.inset;
+        height: root.tabs ? 2px : root.height - 2 * root.inset;
         border-radius: Theme.r-sm;
-        background: Theme.field-hover;
+        background: root.tabs ? Theme.accent : Theme.field-hover;
 
         animate x, width { duration: 180ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
     }
@@ -113,6 +116,8 @@ export component SegmentedControl inherits Rectangle {
             size: 14px;
             tint: (index == root.current || segment.has-hover) ? Theme.fg : Theme.fg-muted;
         }
+
+        Tip { text: option; active: segment.has-hover; }
 
         segment := TouchArea {
             enabled: root.enabled && !root.disabled[index];
