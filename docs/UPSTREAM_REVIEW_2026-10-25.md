@@ -5,7 +5,7 @@ Reviewed `jub0t/Concat@2429c0ca` against the previous review point `971ad1d9`:
 
 | Commit | Change | Clovercut assessment |
 |---|---|---|
-| `638b0432` | Write Save Audio As WAV as PCM | Priority candidate: reproduced locally. Current mixer unconditionally selects AAC and float-planar samples, even for `.wav`. The resulting file reports AAC and did not decode an audible tone in Clovercut. Adapt to our cancellation-aware mixer, preserving fades, volume keys, tempo and stream selection; do not transplant upstream's newer audio-bus mixer. |
+| `638b0432` | Write Save Audio As WAV as PCM | Adapted: `.wav` (case-insensitive) now uses packed 16-bit PCM, with 1024-sample blocks and an exact final sample count. AAC remains unchanged for other destinations. Keeps Clovercut’s cancellation-aware mixer, fades, volume keys, tempo and stream selection; does not transplant upstream’s audio-bus mixer. |
 | `b5042b5c` | Seek trimmed audio backwards on its own stream | Our existing one-second preroll already passes all four new MPEG-PS/TS regression cases, both in preview and saved M4A: tone onset 0.000125 seconds after the cut. Keep the current solution for now. Stream-specific seeking may still improve robustness/performance in other containers, but these fixtures do not demonstrate a remaining Clovercut bug. |
 | `24f05885` | Bottom-aligned waveform bars | Optional visual improvement compatible with the CapCut-inspired direction. Would need coordinated path, hot-level overlay and silence-baseline changes, preserving our waveform caching and clip sizing. |
 | `20dcd9aa`, `bc05ea3c`, `758da5a8` | Typography case, decoration and hover labels | Bold, italic, underline and translated hover labels already exist here. Text case and strikethrough would be additions. Adapt only missing behaviour, preserving vertical text, captions and current controls; documentation-only pieces need no separate port. |
@@ -26,5 +26,17 @@ start the tone at 0.000125 seconds; every WAV round-trip reports no tone.
 FFprobe confirms `codec_name=aac` in the WAV and reports an AAC decode error.
 Log: `/tmp/clovercut-upstream-audio-review.log`.
 
-No upstream production changes were applied by this review. The timeline
-selection, white playhead and grading translations are Clovercut-specific work.
+## Applied follow-up
+
+Adapted `638b0432` to the existing Clovercut mixer after reproducing the WAV
+failure. A synthetic sine regression checks lower/uppercase WAV PCM encoding,
+reopening with Clovercut, exactly 6007 stereo frames, the complete signal with
+source trim/gain/fades, AAC encoding and audible M4A output, and cancellation.
+All 17 mixer tests passed. The earlier failure log above records the pre-fix
+behaviour; the regression result is `/tmp/clovercut-wav-regression.log`.
+
+The remaining upstream production changes stay deferred as assessed above.
+The timeline selection, white playhead and grading translations are
+Clovercut-specific work. This follow-up was made after the `v0.1.6` build was
+started and does not change the source of that release or the existing local
+application binary.
