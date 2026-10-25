@@ -75,8 +75,9 @@ jobs:
       # file dialogs link GTK on Linux. Mesa's Vulkan drivers bring
       # lavapipe, a software GPU, so the compositor's parity suite runs
       # here rather than skipping for want of an adapter.
+      # Hosted apt mirrors can take longer than five minutes to fetch LLVM.
       - name: System libraries
-        timeout-minutes: 5
+        timeout-minutes: 15
         run: |
           sudo sed -i 's/#\$nrconf{restart} = .*/$nrconf{restart} = "a";/g' /etc/needrestart/needrestart.conf 2>/dev/null || true
           sudo apt-get update -o Acquire::Retries=3
