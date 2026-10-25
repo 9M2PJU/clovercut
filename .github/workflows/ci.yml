@@ -10,6 +10,11 @@ name: CI
 # digest, in scripts/ci/deps.lock.
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Exact source ref to validate (empty uses the selected branch)
+        type: string
+        default: ""
   # release.yml runs this before it builds anything: a tag on a red tree
   # is not a release. It names the tag, because a release started by hand
   # runs on main, and main is not what it builds.
