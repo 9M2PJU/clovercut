@@ -76,8 +76,10 @@ must use HTTPS.
 
 For local development, clone the [companion Audio API](https://github.com/tulcoturo/clovercut-audio-api)
 and start the service in `clovercut-audio-api`
-with `npm start`. Its authenticated Studio connector must be connected with
-`npm run connect` before resolving uncached audio. The service's README covers
+with `npm start`. Run `npm run login` once to sign in using a dedicated local profile, then
+`npm run connect` and `npm run sync`. The service restores that profile in a
+headless browser after the visible window closes or the service restarts.
+A revoked or expired session needs a new interactive sign-in. No VPS is needed. The service's README covers
 browser setup and catalogue synchronization. The service is currently a local
 prototype, not a hosted service bundled with the desktop application.
 
