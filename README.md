@@ -47,7 +47,7 @@ Clovercut combines a familiar desktop editing workflow with creative libraries a
 | Work on a desktop | Multiple timelines, compact tracks, keyboard shortcuts and an adaptive inspector |
 | Keep control of the editor | AGPL source code and exports without a Clovercut watermark or subscription |
 
-Online assets retain their own licences and availability. These are Clovercut features, not a claim that every other editor lacks them.
+Online assets retain their own licences and availability.
 
 ### 1. On-Device Whisper AI Captions
 * **100% Offline Speech-to-Text:** Generates synchronized subtitles using OpenAI Whisper running directly on your CPU/GPU.
@@ -92,7 +92,7 @@ Online assets retain their own licences and availability. These are Clovercut fe
 
 ## New in 0.1.6
 
-Complete clip copy/paste between projects, grouped duplication, a compact desktop timeline, transition indicators across both clips, an adaptive inspector and Clovercut green by default. Library categories page in groups; new controls and messages are translated across all 25 supported languages. YouTube music and sound effects use the new companion API, with offline cache and licence details.
+Complete clip copy/paste between projects, grouped duplication, a compact desktop timeline, transition indicators across both clips, an adaptive inspector and Clovercut green by default. Selecting a clip keeps the playhead in place; the time ruler has its own scrub strip and a white marker. Library categories page in groups; standard colour controls and new messages are translated across all 25 supported languages. YouTube music and sound effects use the new companion API, with offline cache and licence details.
 
 The 0.1.6 desktop release is being prepared. Download links below remain on the published 0.1.5 packages until all new packages pass their release checks.
 
