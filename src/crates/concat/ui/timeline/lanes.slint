@@ -220,34 +220,11 @@ component Clip inherits Rectangle {
 
     /// -1 body, 0 leading edge, 1 trailing edge, 2 transition duration handle
     property <bool> has-transition: root.item.transition-duration > 0;
-    property <length> transition-w: Math.max(18px, root.item.transition-duration * root.px-per-second);
-    property <length> half-w: root.transition-w / 2;
-    property <bool> trans-btn-hover: false;
-    property <bool> trans-btn-drag: false;
-    property <bool> left-handle-hover: false;
-    property <bool> left-handle-drag: false;
-    property <bool> right-handle-hover: false;
-    property <bool> right-handle-drag: false;
-
-    property <bool> show-tooltip: root.has-transition
-        && (root.trans-btn-hover || root.trans-btn-drag
-            || root.right-handle-hover || root.right-handle-drag
-            || root.left-handle-hover || root.left-handle-drag);
-    property <bool> trans-active: root.trans-btn-hover || root.trans-btn-drag
-        || root.right-handle-hover || root.right-handle-drag
-        || root.left-handle-hover || root.left-handle-drag;
-
     property <int> edge-at: (root.has-transition && touch.mouse-x < root.edge-grab) ? -1
         : touch.mouse-x < root.edge-grab ? 0
         : touch.mouse-x > root.width - root.edge-grab ? 1
         : -1;
 
-    pure function format-seconds(s: float) -> string {
-        let rounded = Math.round(s * 100);
-        let sec = Math.floor(rounded / 100);
-        let hundredths = Math.mod(rounded, 100);
-        return "\{sec}.\{hundredths < 10 ? "0" : ""}\{hundredths}s";
-    }
     /// Its lane is locked. Rust refuses the gestures either way; this is so
     /// the clip says why before you try, rather than feeling broken.
     in property <bool> locked;
@@ -790,6 +767,43 @@ component Clip inherits Rectangle {
         }
     }
 
+
+}
+
+// Transition controls belong above every clip, regardless of document order.
+component TransitionOverlay inherits Rectangle {
+    in property <ClipData> item;
+    in property <length> px-per-second;
+    in property <TimelineTool> tool;
+    in property <bool> locked;
+    callback pressed(additive: bool, edge: int);
+    callback dragged(seconds: float, pixels: length);
+    callback released();
+    callback cancelled();
+    property <bool> has-transition: root.item.transition-duration > 0;
+    property <length> transition-w: Math.max(18px, root.item.transition-duration * root.px-per-second);
+    property <length> half-w: root.transition-w / 2;
+    property <bool> trans-btn-hover: false;
+    property <bool> trans-btn-drag: false;
+    property <bool> left-handle-hover: false;
+    property <bool> left-handle-drag: false;
+    property <bool> right-handle-hover: false;
+    property <bool> right-handle-drag: false;
+
+    property <bool> show-tooltip: root.has-transition
+        && (root.trans-btn-hover || root.trans-btn-drag
+            || root.right-handle-hover || root.right-handle-drag
+            || root.left-handle-hover || root.left-handle-drag);
+    property <bool> trans-active: root.trans-btn-hover || root.trans-btn-drag
+        || root.right-handle-hover || root.right-handle-drag
+        || root.left-handle-hover || root.left-handle-drag;
+
+    pure function format-seconds(s: float) -> string {
+        let rounded = Math.round(s * 100);
+        let sec = Math.floor(rounded / 100);
+        let hundredths = Math.mod(rounded, 100);
+        return "\{sec}.\{hundredths < 10 ? "0" : ""}\{hundredths}s";
+    }
     // ── the transition overlay & cut seam controls ────────────────────────
     //
     // Centered symmetrically across the cut seam (x = 0):
@@ -1691,6 +1705,46 @@ export component Lanes inherits Rectangle {
                 menu.request-y = wheel.mouse-y;
                 root.asked = true;
                 root.clip-context(entry.id);
+            }
+        }
+
+        // Draw every seam after every clip body: insertion order must not
+        // hide the half of a transition that covers the outgoing clip.
+        for entry in root.clips: TransitionOverlay {
+            x: root.at(entry.start);
+            y: root.row-y(entry.row) + 4px;
+            width: Math.max(2px, entry.duration * root.px-per-second);
+            height: Math.max(2px, root.tracks[entry.row].height - 10px);
+            visible: entry.transition-duration > 0
+                && self.x + Math.max(18px, entry.transition-duration * root.px-per-second) / 2 + 14px > 0
+                && self.x - Math.max(18px, entry.transition-duration * root.px-per-second) / 2 - 14px < root.width
+                && self.y + self.height > root.ruler-height && self.y < root.height;
+            item: entry;
+            px-per-second: root.px-per-second;
+            tool: root.tool;
+            locked: root.tracks[entry.row].locked;
+            pressed(additive, edge) => {
+                if (root.finger) { root.finger-held(); }
+                root.press-scroll = root.scroll-left;
+                root.drag-seconds = 0;
+                root.drag-pixels = 0;
+                root.drag-grab-offset = 4px + self.height / 2 - root.tracks[entry.row].height / 2;
+                root.clip-dragging = false;
+                root.clip-pressed(entry.id, additive, edge);
+            }
+            dragged(seconds, pixels) => {
+                root.drag-seconds = seconds;
+                root.drag-pixels = pixels + root.drag-grab-offset;
+                root.clip-dragging = true;
+                root.clip-dragged(seconds + (root.scroll-left - root.press-scroll), root.drag-pixels);
+            }
+            cancelled => {
+                root.clip-dragging = false;
+                root.clip-cancelled();
+            }
+            released => {
+                root.clip-dragging = false;
+                root.clip-released();
             }
         }
 
