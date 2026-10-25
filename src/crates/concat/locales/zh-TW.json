@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "來自 GIPHY 的動態貼圖。請在下方設定 API 金鑰；選取的原始檔會複製到專案中。",
   "libraries.stickersAvailable": "在設定中加入 GIPHY 以搜尋動態貼圖。需要 GIPHY API 金鑰。",
   "libraries.title": "素材庫",
-  "libraries.youtubeAudioDescription": "來自 YouTube 音訊庫的免費免權利金音樂。不需帳號或 API 金鑰。",
+  "libraries.youtubeAudioDescription": "透過 Clovercut 音訊 API 取得 YouTube Studio 的音樂及音效。每首音軌保留各自的授權及姓名標示資訊。",
   "mask.circle": "圓形",
   "mask.heart": "愛心",
   "mask.invert": "反轉",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "重設 {0} 的預設值",
   "common.unsavedChanges": "未儲存的變更",
   "captions.groupWithCaptions": "與字幕群組",
-  "captions.ungroupCaptions": "取消字幕群組"
+  "captions.ungroupCaptions": "取消字幕群組",
+  "youtube.apiUrl": "音訊 API 位址",
+  "youtube.invalidUrl": "請使用 HTTPS 位址或 localhost 上的 HTTP。",
+  "youtube.connectStudio": "請將 Studio 音訊庫連接至音訊服務以下載此音軌。",
+  "youtube.attributionRequired": "需要姓名標示"
 }

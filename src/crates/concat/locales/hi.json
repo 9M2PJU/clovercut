@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "GIPHY के एनिमेटेड स्टिकर। नीचे API कुंजी सेट करें; चुनी गई मूल फ़ाइलें प्रोजेक्ट में कॉपी होती हैं।",
   "libraries.stickersAvailable": "एनिमेटेड स्टिकर खोजने के लिए सेटिंग में GIPHY जोड़ें। GIPHY API कुंजी आवश्यक है।",
   "libraries.title": "सामग्री लाइब्रेरी",
-  "libraries.youtubeAudioDescription": "YouTube ऑडियो लाइब्रेरी से मुफ़्त रॉयल्टी-मुक्त संगीत। खाते या API कुंजी की आवश्यकता नहीं है।",
+  "libraries.youtubeAudioDescription": "Clovercut ऑडियो API के ज़रिए YouTube Studio का संगीत और ध्वनि प्रभाव। हर ट्रैक का अपना लाइसेंस और श्रेय सुरक्षित रहता है।",
   "mask.circle": "वृत्त",
   "mask.heart": "दिल",
   "mask.invert": "उलटें",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "{0} के डिफ़ॉल्ट मान बहाल करें",
   "common.unsavedChanges": "बिना सहेजे बदलाव",
   "captions.groupWithCaptions": "उपशीर्षकों के साथ समूह बनाएँ",
-  "captions.ungroupCaptions": "उपशीर्षकों का समूह हटाएँ"
+  "captions.ungroupCaptions": "उपशीर्षकों का समूह हटाएँ",
+  "youtube.apiUrl": "ऑडियो API पता",
+  "youtube.invalidUrl": "HTTPS पता या localhost पर HTTP उपयोग करें।",
+  "youtube.connectStudio": "यह ट्रैक डाउनलोड करने के लिए Studio ऑडियो लाइब्रेरी को ऑडियो सेवा से जोड़ें।",
+  "youtube.attributionRequired": "श्रेय देना आवश्यक"
 }

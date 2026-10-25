@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "Autocollants animés de GIPHY. Configurez votre clé API ci-dessous ; les originaux choisis sont copiés dans le projet.",
   "libraries.stickersAvailable": "Ajoutez GIPHY dans les réglages pour rechercher des autocollants animés. Une clé API GIPHY est nécessaire.",
   "libraries.title": "Bibliothèques de contenu",
-  "libraries.youtubeAudioDescription": "Musiques gratuites et libres de redevances de la bibliothèque audio YouTube. Aucun compte ni clé API nécessaire.",
+  "libraries.youtubeAudioDescription": "Musiques et effets sonores de YouTube Studio via l’API audio Clovercut. Chaque piste conserve sa licence et ses crédits.",
   "mask.circle": "Cercle",
   "mask.heart": "Cœur",
   "mask.invert": "Inverser",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "Rétablir les valeurs de {0}",
   "common.unsavedChanges": "modifications non enregistrées",
   "captions.groupWithCaptions": "Grouper avec les sous-titres",
-  "captions.ungroupCaptions": "Dissocier les sous-titres"
+  "captions.ungroupCaptions": "Dissocier les sous-titres",
+  "youtube.apiUrl": "Adresse de l’API audio",
+  "youtube.invalidUrl": "Utilisez une adresse HTTPS ou HTTP sur localhost.",
+  "youtube.connectStudio": "Connectez la bibliothèque audio de Studio au service audio pour télécharger cette piste.",
+  "youtube.attributionRequired": "Attribution requise"
 }

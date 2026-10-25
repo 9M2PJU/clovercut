@@ -69,10 +69,28 @@ and verifies that its cached copy can be reused.
 ## YouTube Audio Library and Freesound
 
 Enable these sources separately in **Settings → Content libraries**. YouTube
-uses the public community catalogue maintained by
-[YouTube-Free-Audio-Library-API](https://github.com/ThibaultJanBeyer/YouTube-Free-Audio-Library-API),
-with downloads from Google Drive. This is a community index, so individual
-tracks can disappear. The catalogue is refreshed after 24 hours.
+uses the Clovercut Audio API and provides separate **Music** and **Sound effects**
+sections, with search and pagination. The default API address is
+`http://127.0.0.1:8917`; it can be changed in these settings. Remote addresses
+must use HTTPS.
+
+For local development, start the companion service in `clovercut-audio-api`
+with `npm start`. Its authenticated Studio connector must be connected with
+`npm run connect` before resolving uncached audio. The service's README covers
+browser setup and catalogue synchronization. The service is currently a local
+prototype, not a hosted service bundled with the desktop application.
+
+Catalogue pages are cached for offline browsing. Audio is resolved when needed,
+so expiring Google download URLs are not saved in preferences or projects.
+Previously downloaded audio can be reused without Studio. If Studio is not
+connected, Clovercut displays a translated connection message.
+
+Results preserve each track's author and licence. CC BY 4.0 tracks display an
+attribution requirement; the copy button copies the provided attribution text
+or, when absent, track, author, licence and source information. Check the source
+for the required wording. YouTube standard-licence tracks are distinct from
+CC BY tracks; the library does not classify them all as CC0. Existing cached
+tracks from the earlier community catalogue remain usable.
 
 Freesound uses its [official API](https://freesound.org/docs/api/). Enter your
 API key in the Freesound settings; Clovercut saves it in your local preferences
@@ -94,4 +112,11 @@ track from each, probes the audio and reuses its cached copy:
 cargo test -p concat-host --test audio_providers_live -- --ignored
 ```
 
-The test reads `CLOVERCUT_FREESOUND_KEY`.
+The test reads `CLOVERCUT_FREESOUND_KEY`. The YouTube portion also requires the
+local Clovercut Audio API and its authenticated Studio connector.
+
+The YouTube-specific live test checks both music and sound effects:
+
+```sh
+cargo test -p concat-host --lib youtube_audio::tests::live_api_search_preview_and_cache_both_types -- --ignored
+```

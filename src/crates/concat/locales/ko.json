@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "GIPHY의 움직이는 스티커입니다. 아래에서 API 키를 설정하세요. 선택한 원본은 프로젝트에 복사됩니다.",
   "libraries.stickersAvailable": "움직이는 스티커를 검색하려면 설정에서 GIPHY를 추가하세요. GIPHY API 키가 필요합니다.",
   "libraries.title": "콘텐츠 라이브러리",
-  "libraries.youtubeAudioDescription": "YouTube 오디오 보관함의 무료 로열티 프리 음악입니다. 계정이나 API 키가 필요하지 않습니다.",
+  "libraries.youtubeAudioDescription": "Clovercut 오디오 API를 통한 YouTube Studio 음악과 효과음입니다. 각 트랙의 라이선스와 저작자 표시를 유지합니다.",
   "mask.circle": "원",
   "mask.heart": "하트",
   "mask.invert": "반전",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "{0} 기본값 복원",
   "common.unsavedChanges": "저장하지 않은 변경 사항",
   "captions.groupWithCaptions": "자막과 그룹화",
-  "captions.ungroupCaptions": "자막 그룹 해제"
+  "captions.ungroupCaptions": "자막 그룹 해제",
+  "youtube.apiUrl": "오디오 API 주소",
+  "youtube.invalidUrl": "HTTPS 주소 또는 localhost의 HTTP를 사용하세요.",
+  "youtube.connectStudio": "이 트랙을 다운로드하려면 Studio 오디오 보관함을 오디오 서비스에 연결하세요.",
+  "youtube.attributionRequired": "저작자 표시 필요"
 }

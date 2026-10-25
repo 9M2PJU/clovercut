@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "Bewegende stickers van GIPHY. Stel hieronder je API-sleutel in; gekozen originelen worden naar je project gekopieerd.",
   "libraries.stickersAvailable": "Voeg GIPHY toe in Instellingen om bewegende stickers te zoeken. Een GIPHY-API-sleutel is vereist.",
   "libraries.title": "Inhoudsbibliotheken",
-  "libraries.youtubeAudioDescription": "Gratis royaltyvrije muziek uit de YouTube-audiobibliotheek. Geen account of API-sleutel nodig.",
+  "libraries.youtubeAudioDescription": "Muziek en geluidseffecten uit YouTube Studio via de Clovercut-audio-API. Elk nummer behoudt zijn licentie en naamsvermelding.",
   "mask.circle": "Cirkel",
   "mask.heart": "Hart",
   "mask.invert": "Omkeren",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "Standaardwaarden van {0} herstellen",
   "common.unsavedChanges": "niet-opgeslagen wijzigingen",
   "captions.groupWithCaptions": "Met ondertitels groeperen",
-  "captions.ungroupCaptions": "Ondertitels degroeperen"
+  "captions.ungroupCaptions": "Ondertitels degroeperen",
+  "youtube.apiUrl": "Adres van de audio-API",
+  "youtube.invalidUrl": "Gebruik een HTTPS-adres of HTTP op localhost.",
+  "youtube.connectStudio": "Verbind de Studio-audiobibliotheek met de audiodienst om dit nummer te downloaden.",
+  "youtube.attributionRequired": "Naamsvermelding vereist"
 }

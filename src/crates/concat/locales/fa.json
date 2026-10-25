@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "برچسب‌های متحرک GIPHY. کلید API را در پایین تنظیم کنید؛ فایل‌های اصلی انتخاب‌شده در پروژه کپی می‌شوند.",
   "libraries.stickersAvailable": "برای جست‌وجوی برچسب‌های متحرک، GIPHY را در تنظیمات اضافه کنید. کلید API GIPHY لازم است.",
   "libraries.title": "کتابخانه‌های محتوا",
-  "libraries.youtubeAudioDescription": "موسیقی رایگان بدون حق امتیاز از کتابخانهٔ صوتی YouTube. به حساب یا کلید API نیاز ندارد.",
+  "libraries.youtubeAudioDescription": "موسیقی و جلوه‌های صوتی YouTube Studio از طریق API صدای Clovercut. مجوز و نام پدیدآورندگان هر قطعه حفظ می‌شود.",
   "mask.circle": "دایره",
   "mask.heart": "قلب",
   "mask.invert": "وارونه",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "بازگردانی مقادیر پیش‌فرض {0}",
   "common.unsavedChanges": "تغییرات ذخیره‌نشده",
   "captions.groupWithCaptions": "گروه‌بندی با زیرنویس‌ها",
-  "captions.ungroupCaptions": "جداسازی گروه زیرنویس‌ها"
+  "captions.ungroupCaptions": "جداسازی گروه زیرنویس‌ها",
+  "youtube.apiUrl": "نشانی API صدا",
+  "youtube.invalidUrl": "از نشانی HTTPS یا HTTP روی localhost استفاده کنید.",
+  "youtube.connectStudio": "برای دریافت این قطعه، کتابخانهٔ صوتی Studio را به سرویس صدا متصل کنید.",
+  "youtube.attributionRequired": "ذکر نام پدیدآورنده الزامی است"
 }

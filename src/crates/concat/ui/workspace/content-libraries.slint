@@ -5,6 +5,8 @@ export global ContentLibraries {
     in property <bool> audio-enabled;
     in property <bool> stickers-enabled;
     in property <bool> youtube-audio-enabled;
+    in property <string> youtube-api;
+    callback save-youtube-api(url: string);
     in property <bool> freesound-enabled;
     in property <bool> freesound-configured;
     in property <bool> gl-transitions-enabled;

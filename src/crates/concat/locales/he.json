@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "מדבקות מונפשות מ־GIPHY. יש להגדיר מפתח API למטה; הקבצים המקוריים שנבחרו מועתקים לפרויקט.",
   "libraries.stickersAvailable": "יש להוסיף את GIPHY בהגדרות כדי לחפש מדבקות מונפשות. נדרש מפתח API של GIPHY.",
   "libraries.title": "ספריות תוכן",
-  "libraries.youtubeAudioDescription": "מוזיקה חינמית ללא תמלוגים מספריית האודיו של YouTube. אין צורך בחשבון או במפתח API.",
+  "libraries.youtubeAudioDescription": "מוזיקה ואפקטים קוליים מ־YouTube Studio דרך API השמע של Clovercut. כל רצועה שומרת על הרישיון והקרדיטים שלה.",
   "mask.circle": "עיגול",
   "mask.heart": "לב",
   "mask.invert": "היפוך",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "שחזור ברירות המחדל של {0}",
   "common.unsavedChanges": "שינויים שלא נשמרו",
   "captions.groupWithCaptions": "קיבוץ עם כתוביות",
-  "captions.ungroupCaptions": "ביטול קיבוץ כתוביות"
+  "captions.ungroupCaptions": "ביטול קיבוץ כתוביות",
+  "youtube.apiUrl": "כתובת API השמע",
+  "youtube.invalidUrl": "יש להשתמש בכתובת HTTPS או ב־HTTP ב־localhost.",
+  "youtube.connectStudio": "יש לחבר את ספריית האודיו של Studio לשירות השמע כדי להוריד את הרצועה.",
+  "youtube.attributionRequired": "נדרש ייחוס"
 }

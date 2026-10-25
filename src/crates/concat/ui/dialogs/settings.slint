@@ -895,6 +895,22 @@ export component SettingsDialog inherits Modal {
                     title: "YouTube Audio Library"; on: ContentLibraries.youtube-audio-enabled;
                     switched(enabled) => { ContentLibraries.enable-youtube-audio(enabled); }
                     Text { text: I18n.t("libraries.youtubeAudioDescription"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs; }
+                    if ContentLibraries.youtube-audio-enabled: VerticalLayout {
+                        spacing: 8px;
+                        Text { text: I18n.t("youtube.apiUrl"); color: Theme.fg-muted; font-size: Theme.fs-sm; }
+                        Rectangle {
+                            height: Theme.h; background: Theme.field;
+                            border-width: 1px; border-color: Theme.line; border-radius: Theme.r;
+                            youtube-api := TextInput {
+                                x: 8px; width: parent.width - 16px; height: parent.height;
+                                text: ContentLibraries.youtube-api;
+                                color: Theme.fg; font-size: Theme.fs-sm; single-line: true;
+                                vertical-alignment: center;
+                                accepted => { ContentLibraries.save-youtube-api(self.text); }
+                            }
+                        }
+                        Button { label: I18n.t("common.apply"); clicked => { ContentLibraries.save-youtube-api(youtube-api.text); } }
+                    }
                 }
                 LibraryProvider {
                     title: "Freesound"; needs-key: true; configured: ContentLibraries.freesound-configured; on: ContentLibraries.freesound-enabled;

@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "GIPHY’den hareketli çıkartmalar. API anahtarınızı aşağıda yapılandırın; seçilen özgün dosyalar projenize kopyalanır.",
   "libraries.stickersAvailable": "Hareketli çıkartma aramak için Ayarlar’dan GIPHY ekleyin. GIPHY API anahtarı gereklidir.",
   "libraries.title": "İçerik kitaplıkları",
-  "libraries.youtubeAudioDescription": "YouTube Ses Kitaplığı’ndan ücretsiz, telif ücreti gerektirmeyen müzik. Hesap veya API anahtarı gerekmez.",
+  "libraries.youtubeAudioDescription": "Clovercut ses API’si üzerinden YouTube Studio müzik ve ses efektleri. Her parça kendi lisansını ve katkı bilgilerini korur.",
   "mask.circle": "Daire",
   "mask.heart": "Kalp",
   "mask.invert": "Ters çevir",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "{0} varsayılanlarını geri yükle",
   "common.unsavedChanges": "kaydedilmemiş değişiklikler",
   "captions.groupWithCaptions": "Altyazılarla grupla",
-  "captions.ungroupCaptions": "Altyazı grubunu çöz"
+  "captions.ungroupCaptions": "Altyazı grubunu çöz",
+  "youtube.apiUrl": "Ses API adresi",
+  "youtube.invalidUrl": "HTTPS adresi veya localhost üzerinde HTTP kullanın.",
+  "youtube.connectStudio": "Bu parçayı indirmek için Studio Ses Kitaplığı’nı ses hizmetine bağlayın.",
+  "youtube.attributionRequired": "Atıf gerekli"
 }

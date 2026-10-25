@@ -2552,8 +2552,14 @@ export component MediaPane inherits Rectangle {
                                 CategoryRow {
                                     height: 28px;
                                     label: I18n.t("sounds.catMusic");
-                                    current: root.audio-category == 2 && Sounds.provider == 1;
-                                    clicked => { root.audio-category = 2; Sounds.provider-changed(1); }
+                                    current: root.audio-category == 2 && Sounds.provider == 1 && Sounds.concat-category != 6;
+                                    clicked => { root.audio-category = 2; Sounds.youtube-category-changed(5); }
+                                }
+                                CategoryRow {
+                                    height: 28px;
+                                    label: I18n.t("sounds.catEffects");
+                                    current: root.audio-category == 2 && Sounds.provider == 1 && Sounds.concat-category == 6;
+                                    clicked => { root.audio-category = 2; Sounds.youtube-category-changed(6); }
                                 }
                             }
                             if ContentLibraries.freesound-enabled: CategoryHeading {

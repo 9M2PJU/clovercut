@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "Stiker animasi dari GIPHY. Atur kunci API di bawah; berkas asli yang dipilih disalin ke proyek Anda.",
   "libraries.stickersAvailable": "Tambahkan GIPHY di Pengaturan untuk mencari stiker animasi. Memerlukan kunci API GIPHY.",
   "libraries.title": "Pustaka konten",
-  "libraries.youtubeAudioDescription": "Musik gratis bebas royalti dari Koleksi Audio YouTube. Tidak memerlukan akun atau kunci API.",
+  "libraries.youtubeAudioDescription": "Musik dan efek suara YouTube Studio melalui API audio Clovercut. Setiap trek mempertahankan lisensi dan kreditnya.",
   "mask.circle": "Lingkaran",
   "mask.heart": "Hati",
   "mask.invert": "Balik",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "Pulihkan nilai bawaan {0}",
   "common.unsavedChanges": "perubahan belum disimpan",
   "captions.groupWithCaptions": "Kelompokkan dengan subtitel",
-  "captions.ungroupCaptions": "Pisahkan grup subtitel"
+  "captions.ungroupCaptions": "Pisahkan grup subtitel",
+  "youtube.apiUrl": "Alamat API audio",
+  "youtube.invalidUrl": "Gunakan alamat HTTPS atau HTTP di localhost.",
+  "youtube.connectStudio": "Hubungkan Koleksi Audio Studio ke layanan audio untuk mengunduh trek ini.",
+  "youtube.attributionRequired": "Atribusi wajib"
 }

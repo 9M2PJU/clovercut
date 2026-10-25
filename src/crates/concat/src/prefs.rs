@@ -28,6 +28,8 @@ pub struct Preferences {
     pub opengameart_library: bool,
     /// Optional YouTube Audio Library integration, enabled explicitly in Settings.
     pub youtube_audio_library: bool,
+    /// Empty selects the local Clovercut Audio API; HTTPS services are also supported.
+    pub youtube_audio_api: String,
     /// Optional Freesound integration, enabled explicitly in Settings.
     pub freesound_library: bool,
     /// Optional Freesound API key.

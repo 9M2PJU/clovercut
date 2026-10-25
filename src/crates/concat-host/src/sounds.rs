@@ -307,6 +307,15 @@ pub struct Catalogue {
     pub sounds: Vec<Listed>,
 }
 
+/// Source-provided credits retained alongside cached audio.
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+pub struct Credits {
+    /// Source attribution text or a credit assembled from the source metadata.
+    pub text: String,
+    /// None means that the source licence has not declared an attribution rule.
+    pub required: Option<bool>,
+}
+
 /// One public audio result.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct Listed {
@@ -325,7 +334,7 @@ pub struct Listed {
     /// Its size, for the progress bar; 0 when not given.
     #[serde(default)]
     pub bytes: u64,
-    /// CC0-1.0, and nothing else is shown.
+    /// The source licence, preserved independently for each provider.
     #[serde(default)]
     pub license: String,
     /// Where it was found.
@@ -340,6 +349,9 @@ pub struct Listed {
     /// Original file URL, resolved and licence-checked from OpenGameArt.
     #[serde(default)]
     pub download_url: String,
+    /// Credit metadata retained when the audio is downloaded for offline use.
+    #[serde(default)]
+    pub credits: Credits,
 }
 
 impl Listed {
@@ -350,6 +362,12 @@ impl Listed {
             || (self.sha256.len() == 64 && self.sha256.chars().all(|c| c.is_ascii_hexdigit()));
         if !is_plain_name(&self.file) || !digest_ok {
             return false;
+        }
+        if let Some(id) = self.id.strip_prefix("ytcc-") {
+            return self.file == format!("{id}.mp3")
+                && self.source == crate::youtube_audio::SOURCE
+                && !self.license.is_empty()
+                && crate::youtube_audio::is_track_endpoint(&self.download_url, id);
         }
         if let Some(id) = self.id.strip_prefix("ytal-") {
             return !id.is_empty()
@@ -430,9 +448,10 @@ pub fn search_catalogue_provider(
     category: usize,
     page: usize,
     freesound_key: &str,
+    youtube_api: &str,
 ) -> Result<Option<Catalogue>, String> {
     let mut catalogue = match provider {
-        1 => crate::youtube_audio::search(dirs, query, category, page)?,
+        1 => crate::youtube_audio::search(dirs, query, category, page, youtube_api)?,
         2 => crate::freesound::search(dirs, query, category, page, freesound_key)?,
         _ => return search_catalogue(dirs, query, category, page),
     };
@@ -490,12 +509,24 @@ pub fn resolved_sound(dirs: &AppDirs, sound: &Listed) -> Option<Listed> {
         && known.source == sound.source
         && known.is_offered()
         && known.sha256.len() == 64
-        && (if sound.id.starts_with("oga-") {
+        && (if sound.id.starts_with("ytcc-") {
+            true
+        } else if sound.id.starts_with("oga-") {
             crate::opengameart::is_audio(&known.download_url)
         } else {
             known.download_url == sound.download_url
         }))
-    .then_some(known)
+    .then(|| {
+        if sound.id.starts_with("ytcc-") {
+            let mut current = sound.clone();
+            current.sha256 = known.sha256;
+            current.bytes = known.bytes;
+            current.duration = known.duration;
+            current
+        } else {
+            known
+        }
+    })
 }
 
 /// The source-derived cache path of a downloaded original attachment.
@@ -509,7 +540,10 @@ pub fn cached_file(dirs: &AppDirs, sound: &Listed) -> PathBuf {
     use sha2::{Digest, Sha256};
     let key = if sound.id.starts_with("oga-") {
         format!("{:x}", Sha256::digest(sound.source.as_bytes()))
-    } else if sound.id.starts_with("ytal-") || sound.id.starts_with("fs-") {
+    } else if sound.id.starts_with("ytal-")
+        || sound.id.starts_with("ytcc-")
+        || sound.id.starts_with("fs-")
+    {
         sound.id.clone()
     } else {
         sound.sha256.clone()
@@ -543,6 +577,15 @@ pub fn fetch_sound(
         }
         let url = resolved.download_url.clone();
         (resolved, vec![url])
+    } else if sound.id.starts_with("ytcc-") {
+        let target = cached_file(dirs, sound);
+        if target.is_file()
+            && (sound.sha256.is_empty() || crate::models::verify(&target, &sound.sha256).is_ok())
+        {
+            return Ok(target);
+        }
+        let url = crate::youtube_audio::resolve_audio(sound)?;
+        (sound.clone(), vec![url])
     } else if sound.id.starts_with("ytal-") {
         let drive_id = sound.id.trim_start_matches("ytal-");
         (
@@ -646,6 +689,7 @@ mod tests {
             author: "Artist".into(),
             sha256: String::new(),
             download_url: "https://cdn.freesound.org/previews/123/123-hq.mp3".into(),
+            credits: Credits::default(),
         };
         assert!(fs.is_offered());
         let mut forged = fs.clone();

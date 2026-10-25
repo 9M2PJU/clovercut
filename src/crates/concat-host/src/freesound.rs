@@ -127,6 +127,7 @@ pub fn search(
                 author: item.username,
                 sha256: String::new(),
                 download_url,
+                credits: Default::default(),
             }
         })
         .collect();

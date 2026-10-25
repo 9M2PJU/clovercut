@@ -13114,6 +13114,12 @@ impl Studio {
             .set_stickers_enabled(self.prefs.giphy_library);
         app.global::<crate::ui::ContentLibraries>()
             .set_youtube_audio_enabled(self.prefs.youtube_audio_library);
+        app.global::<crate::ui::ContentLibraries>().set_youtube_api(
+            concat_host::youtube_audio::api_base(&self.prefs.youtube_audio_api)
+                .map(|u| u.as_str().trim_end_matches('/').to_owned())
+                .unwrap_or_else(|_| concat_host::youtube_audio::DEFAULT_API.to_owned())
+                .into(),
+        );
         app.global::<crate::ui::ContentLibraries>()
             .set_freesound_enabled(self.prefs.freesound_library);
         app.global::<crate::ui::ContentLibraries>()

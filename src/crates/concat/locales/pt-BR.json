@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "Figurinhas animadas do GIPHY. Configure sua chave de API abaixo; os arquivos são copiados para seu projeto.",
   "libraries.stickersAvailable": "Ative o GIPHY nas Definições para pesquisar figurinhas animadas. É necessária uma chave de API do GIPHY.",
   "libraries.title": "Bibliotecas de conteúdo",
-  "libraries.youtubeAudioDescription": "Músicas royalty-free oficiais da YouTube Audio Library. Sem necessidade de conta ou chave.",
+  "libraries.youtubeAudioDescription": "Músicas e efeitos sonoros do YouTube Studio pela API de áudio do Clovercut. Cada faixa mantém sua licença e seus créditos.",
   "mask.circle": "Círculo",
   "mask.heart": "Coração",
   "mask.invert": "Inverter",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "Repor valores de {0}",
   "common.unsavedChanges": "alterações não salvas",
   "captions.groupWithCaptions": "Agrupar com legendas",
-  "captions.ungroupCaptions": "Desagrupar legendas"
+  "captions.ungroupCaptions": "Desagrupar legendas",
+  "youtube.apiUrl": "Endereço da API de áudio",
+  "youtube.invalidUrl": "Use um endereço HTTPS ou HTTP em localhost.",
+  "youtube.connectStudio": "Conecte a Biblioteca de áudio do Studio ao serviço de áudio para baixar esta faixa.",
+  "youtube.attributionRequired": "Atribuição obrigatória"
 }

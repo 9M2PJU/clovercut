@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "GIPHY کے متحرک اسٹیکرز۔ نیچے API کلید ترتیب دیں؛ منتخب اصل فائلیں پروجیکٹ میں نقل ہوتی ہیں۔",
   "libraries.stickersAvailable": "متحرک اسٹیکرز تلاش کرنے کے لیے ترتیبات میں GIPHY شامل کریں۔ GIPHY API کلید درکار ہے۔",
   "libraries.title": "مواد کی لائبریریاں",
-  "libraries.youtubeAudioDescription": "YouTube آڈیو لائبریری سے مفت رائلٹی فری موسیقی۔ اکاؤنٹ یا API کلید درکار نہیں۔",
+  "libraries.youtubeAudioDescription": "Clovercut آڈیو API کے ذریعے YouTube Studio کی موسیقی اور صوتی اثرات۔ ہر ٹریک کا اپنا لائسنس اور انتساب برقرار رہتا ہے۔",
   "mask.circle": "دائرہ",
   "mask.heart": "دل",
   "mask.invert": "الٹ دیں",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "{0} کی طے شدہ قدریں بحال کریں",
   "common.unsavedChanges": "غیر محفوظ تبدیلیاں",
   "captions.groupWithCaptions": "سب ٹائٹلز کے ساتھ گروپ بنائیں",
-  "captions.ungroupCaptions": "سب ٹائٹلز کا گروپ ختم کریں"
+  "captions.ungroupCaptions": "سب ٹائٹلز کا گروپ ختم کریں",
+  "youtube.apiUrl": "آڈیو API کا پتہ",
+  "youtube.invalidUrl": "HTTPS پتہ یا localhost پر HTTP استعمال کریں۔",
+  "youtube.connectStudio": "یہ ٹریک ڈاؤن لوڈ کرنے کے لیے Studio آڈیو لائبریری کو آڈیو سروس سے جوڑیں۔",
+  "youtube.attributionRequired": "انتساب ضروری ہے"
 }

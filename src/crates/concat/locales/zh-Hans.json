@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "来自 GIPHY 的动态贴纸。请在下方配置 API 密钥；选中的原始文件会复制到项目中。",
   "libraries.stickersAvailable": "在设置中添加 GIPHY 以搜索动态贴纸。需要 GIPHY API 密钥。",
   "libraries.title": "素材库",
-  "libraries.youtubeAudioDescription": "来自 YouTube 音频库的免费免版税音乐。无需账号或 API 密钥。",
+  "libraries.youtubeAudioDescription": "通过 Clovercut 音频 API 获取 YouTube Studio 的音乐和音效。每首音轨保留各自的许可和署名信息。",
   "mask.circle": "圆形",
   "mask.heart": "爱心",
   "mask.invert": "反转",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "重置 {0} 的默认值",
   "common.unsavedChanges": "未保存的更改",
   "captions.groupWithCaptions": "与字幕编组",
-  "captions.ungroupCaptions": "取消字幕编组"
+  "captions.ungroupCaptions": "取消字幕编组",
+  "youtube.apiUrl": "音频 API 地址",
+  "youtube.invalidUrl": "请使用 HTTPS 地址或 localhost 上的 HTTP。",
+  "youtube.connectStudio": "请将 Studio 音频库连接到音频服务以下载此音轨。",
+  "youtube.attributionRequired": "需要署名"
 }

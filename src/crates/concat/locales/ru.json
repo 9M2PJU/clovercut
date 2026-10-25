@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "Анимированные стикеры GIPHY. Укажите ключ API ниже; выбранные оригиналы копируются в проект.",
   "libraries.stickersAvailable": "Добавьте GIPHY в настройках для поиска анимированных стикеров. Нужен ключ API GIPHY.",
   "libraries.title": "Библиотеки контента",
-  "libraries.youtubeAudioDescription": "Бесплатная музыка без лицензионных отчислений из фонотеки YouTube. Учётная запись и ключ API не нужны.",
+  "libraries.youtubeAudioDescription": "Музыка и звуковые эффекты YouTube Studio через аудио API Clovercut. Каждый трек сохраняет свою лицензию и авторство.",
   "mask.circle": "Круг",
   "mask.heart": "Сердце",
   "mask.invert": "Инвертировать",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "Сбросить настройки: {0}",
   "common.unsavedChanges": "несохранённые изменения",
   "captions.groupWithCaptions": "Сгруппировать с субтитрами",
-  "captions.ungroupCaptions": "Разгруппировать субтитры"
+  "captions.ungroupCaptions": "Разгруппировать субтитры",
+  "youtube.apiUrl": "Адрес аудио API",
+  "youtube.invalidUrl": "Используйте HTTPS или HTTP на localhost.",
+  "youtube.connectStudio": "Подключите фонотеку Studio к аудиосервису для загрузки этого трека.",
+  "youtube.attributionRequired": "Требуется указание авторства"
 }

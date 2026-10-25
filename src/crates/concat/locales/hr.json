@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "Animirane naljepnice s GIPHY-ja. Postavite API ključ u nastavku; odabrani izvornici kopiraju se u projekt.",
   "libraries.stickersAvailable": "Dodajte GIPHY u postavkama za pretraživanje animiranih naljepnica. Potreban je GIPHY API ključ.",
   "libraries.title": "Biblioteke sadržaja",
-  "libraries.youtubeAudioDescription": "Besplatna glazba bez tantijema iz YouTube audioteke. Račun i API ključ nisu potrebni.",
+  "libraries.youtubeAudioDescription": "Glazba i zvučni efekti iz YouTube Studija putem Clovercut audio API-ja. Svaka snimka zadržava svoju licencu i podatke o autorstvu.",
   "mask.circle": "Krug",
   "mask.heart": "Srce",
   "mask.invert": "Obrni",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "Vrati zadane vrijednosti: {0}",
   "common.unsavedChanges": "nespremljene promjene",
   "captions.groupWithCaptions": "Grupiraj s titlovima",
-  "captions.ungroupCaptions": "Razgrupiraj titlove"
+  "captions.ungroupCaptions": "Razgrupiraj titlove",
+  "youtube.apiUrl": "Adresa audio API-ja",
+  "youtube.invalidUrl": "Koristite HTTPS adresu ili HTTP na localhostu.",
+  "youtube.connectStudio": "Povežite Studio audioteku s audio uslugom za preuzimanje ove snimke.",
+  "youtube.attributionRequired": "Obavezno navođenje autora"
 }

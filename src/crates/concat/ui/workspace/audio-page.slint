@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Jareer and Concat contributors
 
+import { Tip } from "../primitives/primitives.slint";
 import { I18n } from "../i18n.slint";
 import { Theme, Fmt, Glyph, Icon, Payload } from "../primitives/primitives.slint";
 import { Wave } from "../primitives/wave.slint";
@@ -28,6 +29,7 @@ export struct SoundCardData {
     wave: string,
     /// A second line beside the length: a category, a licence.
     detail: string,
+    credits: string,
     /// "Remove from library" is offered: a sound of the user's own.
     removable: bool,
     /// On disk and ready to play or lay down. A sound that is not is
@@ -78,6 +80,7 @@ export global Sounds {
     /// Audio provider: 0 OpenGameArt, 1 YouTube Audio, 2 Freesound.
     in property <int> provider: 0;
     callback provider-changed(provider: int);
+    callback youtube-category-changed(category: int);
     /// "Load Concat sounds", Refresh, Try again: the list fetched.
     callback load-concat();
     in property <string> query;
@@ -104,6 +107,7 @@ export global Sounds {
 
 // A small square button on a row: the plus, the cross.
 component RowButton inherits Rectangle {
+    in property <string> label;
     in property <Glyph> glyph;
     in property <bool> danger;
     in property <length> size: 22px;
@@ -126,6 +130,7 @@ component RowButton inherits Rectangle {
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }
+    Tip { text: root.label; active: root.label != "" && touch.has-hover; }
 }
 
 // One sound: a play button on the audio colour, the name and the length,
@@ -141,6 +146,13 @@ export component SoundRow inherits Rectangle {
     callback preview();
     callback add();
     callback remove();
+
+    property <bool> credits-copied;
+    credits-copy := TextInput {
+        width: 1px; height: 1px; opacity: 0; read-only: true;
+        text: root.item.credits;
+    }
+    Timer { interval: 1500ms; running: root.credits-copied; triggered => { root.credits-copied = false; } }
 
     property <bool> playing-row: SourcePreview.card == root.item.id && root.item.id != "";
     property <bool> playing: root.playing-row && SourcePreview.playing;
@@ -236,6 +248,15 @@ export component SoundRow inherits Rectangle {
                     }
                 }
 
+                if root.item.credits != "": VerticalLayout {
+                    alignment: center;
+                    RowButton {
+                        glyph: root.credits-copied ? Glyph.check : Glyph.copy;
+                        label: I18n.t("common.copy");
+                        size: root.touch-sized ? 32px : 22px;
+                        clicked => { credits-copy.select-all(); credits-copy.copy(); root.credits-copied = true; }
+                    }
+                }
                 if !root.item.removable: VerticalLayout {
                     alignment: center;
                     RowButton {
@@ -283,6 +304,8 @@ export component SoundRow inherits Rectangle {
             }
         }
     }
+
+    Tip { text: root.item.name + "\n" + root.item.detail + (root.item.credits != "" ? "\n" + root.item.credits : ""); active: card.has-hover; }
 
     /// The cross is shown under the pointer on a desk, where a permanent
     /// one on every row is a list's worth of invitations to lose a sound,

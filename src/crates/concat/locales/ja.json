@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "GIPHYのアニメーションステッカーです。以下でAPIキーを設定してください。選択した元ファイルはプロジェクトにコピーされます。",
   "libraries.stickersAvailable": "設定でGIPHYを追加するとアニメーションステッカーを検索できます。GIPHY APIキーが必要です。",
   "libraries.title": "コンテンツライブラリ",
-  "libraries.youtubeAudioDescription": "YouTubeオーディオライブラリの無料ロイヤリティフリー音楽です。アカウントやAPIキーは不要です。",
+  "libraries.youtubeAudioDescription": "Clovercut音声APIを通じてYouTube Studioの音楽と効果音を利用します。各曲のライセンスとクレジットを保持します。",
   "mask.circle": "円",
   "mask.heart": "ハート",
   "mask.invert": "反転",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "{0}を既定値に戻す",
   "common.unsavedChanges": "未保存の変更",
   "captions.groupWithCaptions": "字幕とグループ化",
-  "captions.ungroupCaptions": "字幕のグループを解除"
+  "captions.ungroupCaptions": "字幕のグループを解除",
+  "youtube.apiUrl": "音声APIのアドレス",
+  "youtube.invalidUrl": "HTTPS、またはlocalhostのHTTPアドレスを使用してください。",
+  "youtube.connectStudio": "この曲をダウンロードするには、Studioオーディオライブラリを音声サービスに接続してください。",
+  "youtube.attributionRequired": "帰属表示が必要"
 }

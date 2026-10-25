@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "Adesivi animati da GIPHY. Configura la chiave API qui sotto; gli originali scelti vengono copiati nel progetto.",
   "libraries.stickersAvailable": "Aggiungi GIPHY nelle impostazioni per cercare adesivi animati. Serve una chiave API GIPHY.",
   "libraries.title": "Librerie di contenuti",
-  "libraries.youtubeAudioDescription": "Musica gratuita senza royalty dalla Raccolta audio di YouTube. Non servono account né chiave API.",
+  "libraries.youtubeAudioDescription": "Musica ed effetti sonori di YouTube Studio tramite l’API audio Clovercut. Ogni brano conserva licenza e crediti.",
   "mask.circle": "Cerchio",
   "mask.heart": "Cuore",
   "mask.invert": "Inverti",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "Ripristina i valori predefiniti di {0}",
   "common.unsavedChanges": "modifiche non salvate",
   "captions.groupWithCaptions": "Raggruppa con i sottotitoli",
-  "captions.ungroupCaptions": "Separa sottotitoli"
+  "captions.ungroupCaptions": "Separa sottotitoli",
+  "youtube.apiUrl": "Indirizzo API audio",
+  "youtube.invalidUrl": "Usa un indirizzo HTTPS o HTTP su localhost.",
+  "youtube.connectStudio": "Collega la Raccolta audio di Studio al servizio audio per scaricare questo brano.",
+  "youtube.attributionRequired": "Attribuzione obbligatoria"
 }

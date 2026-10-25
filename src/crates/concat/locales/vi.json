@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "Nhãn dán động từ GIPHY. Thiết lập khóa API bên dưới; bản gốc đã chọn được sao chép vào dự án.",
   "libraries.stickersAvailable": "Thêm GIPHY trong Cài đặt để tìm nhãn dán động. Cần khóa API GIPHY.",
   "libraries.title": "Thư viện nội dung",
-  "libraries.youtubeAudioDescription": "Nhạc miễn phí, không tính phí bản quyền từ Thư viện âm thanh YouTube. Không cần tài khoản hoặc khóa API.",
+  "libraries.youtubeAudioDescription": "Nhạc và hiệu ứng âm thanh YouTube Studio qua API âm thanh Clovercut. Mỗi bản ghi giữ nguyên giấy phép và thông tin ghi công.",
   "mask.circle": "Hình tròn",
   "mask.heart": "Trái tim",
   "mask.invert": "Đảo ngược",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "Khôi phục mặc định cho {0}",
   "common.unsavedChanges": "thay đổi chưa lưu",
   "captions.groupWithCaptions": "Nhóm với phụ đề",
-  "captions.ungroupCaptions": "Bỏ nhóm phụ đề"
+  "captions.ungroupCaptions": "Bỏ nhóm phụ đề",
+  "youtube.apiUrl": "Địa chỉ API âm thanh",
+  "youtube.invalidUrl": "Dùng địa chỉ HTTPS hoặc HTTP trên localhost.",
+  "youtube.connectStudio": "Kết nối Thư viện âm thanh Studio với dịch vụ âm thanh để tải bản nhạc này.",
+  "youtube.attributionRequired": "Bắt buộc ghi công"
 }

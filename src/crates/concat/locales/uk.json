@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "Анімовані наліпки GIPHY. Налаштуйте ключ API нижче; вибрані оригінали копіюються до проєкту.",
   "libraries.stickersAvailable": "Додайте GIPHY у налаштуваннях для пошуку анімованих наліпок. Потрібен ключ API GIPHY.",
   "libraries.title": "Бібліотеки вмісту",
-  "libraries.youtubeAudioDescription": "Безплатна музика без ліцензійних відрахувань із фонотеки YouTube. Обліковий запис і ключ API не потрібні.",
+  "libraries.youtubeAudioDescription": "Музика та звукові ефекти YouTube Studio через аудіо API Clovercut. Кожен запис зберігає свою ліцензію та авторство.",
   "mask.circle": "Коло",
   "mask.heart": "Серце",
   "mask.invert": "Інвертувати",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "Відновити типові значення: {0}",
   "common.unsavedChanges": "незбережені зміни",
   "captions.groupWithCaptions": "Згрупувати із субтитрами",
-  "captions.ungroupCaptions": "Розгрупувати субтитри"
+  "captions.ungroupCaptions": "Розгрупувати субтитри",
+  "youtube.apiUrl": "Адреса аудіо API",
+  "youtube.invalidUrl": "Використовуйте HTTPS або HTTP на localhost.",
+  "youtube.connectStudio": "Підключіть фонотеку Studio до аудіосервісу для завантаження цього запису.",
+  "youtube.attributionRequired": "Потрібно зазначити авторство"
 }

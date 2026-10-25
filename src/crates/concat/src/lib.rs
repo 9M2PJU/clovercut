@@ -1633,6 +1633,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         sounds.on_load_concat(on_window!(|state| {
             state.handle(Msg::Sounds(SoundsMsg::LoadConcat));
         }));
+        sounds.on_youtube_category_changed(on_window!(|state, category: i32| {
+            state.handle(Msg::Sounds(SoundsMsg::YouTubeCategory(category)));
+        }));
         sounds.on_provider_changed(on_window!(|state, provider: i32| {
             state.handle(Msg::Sounds(SoundsMsg::Provider(provider)));
         }));
@@ -1995,6 +1998,18 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         libraries.on_enable_youtube_audio(on_window!(|state, enabled: bool| {
             state.prefs.youtube_audio_library = enabled;
             state.prefs.save(&state.host.dirs);
+        }));
+        libraries.on_save_youtube_api(on_window!(|state, value: SharedString| {
+            match concat_host::youtube_audio::api_base(&value) {
+                Ok(url) => {
+                    state.prefs.youtube_audio_api = url.as_str().trim_end_matches('/').to_owned();
+                    state.prefs.save(&state.host.dirs);
+                    if state.sounds.provider == 1 {
+                        state.handle(Msg::Sounds(SoundsMsg::LoadConcat));
+                    }
+                }
+                Err(_) => state.notify(&i18n::t("youtube.invalidUrl"), true),
+            }
         }));
         libraries.on_enable_freesound(on_window!(|state, enabled: bool| {
             state.prefs.freesound_library = enabled;

@@ -6,13 +6,13 @@ use concat_host::{AppDirs, sounds};
 use std::sync::atomic::AtomicBool;
 
 #[test]
-#[ignore = "downloads real provider audio; requires network and CLOVERCUT_FREESOUND_KEY"]
+#[ignore = "downloads real provider audio; requires network, connected YouTube Audio API and CLOVERCUT_FREESOUND_KEY"]
 fn search_download_probe_and_reuse_both_audio_providers() {
     let key = std::env::var("CLOVERCUT_FREESOUND_KEY").expect("provide a Freesound API key");
     let root = std::env::temp_dir().join(format!("clovercut-live-audio-{}", std::process::id()));
     let dirs = AppDirs::under(&root);
-    for (provider, query) in [(1, "Sky Skating"), (2, "rain")] {
-        let catalogue = sounds::search_catalogue_provider(&dirs, provider, query, 0, 0, &key)
+    for (provider, query) in [(1, "Mess Call"), (2, "rain")] {
+        let catalogue = sounds::search_catalogue_provider(&dirs, provider, query, 0, 0, &key, "")
             .expect("provider search")
             .expect("catalogue");
         let sound = catalogue.sounds.first().expect("a playable search result");

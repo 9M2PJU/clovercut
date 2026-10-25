@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "Animowane naklejki z GIPHY. Skonfiguruj poniżej klucz API; wybrane oryginały zostaną skopiowane do projektu.",
   "libraries.stickersAvailable": "Dodaj GIPHY w ustawieniach, aby wyszukiwać animowane naklejki. Wymagany jest klucz API GIPHY.",
   "libraries.title": "Biblioteki treści",
-  "libraries.youtubeAudioDescription": "Bezpłatna muzyka bez opłat licencyjnych z Biblioteki audio YouTube. Konto ani klucz API nie są wymagane.",
+  "libraries.youtubeAudioDescription": "Muzyka i efekty dźwiękowe z YouTube Studio przez API audio Clovercut. Każdy utwór zachowuje swoją licencję i autorstwo.",
   "mask.circle": "Koło",
   "mask.heart": "Serce",
   "mask.invert": "Odwróć",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "Przywróć domyślne wartości: {0}",
   "common.unsavedChanges": "niezapisane zmiany",
   "captions.groupWithCaptions": "Grupuj z napisami",
-  "captions.ungroupCaptions": "Rozgrupuj napisy"
+  "captions.ungroupCaptions": "Rozgrupuj napisy",
+  "youtube.apiUrl": "Adres API audio",
+  "youtube.invalidUrl": "Użyj adresu HTTPS lub HTTP na localhost.",
+  "youtube.connectStudio": "Połącz Bibliotekę audio Studio z usługą audio, aby pobrać ten utwór.",
+  "youtube.attributionRequired": "Wymagane uznanie autorstwa"
 }

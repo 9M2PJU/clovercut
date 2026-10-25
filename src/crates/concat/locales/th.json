@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "สติกเกอร์เคลื่อนไหวจาก GIPHY ตั้งค่าคีย์ API ด้านล่าง ไฟล์ต้นฉบับที่เลือกจะถูกคัดลอกลงในโปรเจกต์",
   "libraries.stickersAvailable": "เพิ่ม GIPHY ในการตั้งค่าเพื่อค้นหาสติกเกอร์เคลื่อนไหว ต้องใช้คีย์ API ของ GIPHY",
   "libraries.title": "คลังเนื้อหา",
-  "libraries.youtubeAudioDescription": "เพลงฟรีแบบไม่เสียค่าลิขสิทธิ์จากคลังเพลงและเสียงของ YouTube ไม่ต้องมีบัญชีหรือคีย์ API",
+  "libraries.youtubeAudioDescription": "เพลงและเอฟเฟกต์เสียงจาก YouTube Studio ผ่าน API เสียงของ Clovercut แต่ละแทร็กคงใบอนุญาตและเครดิตของตนเอง",
   "mask.circle": "วงกลม",
   "mask.heart": "หัวใจ",
   "mask.invert": "กลับด้าน",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "คืนค่าเริ่มต้นของ {0}",
   "common.unsavedChanges": "การเปลี่ยนแปลงที่ยังไม่บันทึก",
   "captions.groupWithCaptions": "จัดกลุ่มกับคำบรรยาย",
-  "captions.ungroupCaptions": "ยกเลิกการจัดกลุ่มคำบรรยาย"
+  "captions.ungroupCaptions": "ยกเลิกการจัดกลุ่มคำบรรยาย",
+  "youtube.apiUrl": "ที่อยู่ API เสียง",
+  "youtube.invalidUrl": "ใช้ที่อยู่ HTTPS หรือ HTTP บน localhost",
+  "youtube.connectStudio": "เชื่อมต่อคลังเพลงและเสียงของ Studio กับบริการเสียงเพื่อดาวน์โหลดแทร็กนี้",
+  "youtube.attributionRequired": "ต้องระบุที่มา"
 }

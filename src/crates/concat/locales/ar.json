@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "ملصقات متحركة من GIPHY. اضبط مفتاح API أدناه؛ تُنسخ الملفات الأصلية المختارة إلى مشروعك.",
   "libraries.stickersAvailable": "أضف GIPHY في الإعدادات للبحث عن ملصقات متحركة. يلزم مفتاح API لـ GIPHY.",
   "libraries.title": "مكتبات المحتوى",
-  "libraries.youtubeAudioDescription": "موسيقى مجانية دون رسوم ملكية من مكتبة YouTube الصوتية. لا يلزم حساب أو مفتاح API.",
+  "libraries.youtubeAudioDescription": "موسيقى ومؤثرات صوتية من YouTube Studio عبر API الصوت في Clovercut. يحتفظ كل مقطع بترخيصه ونسبته إلى صاحبه.",
   "mask.circle": "دائرة",
   "mask.heart": "قلب",
   "mask.invert": "عكس",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "استعادة القيم الافتراضية لـ {0}",
   "common.unsavedChanges": "تغييرات غير محفوظة",
   "captions.groupWithCaptions": "تجميع مع الترجمات",
-  "captions.ungroupCaptions": "فك تجميع الترجمات"
+  "captions.ungroupCaptions": "فك تجميع الترجمات",
+  "youtube.apiUrl": "عنوان API الصوت",
+  "youtube.invalidUrl": "استخدم عنوان HTTPS أو HTTP على localhost.",
+  "youtube.connectStudio": "اربط مكتبة Studio الصوتية بخدمة الصوت لتنزيل هذا المقطع.",
+  "youtube.attributionRequired": "يلزم نسب العمل إلى صاحبه"
 }

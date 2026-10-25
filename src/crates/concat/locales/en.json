@@ -365,7 +365,7 @@
   "libraries.stickerDescription": "Animated stickers from GIPHY. Configure your API key below; chosen originals are copied into your project.",
   "libraries.stickersAvailable": "Add GIPHY in Settings to search animated stickers. A GIPHY API key is required.",
   "libraries.title": "Content libraries",
-  "libraries.youtubeAudioDescription": "Free royalty-free music from the YouTube Audio Library. No account or API key required.",
+  "libraries.youtubeAudioDescription": "Music and sound effects from YouTube Studio through the Clovercut Audio API. Each track retains its own licence and credits.",
   "mask.circle": "Circle",
   "mask.heart": "Heart",
   "mask.invert": "Invert",
@@ -1028,5 +1028,9 @@
   "controls.resetGroup": "Reset {0} to defaults",
   "common.unsavedChanges": "unsaved changes",
   "captions.groupWithCaptions": "Group with captions",
-  "captions.ungroupCaptions": "Ungroup captions"
+  "captions.ungroupCaptions": "Ungroup captions",
+  "youtube.apiUrl": "Audio API address",
+  "youtube.invalidUrl": "Use an HTTPS address or HTTP on localhost.",
+  "youtube.connectStudio": "Connect the Studio Audio Library to the audio service to download this track.",
+  "youtube.attributionRequired": "Attribution required"
 }

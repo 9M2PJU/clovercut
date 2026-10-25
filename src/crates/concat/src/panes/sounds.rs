@@ -94,6 +94,8 @@ pub enum SoundsMsg {
     ConcatCategory(i32),
     /// Provider picked: 0 OpenGameArt, 1 YouTube Audio, 2 Freesound.
     Provider(i32),
+    /// Atomically select YouTube music (5) or effects (6), including during a load.
+    YouTubeCategory(i32),
     /// A Concat sound's download, how far.
     Fetching(String, f32),
     /// A Concat sound's download is done.
@@ -137,8 +139,14 @@ impl SoundsPane {
     pub fn open(dirs: &concat_host::AppDirs) -> SoundsPane {
         // The manifest as last fetched, if it ever was: the shelf is
         // there from the first frame, and no request is made for it.
-        let catalogue =
-            sounds::cached_catalogue(dirs).filter(|catalogue| matches!(catalogue.category, 5 | 6));
+        let catalogue = sounds::cached_catalogue(dirs).filter(|catalogue| {
+            matches!(catalogue.category, 5 | 6)
+                && catalogue.sounds.iter().all(|s| {
+                    !s.id.starts_with("ytal-")
+                        && !s.id.starts_with("ytcc-")
+                        && !s.id.starts_with("fs-")
+                })
+        });
         SoundsPane {
             library: Library::open(dirs),
             concat: if catalogue.is_some() {
@@ -180,14 +188,30 @@ impl SoundsPane {
         }
         match msg {
             SoundsMsg::Shown(on) => self.shown = on,
+            SoundsMsg::YouTubeCategory(index) => {
+                if !studio.prefs.youtube_audio_library {
+                    return;
+                }
+                let category = if index == 6 { 6 } else { 5 };
+                if self.provider != 1 {
+                    self.query.clear();
+                }
+                if self.provider != 1 || self.category != category {
+                    self.catalogue = Catalogue::default();
+                }
+                self.provider = 1;
+                self.category = category;
+                self.load_page(0, studio);
+            }
             SoundsMsg::Provider(p) => {
                 let provider = (p.max(0) as usize).min(2);
                 if self.provider != provider {
+                    self.request_generation += 1;
                     self.provider = provider;
                     self.concat = ConcatState::Idle;
                     self.catalogue = Catalogue::default();
                     self.query.clear();
-                    self.category = 0;
+                    self.category = if provider == 1 { 5 } else { 0 };
                     if provider != 0 {
                         self.load_page(0, studio);
                     }
@@ -240,7 +264,14 @@ impl SoundsPane {
                         self.category = self.catalogue.category;
                         self.query = self.catalogue.query.clone();
                     }
-                    studio.notify(&error, true);
+                    studio.notify(
+                        &if self.provider == 1 {
+                            youtube_error(&error)
+                        } else {
+                            error
+                        },
+                        true,
+                    );
                 }
             },
             SoundsMsg::ConcatCategory(index) => {
@@ -284,6 +315,11 @@ impl SoundsPane {
                     }
                     Err(error) if error == "cancelled" => {}
                     Err(error) => {
+                        let error = if listed.id.starts_with("ytcc-") {
+                            youtube_error(&error)
+                        } else {
+                            error
+                        };
                         studio.notify(&tf("sounds.downloadFailed", &[&name, &error]), true);
                     }
                 }
@@ -438,9 +474,6 @@ impl SoundsPane {
         let Some(dirs) = self.dirs.clone() else {
             return;
         };
-        if self.concat == ConcatState::Loading {
-            return;
-        }
         self.request_generation += 1;
         let generation = self.request_generation;
         self.concat = ConcatState::Loading;
@@ -448,6 +481,7 @@ impl SoundsPane {
         let category = self.category;
         let provider = self.provider;
         let freesound_key = studio.prefs.freesound_api_key.clone();
+        let youtube_api = studio.prefs.youtube_audio_api.clone();
         crate::host::spawn(
             move || {
                 sounds::search_catalogue_provider(
@@ -457,6 +491,7 @@ impl SoundsPane {
                     category,
                     page,
                     &freesound_key,
+                    &youtube_api,
                 )
             },
             move |studio, _, _, result| {
@@ -482,7 +517,18 @@ impl SoundsPane {
                     name: sound.name.as_str().into(),
                     duration: sound.duration as f32,
                     wave: SharedString::new(),
-                    detail: if sound.id.starts_with("ytal-") {
+                    credits: sound.credits.text.as_str().into(),
+                    detail: if sound.id.starts_with("ytcc-") {
+                        let mut parts = vec![category_label(&sound.category)];
+                        if !sound.author.is_empty() {
+                            parts.push(sound.author.clone());
+                        }
+                        parts.push(sound.license.clone());
+                        if sound.credits.required == Some(true) {
+                            parts.push(t("youtube.attributionRequired"));
+                        }
+                        parts.join(" · ").into()
+                    } else if sound.id.starts_with("ytal-") {
                         format!("{} · YouTube", t("sounds.catMusic")).into()
                     } else if sound.id.starts_with("fs-") {
                         if sound.author.is_empty() {
@@ -527,6 +573,7 @@ impl SoundsPane {
                     name: sound.name.as_str().into(),
                     duration: sound.duration as f32,
                     detail: SharedString::new(),
+                    credits: SharedString::new(),
                     removable: true,
                     ready: true,
                     progress: -1.0,
@@ -768,5 +815,14 @@ impl Studio {
                     .map(|item| item.id.clone())
             })
             .ok_or_else(|| tf("sounds.couldNotCopy", &[&name, &"?"]))
+    }
+}
+
+/// Keep service diagnostics out of the user-facing language, including missing Studio sessions.
+fn youtube_error(error: &str) -> String {
+    if error == concat_host::youtube_audio::STUDIO_UNAVAILABLE {
+        t("youtube.connectStudio")
+    } else {
+        tf("sounds.providerOffline", &[&"YouTube Audio Library"])
     }
 }
