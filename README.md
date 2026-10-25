@@ -3,7 +3,7 @@
 </p>
 
 <p align="center"><strong>Desktop-first, open-source video editor with built-in stock libraries and local AI.</strong></p>
-<p align="center">A fast, local-first alternative to CapCut. Fluid 60 FPS scrubbing, on-device Whisper subtitles, and native Rust performance without cloud paywalls or tracking.</p>
+<p align="center">A local-first creative workspace: on-device captions, searchable assets, reusable edits and watermark-free exports.</p>
 
 <p align="center">
   <a href="https://tulcoturo.github.io/clovercut/"><img src="https://img.shields.io/badge/Website-tulcoturo.github.io%2Fclovercut-16b86a?style=flat-square" alt="clovercut website" /></a>
@@ -25,7 +25,7 @@
 
 The editing workflow is centred on a desktop computer: keyboard and mouse, a multi-track timeline, and a full-size preview and inspector. Desktop use drives development and release priorities. Mobile support is secondary and may have a different feature set and release schedule.
 
-Built with a native **Rust** core and a **Slint** interface accelerated by WGSL GPU compute shaders, clovercut runs 100% locally on your own machine.
+Built with a native **Rust** core and a **Slint** interface accelerated by WGSL GPU compute shaders, editing and local AI run on your own machine. Optional online libraries connect to their respective providers.
 
 <p align="center">
   <img src="assets/screenshots/auto-captions.png" alt="clovercut timeline editor with auto-captions" width="1280" />
@@ -36,7 +36,18 @@ Built with a native **Rust** core and a **Slint** interface accelerated by WGSL 
 
 ## What sets clovercut apart?
 
-Most open-source video editors leave you hunting across the web for stickers, sound effects, and music. clovercut integrates creative assets directly into your workspace:
+Clovercut combines a familiar desktop editing workflow with creative libraries and local AI. Its strengths are the combination of tools and the control you retain over your projects:
+
+| What matters in your workflow | What Clovercut offers |
+|---|---|
+| Keep recordings on your computer | Local editing and Whisper transcription after model download |
+| Find assets while editing | Searchable audio and GIPHY libraries, previews and timeline import |
+| Reuse a finished look | Clip copy/paste between projects, grouped duplication and adjustment layers |
+| Reach familiar tools quickly | Favourites, recent and most-used assets, hover transition previews |
+| Work on a desktop | Multiple timelines, compact tracks, keyboard shortcuts and an adaptive inspector |
+| Keep control of the editor | AGPL source code and exports without a Clovercut watermark or subscription |
+
+Online assets retain their own licences and availability. These are Clovercut features, not a claim that every other editor lacks them.
 
 ### 1. On-Device Whisper AI Captions
 * **100% Offline Speech-to-Text:** Generates synchronized subtitles using OpenAI Whisper running directly on your CPU/GPU.
@@ -55,10 +66,11 @@ Most open-source video editors leave you hunting across the web for stickers, so
   <img src="assets/screenshots/giphy-stickers.png" alt="clovercut GIPHY stickers integration" width="1000" />
 </p>
 
-### 3. Built-In Royalty-Free Audio & SFX
+### 3. Music & Sound Effects Inside the Workspace
 * **Public Domain / CC0 Music:** Integrated OpenGameArt music and sound effects library.
 * **Waveform Previews:** Listen to tracks and view waveforms directly inside the media bin before placing them on audio tracks.
-* **More Sources:** Browse the YouTube Audio Library and Freesound too; check each asset’s licence and attribution requirements.
+* **More Sources:** Freesound previews and separate YouTube music/sound-effect sections, with per-track licences and copyable credits. Freesound requires an API key.
+* **YouTube companion service:** The new integration currently requires the separately running local Audio API and an authenticated Studio connector for fresh downloads; it is not a bundled or hosted service. See [audio setup](docs/AUDIO_LIBRARY.md).
 
 <p align="center">
   <img src="assets/screenshots/audio-library.png" alt="clovercut royalty-free audio library with waveforms" width="1000" />
@@ -78,9 +90,11 @@ Most open-source video editors leave you hunting across the web for stickers, so
 
 ---
 
-## In development
+## New in 0.1.6
 
-The next version adds complete clip snapshots for copy/paste and grouped duplication, including paste between projects in the same window. See the [clipboard integration notes](docs/CLIPBOARD_2026-10-24.md). The development build also includes a more compact timeline layout, larger library category icons and transition indicators that cover both adjacent clips. These changes are not included in the published 0.1.5 packages.
+Complete clip copy/paste between projects, grouped duplication, a compact desktop timeline, transition indicators across both clips, an adaptive inspector and Clovercut green by default. Library categories page in groups; new controls and messages are translated across all 25 supported languages. YouTube music and sound effects use the new companion API, with offline cache and licence details.
+
+The 0.1.6 desktop release is being prepared. Download links below remain on the published 0.1.5 packages until all new packages pass their release checks.
 
 ## Downloads (Version 0.1.5)
 

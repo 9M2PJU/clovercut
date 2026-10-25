@@ -208,7 +208,7 @@
       <div class="text-center max-w-3xl mx-auto mb-14">
         <h2 class="text-xs font-bold uppercase tracking-widest text-emerald-400 mb-2">What sets clovercut apart</h2>
         <h3 class="text-3xl sm:text-4xl font-extrabold text-white">Creative resources built directly into the editor</h3>
-        <p class="text-sm text-slate-400 mt-2">Instead of downloading assets manually from random websites, clovercut bundles search and import inside the workspace.</p>
+        <p class="text-sm text-slate-400 mt-2">Local captions, searchable creative assets and reusable edits share one desktop workspace. Your projects stay on your computer; online libraries are optional.</p>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -252,14 +252,14 @@
             <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
             </div>
-            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Safe for Content Creators</span>
-            <h4 class="text-xl font-bold text-white mt-1 mb-3">Royalty-free music & SFX</h4>
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Music &amp; sound effects</span>
+            <h4 class="text-xl font-bold text-white mt-1 mb-3">Audio libraries with licence details</h4>
             <p class="text-sm text-slate-300 leading-relaxed">
-              Built-in OpenGameArt library with instant waveform audio preview. Pick background music and sound effects that are safe to use on YouTube, Twitch, and TikTok without copyright flags.
+              Browse OpenGameArt and Freesound, preview audio and add it to your timeline. The new YouTube integration separates music and sound effects and preserves licences and credits. It currently requires the local companion API and a connected Studio session.
             </p>
           </div>
           <div class="mt-6 pt-4 border-t border-white/5 flex items-center gap-2 text-xs font-medium text-emerald-300">
-            <span>Waveform previews • CC0 public domain</span>
+            <span>Preview • Import • Check each track’s licence</span>
           </div>
         </div>
       </div>
@@ -344,6 +344,19 @@
       </div>
     </section>
 
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-24" aria-labelledby="workflow-strengths">
+      <div class="text-center mb-8">
+        <h2 id="workflow-strengths" class="text-3xl font-extrabold text-white">More of your workflow in one place</h2>
+        <p class="text-slate-400 mt-3">A familiar desktop editor with local AI, integrated libraries and tools for reusing your work.</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <article class="card-glass rounded-2xl p-6"><h3 class="text-lg font-bold text-emerald-300 mb-3">Reuse the edit, not just the media</h3><p class="text-sm text-slate-300 leading-relaxed">Copy clips between projects with their effects and animation settings. Duplicate groups, build multiple timelines and use adjustment layers for a consistent look.</p></article>
+        <article class="card-glass rounded-2xl p-6"><h3 class="text-lg font-bold text-emerald-300 mb-3">Keep your favourite tools close</h3><p class="text-sm text-slate-300 leading-relaxed">Star effects, filters, stickers and transitions. Return to favourites, recent and most-used items, and preview transitions on hover before applying them.</p></article>
+        <article class="card-glass rounded-2xl p-6"><h3 class="text-lg font-bold text-emerald-300 mb-3">Keep control of your workspace</h3><p class="text-sm text-slate-300 leading-relaxed">Edit locally on Linux, Windows or macOS, generate captions on your device and export without a Clovercut watermark or subscription. The AGPL source is available to inspect and improve.</p></article>
+      </div>
+      <p class="text-xs text-slate-400 text-center mt-5">New in 0.1.6: compact tracks, cross-project clip reuse, an adaptive inspector and refreshed translations in 25 languages. Release packages are being prepared; current downloads remain on 0.1.5.</p>
+    </section>
+
     <!-- Core Features Grid -->
     <section id="features" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-28">
       <div class="text-center max-w-3xl mx-auto mb-16">
@@ -360,7 +373,7 @@
             </div>
             <h4 class="text-lg font-bold text-white mb-2">Native Rust & WGSL speed</h4>
             <p class="text-sm text-slate-300 leading-relaxed">
-              Written in Rust with Slint UI and hardware-accelerated WGSL shaders for instant timeline scrubbing and 60 FPS playback.
+              A native Rust engine, Slint interface and GPU compute shaders handle playback and effects. Performance depends on your media, effects and hardware.
             </p>
           </div>
         </div>
