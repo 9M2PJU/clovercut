@@ -11,6 +11,24 @@ Reviewed through `9e20c562` (26 October 2026). The latest comparison adds eleven
 commits after `94f4255f`; the earlier adaptation batch starts at `2429c0ca`. Adaptations below are newer than the source used by the published
 0.1.6 release and require a newer app build.
 
+### Unreleased follow-up
+
+A fresh fetch on 26 October still points to `9e20c562`; there are no newer
+upstream main commits beyond the reviewed batch. This follow-up stays outside
+the published `v0.1.7` tag.
+
+The independent ColourField correction from `870290a0` is adapted: the alpha
+swatch alternates by row plus column, so transparency is shown over a checker
+rather than horizontal stripes. This does not introduce project transparency or
+change export formats. The wider canvas/alpha feature remains deferred together
+with preview/export compatibility work.
+
+The inspector fixes `cdbdf074`/`b613ba62` were checked again against Clovercut's
+cached kind/batch selection properties. Clovercut's tab labels already depend
+on these properties rather than animated clip values, while retaining its extra
+caption and animation tabs. No replacement of its tab model is warranted from
+this inspection; playback interaction still needs runtime verification.
+
 ### Latest adaptations and pending work
 
 The eleven commits below were compared with Clovercut. Status is explicit: the
