@@ -35,7 +35,7 @@ text, export, host, media and render; 65 core and 15 speech tests; and two opt-i
 live-provider tests covering OpenGameArt, YouTube and Freesound search, downloads,
 media probing and cache reuse. The model manifest matches all 23 compiled models.
 Native macOS quit behavior and Windows/macOS proxy integration require their own
-platform validation. This batch does not produce a new desktop executable.
+platform validation. A subsequent full desktop build and startup check are recorded below.
 
 The desktop follow-up adds checksum-verified manual model import, cut navigation,
 4:5/3:4 presets and typed-main-track opening. Its targeted checks cover 164 host
@@ -44,9 +44,12 @@ engine Clippy with warnings denied, Slint code generation and the strict
 1,083-message inventory in all 25 locales. Nine locale-tool regressions pass.
 The manual-import regression covers valid, wrong and cancelled copies, retaining
 the original and previous partial and leaving no staging files.
-The full Rust window check was stopped by its memory guard when available
-physical memory fell below 3 GiB; it did not finish and is not counted as passing.
-No new executable was produced by this follow-up.
+The initial Rust window check stopped at its memory guard. The full Linux desktop
+application subsequently compiled successfully from `637c15df`, using the existing
+`quick` profile and temporary disk swap. A fresh-profile startup check passed on
+the AMD Radeon RX 6600 XT Vulkan adapter and initialized Whisper successfully.
+The resulting local executable includes these adaptations; the published 0.1.6
+release remains unchanged.
 
 ### Previously adapted/reviewed batch
 

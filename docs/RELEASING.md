@@ -23,6 +23,20 @@ or absolute machine paths. Keep one heavy graphical Rust target at a time. On a
 provision headroom before compiling and remove temporary swap after validation.
 Do not change build profiles or disable OOM protections to work around pressure.
 
+A validated run on the 16 GiB Linux development machine used one Cargo job,
+`--offline --locked --profile quick -p concat --bin clovercut`, two CPU cores,
+`Nice=10`, an 8 GiB RAM ceiling and a 14 GiB swap allowance. A 16 GiB temporary
+Btrfs swap file at priority 200 took precedence over the existing priority-100
+zram. The guard stopped the build if `MemAvailable` fell below 2.5 GiB; only use
+that RAM ceiling when other applications leave that headroom. Provision the disk
+swap before starting, and arrange automatic `swapoff` and removal after validation.
+Never remove a swap file while it is active.
+
+That complete UI rebuild peaked at 8 GiB RAM and 10.5 GiB swap and took about
+44 minutes under those limits. It finished with a successful fresh-profile
+`--smoke` run, including Vulkan adapter creation and Whisper initialization.
+Incremental/no-change builds can have very different resource and time costs.
+
 A local development executable is not a portable release package.
 
 ## Prepare a release
