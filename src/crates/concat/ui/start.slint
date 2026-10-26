@@ -2306,6 +2306,7 @@ export component NewProjectDialog inherits Modal {
                 ChipRow {
                     horizontal-stretch: 1;
                     options: root.aspects;
+                    per-row: root.narrow ? 3 : 0;
                     current: root.data.aspect;
                     // A typed frame is its own shape.
                     enabled: !root.data.busy && root.data.size < root.sizes.length;

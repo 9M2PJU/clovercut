@@ -48,6 +48,7 @@ impl Default for LaneView {
 /// Everything that can happen to the view.
 #[derive(Clone, Debug)]
 pub enum TimelineMsg {
+    TrackScrolled(f32),
     ToolChanged(TimelineTool),
     PanChanged(bool),
     SnapChanged(bool),
@@ -93,6 +94,8 @@ pub enum TimelineMsg {
 pub struct TimelinePane {
     /// Seconds from the start of the cut at the lanes' left edge.
     pub scroll_left: f64,
+    /// Explicit vertical positions per timeline; absent keeps the main track visible.
+    pub vertical_scroll: HashMap<String, f32>,
     pub seconds_per_pixel: f32,
     /// Origin used by the last published local Slint coordinates.
     pub time_origin: Cell<f64>,
@@ -118,6 +121,7 @@ impl Default for TimelinePane {
     fn default() -> Self {
         Self {
             scroll_left: 0.0,
+            vertical_scroll: HashMap::new(),
             time_origin: Cell::new(0.0),
             seconds_per_pixel: 0.05,
             tool: TimelineTool::Select,
@@ -142,6 +146,12 @@ impl TimelinePane {
     /// this runs the studio's copy of the pane is a blank it must not read.
     pub fn update(&mut self, msg: TimelineMsg, studio: &mut Studio) {
         match msg {
+            TimelineMsg::TrackScrolled(position) => {
+                if position.is_finite() && position >= 0.0 {
+                    self.vertical_scroll
+                        .insert(studio.project().active_timeline_id.clone(), position);
+                }
+            }
             TimelineMsg::ToolChanged(tool) => self.tool = tool,
             TimelineMsg::PanChanged(on) => self.pan_mode = on,
             TimelineMsg::SnapChanged(on) => self.snap = on,
@@ -215,6 +225,7 @@ impl TimelinePane {
             }
             TimelineMsg::Reset => {
                 self.scroll_left = 0.0;
+                self.vertical_scroll.clear();
                 self.lane_view.clear();
                 self.recentre(studio.playhead);
             }

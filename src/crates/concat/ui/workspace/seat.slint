@@ -375,6 +375,10 @@ export component Seat inherits Rectangle {
 
             tabs: Editor.timeline-tabs;
             current-tab: Editor.timeline-current-tab;
+            main-track-top: Editor.main-track-top * 1px;
+            main-track-height: Editor.main-track-height * 1px;
+            track-scroll: Editor.timeline-track-scroll * 1px;
+            track-scrolled(position) => { Editor.timeline-track-scrolled(position / 1px); }
             tracks: Editor.tracks;
             clips: Editor.clips;
             key-marks: Editor.key-marks;

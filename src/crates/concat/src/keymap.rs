@@ -171,6 +171,14 @@ pub const ACTIONS: &[Action] = &[
         id: "step-forward",
         defaults: &["right"],
     },
+    Action {
+        id: "prev-edit",
+        defaults: &["up"],
+    },
+    Action {
+        id: "next-edit",
+        defaults: &["down"],
+    },
 ];
 
 /// The action a row and a dispatch speak, by its id.
@@ -215,6 +223,8 @@ pub fn name(id: &str) -> String {
         "end" => i18n::t("common.goToEnd"),
         "step-back" => i18n::t("shortcuts.stepBack"),
         "step-forward" => i18n::t("shortcuts.stepForward"),
+        "prev-edit" => i18n::t("shortcuts.prevEdit"),
+        "next-edit" => i18n::t("shortcuts.nextEdit"),
         _ => String::new(),
     }
 }

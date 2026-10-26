@@ -21,12 +21,12 @@ separate. None of these changes is in the published 0.1.6 executable.
 |---|---|
 | `153cce29` | Adapted: both Kokoro archive sizes and digests updated in the manifest and compiled speech table, independently checked against the official sherpa-onnx release metadata. Existing installed models and speaker IDs are retained. |
 | `e0111c01` | Adapted to Clovercut: compatible PCM spans play immediately after a cut and plain spans copy from the mapped recording. Preserves project-change cache isolation, disk-backed PCM, gain curves, stream selection and the existing continuous-speed-ramp engine; nonlinear retimes are deliberately excluded from linear source reuse. Audio-stream seeks and post-seek stream discard include MPG, TS and Matroska regression fixtures. Deferred upstream sound-layer features are not imported incidentally. |
-| `c2847c16` | Partially adapted: environment/SOCKS routing, Windows per-user proxy/PAC and fixed macOS proxy settings; useful failure classification; resumable downloads retain range headers; Freesound retains header authentication; all loopback Audio API traffic bypasses proxies; signed query strings and proxy credentials are excluded from new diagnostics. Explicit proxies are respected without an automatic direct retry. Updates still use shipped trust roots. The model-import buttons and unified model-download settings flow remain separate work. |
+| `c2847c16` | Adapted: environment/SOCKS routing, Windows per-user proxy/PAC and fixed macOS proxy settings; useful failure classification; resumable downloads retain range headers; Freesound retains header authentication; all loopback Audio API traffic bypasses proxies; signed query strings and proxy credentials are excluded from new diagnostics. Explicit proxies are respected without an automatic direct retry. Updates still use shipped trust roots. Model download settings now show translated failures and offer browser download/manual import. Chosen files use unique temporary copies and checksum verification before installation; failed or cancelled imports preserve the original and any partial download. Automatic browser downloads prefer the official source over the unpublished release mirror. |
 | `83a237e8` | Adapted and extended: per-call SVG temporary files avoid concurrent decoder races; relative images resolve beside the SVG. Cache identity also includes linked-image metadata, including missing images that subsequently appear, with namespace-aware SVG/SVGZ parsing. Concurrent-render and linked-bitmap-update regressions pass. |
 | `268cd601` | Adapted across text, title caches, render planning and export. Expanded canvases preserve overflow; caption reveal coordinates, bounded shadow rendering, transformed colour glyphs and byte-limited live-title caching are retained. The title cache version is bumped so old clipped pictures are not reused. Does not import the deferred per-word rich-text model. |
 | `a6e5ab77` | Adapted for macOS: save/stop-export handling precedes leaving past whisper/Metal static destructors. Native macOS runtime verification remains required; Linux engine tests cannot validate that quit path. |
-| `23897dd8`, `3564d450` | Useful optional desktop features: previous/next edit shortcuts and 4:5/3:4 project presets, with matching shortcut documentation. Adapt existing Clovercut shortcut profiles and exact frame-rate handling; upstream rounds the frame rate in edit-point calculation. |
-| `9e20c562` | Adapt the intent, not its bottom-of-stack scroll formula. Clovercut has audio below its fixed main video track, so bottom anchoring can open on audio instead. Locate the actual main-track row, respect restored scroll position, and keep the expanded ruler/scrub band. Shorter tray tooltips are compatible. |
+| `23897dd8`, `3564d450` | Adapted: Up/Down navigate previous/next cuts across all tracks through the shared menu handler and customizable shortcut profiles. Uses the actual fractional project rate, rather than upstream's rounded rate. Added 4:5/3:4 presets to project creation, settings and monitor without changing existing preset indices. |
+| `9e20c562` | Adapted to typed tracks: first opening centers the actual main video row, including audio below it. Explicit vertical scroll is retained per timeline during the session; resizing clamps it to the available stack. The expanded ruler/scrub band remains intact. Compatible tray tooltips are shortened in all 25 locales. |
 | `1385c36b` | Needs redesign before adoption: optional linkage should respect the fixed typed main track, grouped captions, multi-lane operations, locks and undo. Upstream defaults linkage on and identifies the main lane dynamically. A mechanical reproduction using its exact `close_gaps`, `removed_before` and `follow_main` helpers confirms a double ripple when both main/text lanes lose the same two-second interval: remaining text at 5 s lands at 1 s instead of 3 s. Do not import this implementation unchanged. |
 | `1e683882` | Phone-specific interface: do not bring into the desktop-focused editor. Ordered multi-selection may be considered separately if a desktop use case is missing; preserve typed placement and existing multi-file import. |
 
@@ -36,6 +36,17 @@ live-provider tests covering OpenGameArt, YouTube and Freesound search, download
 media probing and cache reuse. The model manifest matches all 23 compiled models.
 Native macOS quit behavior and Windows/macOS proxy integration require their own
 platform validation. This batch does not produce a new desktop executable.
+
+The desktop follow-up adds checksum-verified manual model import, cut navigation,
+4:5/3:4 presets and typed-main-track opening. Its targeted checks cover 164 host
+and 15 speech regressions, three standalone desktop-navigation regressions,
+engine Clippy with warnings denied, Slint code generation and the strict
+1,083-message inventory in all 25 locales. Nine locale-tool regressions pass.
+The manual-import regression covers valid, wrong and cancelled copies, retaining
+the original and previous partial and leaving no staging files.
+The full Rust window check was stopped by its memory guard when available
+physical memory fell below 3 GiB; it did not finish and is not counted as passing.
+No new executable was produced by this follow-up.
 
 ### Previously adapted/reviewed batch
 

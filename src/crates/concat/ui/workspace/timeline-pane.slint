@@ -102,7 +102,10 @@ export component TimelinePane inherits Rectangle {
     in property <float> seconds-per-pixel: 0.05;
     /// Where the cut ends, in seconds; see the bar under the lanes.
     in property <float> duration-seconds;
-    in-out property <length> track-scroll;
+    in property <length> track-scroll: -1px;
+    in property <length> main-track-top;
+    in property <length> main-track-height;
+    callback track-scrolled(position: length);
 
     callback scrubbed(seconds: float);
     callback key-mark-moved(from: float, to: float);
@@ -190,7 +193,8 @@ export component TimelinePane inherits Rectangle {
         : 0px;
     property <length> overflow: Math.max(0px,
         root.stack-h - Math.max(0px, lanes.height - root.ruler-height));
-    property <length> at: Math.max(0px, Math.min(root.overflow, root.track-scroll));
+    property <length> initial-scroll: root.main-track-top - Math.max(0px, (lanes.height - root.ruler-height - root.main-track-height) / 2);
+    property <length> at: Math.max(0px, Math.min(root.overflow, root.track-scroll < 0px ? root.initial-scroll : root.track-scroll));
 
     // The preview axis button's menu. Hosted here and not in the tray,
     // because the surface a ContextMenu opens into is the element it is:
@@ -394,7 +398,7 @@ export component TimelinePane inherits Rectangle {
                 track-scroll: root.at;
                 overflow: root.overflow;
 
-                scrolled(to) => { root.track-scroll = to; }
+                scrolled(to) => { root.track-scrolled(to); }
                 flag-changed(index, visible, muted, locked) => {
                     root.track-flag-changed(index, visible, muted, locked);
                 }
@@ -468,11 +472,11 @@ export component TimelinePane inherits Rectangle {
                     root.dropped(payload, seconds, row);
                 }
                 // The stack scrolls here rather than in Rust: it is a property
-                // of looking at the timeline, not of the edit, and nothing on
-                // the Rust side needs to know where the view is parked.
+                // of looking at the timeline, not of the edit. Keep the
+                // explicit position in the session when switching timelines.
                 track-scrolled(pixels) => {
-                    root.track-scroll = Math.max(0px,
-                        Math.min(root.overflow, root.at + pixels));
+                    root.track-scrolled(Math.max(0px,
+                        Math.min(root.overflow, root.at + pixels)));
                 }
                 zoomed(factor, anchor) => { root.zoom(factor, anchor); }
                 // How wide the lanes are decides which clips Rust sends;

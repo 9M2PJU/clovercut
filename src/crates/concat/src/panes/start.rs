@@ -25,7 +25,7 @@ pub enum StartMsg {
     Dismiss,
     NameEdited(String),
     LocationEdited(String),
-    /// The frame's shape: 16:9, 9:16, 1:1, 4:3.
+    /// The frame's shape, from the shared ASPECTS list.
     AspectChanged(i32),
     /// The frame's size, as the short edge: 720p, 1080p, 4K.
     SizeChanged(i32),

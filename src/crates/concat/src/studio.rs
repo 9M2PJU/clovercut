@@ -74,13 +74,15 @@ use crate::ui::*;
 use concat_project::clipboard::Clipboard;
 
 /// The monitor's output sizes, matching the picker's rows.
-pub const OUTPUTS: [(i32, i32); 6] = [
+pub const OUTPUTS: [(i32, i32); 8] = [
     (1920, 1080),
     (3840, 2160),
     (1080, 1920),
     (1080, 1080),
     (1440, 1080),
     (2560, 1080),
+    (1080, 1350),
+    (1080, 1440),
 ];
 
 /// Shortest clip the editor will make: a sixtieth of a second. Trims and
@@ -223,11 +225,13 @@ pub(crate) const AUDIO_BPS: f32 = 192_000.0;
 /// cut at 4K was not a thing the form could ask for. Every pair of indices
 /// resolves through [`frame_size`], which is the one place that knows what
 /// a label means in pixels.
-pub const ASPECTS: [(&str, u32, u32); 4] = [
+pub const ASPECTS: [(&str, u32, u32); 6] = [
     ("16:9", 16, 9),
     ("9:16", 9, 16),
     ("1:1", 1, 1),
     ("4:3", 4, 3),
+    ("4:5", 4, 5),
+    ("3:4", 3, 4),
 ];
 
 /// The sizes, as the *short* edge in pixels.
@@ -2511,6 +2515,16 @@ impl Studio {
 
     pub fn clip(&self, id: &str) -> Option<&Clip> {
         self.timeline().clip(id)
+    }
+
+    /// Navigate clip boundaries without losing fractional frame-rate precision.
+    pub fn edit_point(&self, forward: bool) -> f64 {
+        crate::desktop_navigation::edit_point(
+            self.timeline().clips.iter().map(|c| (c.start, c.duration)),
+            self.playhead,
+            self.timeline().video.rate(),
+            forward,
+        )
     }
 
     /// The active timeline's frame rate. With no project open, the empty
@@ -10872,6 +10886,15 @@ impl Studio {
             .position(|timeline| timeline.id == project.active_timeline_id)
             .unwrap_or(0);
         editor.set_timeline_current_tab(active as i32);
+        let id = &project.active_timeline_id;
+        editor
+            .set_timeline_track_scroll(self.lanes.vertical_scroll.get(id).copied().unwrap_or(-1.0));
+        let (main_top, main_height) = crate::desktop_navigation::main_track_geometry(
+            &self.lane_heights(),
+            self.timeline().main_track_index(),
+        );
+        editor.set_main_track_top(main_top);
+        editor.set_main_track_height(main_height);
         editor.set_playhead(self.playhead as f32);
         editor.set_timeline_playhead(self.lanes.local(self.playhead));
         sync(
@@ -13890,6 +13913,20 @@ impl Studio {
                     t("common.goToEnd"),
                     Glyph::SkipForward,
                     &keymap::label(&self.prefs, "end"),
+                    true,
+                ),
+                row(
+                    "prev-edit",
+                    t("shortcuts.prevEdit"),
+                    Glyph::SkipBack,
+                    &keymap::label(&self.prefs, "prev-edit"),
+                    true,
+                ),
+                row(
+                    "next-edit",
+                    t("shortcuts.nextEdit"),
+                    Glyph::SkipForward,
+                    &keymap::label(&self.prefs, "next-edit"),
                     true,
                 ),
             ],

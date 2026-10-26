@@ -314,6 +314,10 @@ export global Editor {
     // ── the timeline ──
     in-out property <[TimelineTabData]> timeline-tabs;
     in-out property <int> timeline-current-tab;
+    in property <float> main-track-top;
+    in property <float> main-track-height;
+    in property <float> timeline-track-scroll: -1;
+    callback timeline-track-scrolled(position: float);
     in-out property <[TrackData]> tracks;
     in-out property <[ClipData]> clips;
     in-out property <TimelineTool> tool;
