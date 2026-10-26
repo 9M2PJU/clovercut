@@ -26,6 +26,7 @@ pub mod plan;
 mod reference;
 #[cfg(test)]
 mod transitions;
+pub mod upscale;
 
 pub use compositor::Compositor;
 pub use gpu::WgpuCompositor;

@@ -249,7 +249,10 @@ impl Enhancers {
         if !self.installed() {
             crate::cutout::fetch(ModelId::Enhance, &file, cancel, progress)?;
         }
-        let enhancer = Arc::new(Enhancer::load(&file)?);
+        let enhancer = Arc::new(fastest(&file, cancel)?);
+        if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err("enhance cancelled".to_owned());
+        }
         *self.model.lock().map_err(|_| "model slot poisoned")? = Some(Arc::clone(&enhancer));
         Ok(enhancer)
     }
@@ -569,9 +572,228 @@ pub(crate) fn crop(frame: &concat_core::Frame, width: u32, height: u32) -> conca
     out
 }
 
+/// The model on whichever engine is fastest here, found by running both:
+/// our own shaders on the GPU, and ONNX Runtime with the platform's
+/// accelerator (CoreML on Apple's machines). Neither wins everywhere. On
+/// an M5, CoreML beat our shaders 45 ms to 105 ms a window in a test of
+/// its own, yet in the running app it took about 0.2 s a window, seven
+/// times our shaders, so a choice made from a benchmark was the wrong one
+/// where it mattered. Each candidate is warmed on one window and timed on
+/// the next two, in the app as it is, and both times are logged. ONNX
+/// Runtime on the CPU is what is left when no GPU opens.
+fn fastest(file: &Path, cancel: &AtomicBool) -> Result<Enhancer, String> {
+    let gpu = on_gpu(file).and_then(|gpu| {
+        let seconds = window_seconds(&gpu, cancel);
+        if seconds.is_finite() {
+            log::info!("enhance: GPU warm window {:.0} ms", seconds * 1000.0);
+            Some((gpu, seconds))
+        } else {
+            log::warn!("enhance: GPU warm-up failed; trying ONNX Runtime");
+            None
+        }
+    });
+    if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+        return Err("enhance cancelled".to_owned());
+    }
+    // Measure on this machine, including CPU-only runtimes: an adapter's
+    // existence is not evidence that it is faster than every CPU.
+    let runtime = match Enhancer::load(file) {
+        Ok(enhancer) => Some(enhancer),
+        Err(error) => {
+            log::warn!("enhance: ONNX Runtime would not load it: {error}");
+            None
+        }
+    };
+    let selected = match (gpu, runtime) {
+        (Some((gpu, ours)), Some(runtime)) => {
+            let theirs = window_seconds(&runtime, cancel);
+            log::info!(
+                "enhance: a window takes {:.0} ms on our shaders, {:.0} ms through ONNX Runtime",
+                ours * 1000.0,
+                theirs * 1000.0
+            );
+            if theirs < ours {
+                log::info!("enhance: through ONNX Runtime");
+                Ok(runtime)
+            } else {
+                log::info!("enhance: on our shaders");
+                Ok(gpu)
+            }
+        }
+        (Some((gpu, _)), None) => Ok(gpu),
+        (None, Some(runtime)) => Ok(runtime),
+        (None, None) => Err("enhance: nothing here could run the model".to_owned()),
+    };
+    if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+        Err("enhance cancelled".to_owned())
+    } else {
+        selected
+    }
+}
+
+/// Seconds `enhancer` takes over one window once warm: the first run
+/// compiles and is not counted, the better of the next two is.
+fn window_seconds(enhancer: &Enhancer, cancel: &AtomicBool) -> f64 {
+    let side = vision::WINDOW;
+    let frame = Frame::black(side - 2 * vision::PAD, side - 2 * vision::PAD);
+    let region = vision::Tile {
+        x: 0,
+        y: 0,
+        width: frame.width(),
+        height: frame.height(),
+    };
+    let mut best = f64::INFINITY;
+    for run in 0..3 {
+        if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            return f64::INFINITY;
+        }
+        let started = std::time::Instant::now();
+        if enhancer.enhance_region(&frame, region, 1).is_err() {
+            return f64::INFINITY;
+        }
+        if run > 0 {
+            best = best.min(started.elapsed().as_secs_f64());
+        }
+    }
+    best
+}
+
+/// The model on the GPU, in compute shaders of our own
+/// (`concat_render::upscale`), when its file reads as the compact network
+/// and a GPU opens: about six times what ONNX Runtime does on this
+/// machine's CPU, and the CPU is where ONNX Runtime ran nearly everywhere -
+/// Windows' runtime has no GPU provider at all. `None` sends Enhance the
+/// slow way rather than not at all.
+fn on_gpu(file: &Path) -> Option<Enhancer> {
+    if let Err(error) = crate::models::verify(file, ModelId::Enhance.spec().sha256) {
+        log::warn!("enhance: model is not the pinned compact network: {error}; using ONNX Runtime");
+        return None;
+    }
+    let bytes = std::fs::read(file).ok()?;
+    let net = match concat_vision::compact::CompactNet::read(&bytes) {
+        Ok(net) => net,
+        Err(error) => {
+            log::warn!("enhance: {error}; on the CPU instead");
+            return None;
+        }
+    };
+    let layers: Vec<concat_render::upscale::ConvLayer> = net
+        .layers
+        .into_iter()
+        .map(|layer| concat_render::upscale::ConvLayer {
+            in_channels: layer.in_channels,
+            out_channels: layer.out_channels,
+            weight: layer.weight,
+            bias: layer.bias,
+            prelu: layer.prelu,
+        })
+        .collect();
+    let upscaler =
+        concat_render::upscale::Upscaler::new(&layers, net.scale as u32, vision::WINDOW)?;
+    log::info!(
+        "enhance: on the GPU{}",
+        if upscaler.half() {
+            ", in half floats"
+        } else {
+            ""
+        }
+    );
+    Some(Enhancer::with(Box::new(GpuWindows {
+        gpu: Some(upscaler),
+        file: file.to_path_buf(),
+        fallback: None,
+    })))
+}
+
+/// The GPU upscaler as the model `Enhancer` runs window by window.
+struct GpuWindows {
+    gpu: Option<concat_render::upscale::Upscaler>,
+    file: PathBuf,
+    fallback: Option<Box<dyn vision::WindowRunner>>,
+}
+
+impl vision::WindowRunner for GpuWindows {
+    fn run(&mut self, planes: Vec<f32>) -> Result<Vec<f32>, String> {
+        if let Some(gpu) = &self.gpu {
+            match gpu.run(&planes) {
+                Ok(answer) => return Ok(answer),
+                Err(error) => log::warn!("enhance: {error}; switching to ONNX Runtime"),
+            }
+            self.gpu = None;
+        }
+        if self.fallback.is_none() {
+            self.fallback = Some(vision::runtime_runner(&self.file)?);
+        }
+        self.fallback
+            .as_mut()
+            .expect("runtime initialized")
+            .run(planes)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Explicit real-model comparison; no download or inference in ordinary tests.
+    #[test]
+    #[ignore = "requires CLOVERCUT_ENHANCE_MODEL and a real GPU"]
+    fn real_gpu_enhance_matches_runtime_and_reports_time() {
+        let path = PathBuf::from(std::env::var_os("CLOVERCUT_ENHANCE_MODEL").expect("model path"));
+        let gpu = on_gpu(&path).expect("real GPU");
+        let runtime = Enhancer::load(&path).expect("runtime");
+        let frame = Frame::from_rgba(
+            272,
+            64,
+            (0..272 * 64)
+                .flat_map(|n| {
+                    let x = n % 272;
+                    let y = n / 272;
+                    [(x % 256) as u8, (y * 3) as u8, ((x + y) % 256) as u8, 255]
+                })
+                .collect(),
+        )
+        .unwrap();
+        let cancel = AtomicBool::new(false);
+        let gpu_warm = window_seconds(&gpu, &cancel);
+        let cpu_warm = window_seconds(&runtime, &cancel);
+        assert!(gpu_warm.is_finite() && cpu_warm.is_finite());
+        let start = std::time::Instant::now();
+        let answer = gpu.enhance(&frame, 2).unwrap();
+        let gpu_seconds = start.elapsed().as_secs_f64();
+        let start = std::time::Instant::now();
+        let reference = runtime.enhance(&frame, 2).unwrap();
+        let cpu_seconds = start.elapsed().as_secs_f64();
+        assert_eq!((answer.width(), answer.height()), (544, 128));
+        let errors: Vec<f64> = answer
+            .pixels()
+            .iter()
+            .zip(reference.pixels())
+            .map(|(a, b)| f64::from(a.abs_diff(*b)))
+            .collect();
+        let mean = errors.iter().sum::<f64>() / errors.len() as f64;
+        let worst = errors.iter().copied().fold(0.0, f64::max);
+        eprintln!(
+            "Enhance host pipeline: two tiles GPU {gpu_seconds:.3}s, runtime {cpu_seconds:.3}s; warm window GPU {gpu_warm:.3}s runtime {cpu_warm:.3}s; mean error {mean:.3}/255, max {worst}/255"
+        );
+        let selected = fastest(&path, &cancel).expect("selects a measured engine");
+        let selected_answer = selected.enhance(&frame, 2).expect("selected engine runs");
+        assert_eq!(
+            (selected_answer.width(), selected_answer.height()),
+            (544, 128)
+        );
+        assert!(
+            selected_answer
+                .pixels()
+                .iter()
+                .zip(reference.pixels())
+                .all(|(a, b)| a.abs_diff(*b) <= 8)
+        );
+        assert!(
+            mean < 0.5 && worst <= 8.0,
+            "GPU differs from runtime: mean {mean}, max {worst}"
+        );
+    }
 
     #[test]
     fn the_copy_is_named_after_the_file_and_the_factor() {
