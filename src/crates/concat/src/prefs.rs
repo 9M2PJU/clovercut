@@ -107,6 +107,8 @@ pub struct Preferences {
     /// sometimes the point; ⇧⌫ ripples either way.
     /// https://github.com/jub0t/Concat/issues/106
     pub magnetic: bool,
+    /// Vertical ruler guides through the tracks; hidden by default.
+    pub timeline_grid: bool,
     /// Trim follow: while a clip's edge is dragged, the playhead rides the
     /// edge, so the monitor shows the exact frame the cut lands on. Off by
     /// default; the tray's button beside the hand turns it on.
@@ -445,6 +447,16 @@ mod tests {
                 .ends_with(".part")
         }));
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn timeline_guides_default_off_and_round_trip_when_enabled() {
+        let old: Preferences = serde_json::from_str(r#"{"magnetic":true}"#).unwrap();
+        assert!(!old.timeline_grid);
+        let enabled: Preferences = serde_json::from_str(r#"{"timelineGrid":true}"#).unwrap();
+        let round_trip: Preferences =
+            serde_json::from_str(&serde_json::to_string(&enabled).unwrap()).unwrap();
+        assert!(round_trip.timeline_grid);
     }
 
     /// One value of the wrong shape costs that value, not every setting,

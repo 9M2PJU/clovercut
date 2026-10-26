@@ -67,6 +67,8 @@ pub enum Then {
 /// Everything that can happen to the Audio page.
 #[derive(Clone, Debug)]
 pub enum SoundsMsg {
+    YouTubeLogin,
+    YouTubeLoginOpened(Result<(), String>),
     /// Files picked, or dropped while the page was up.
     Import(Vec<PathBuf>),
     /// The import's worker is done copying and reading.
@@ -187,6 +189,23 @@ impl SoundsPane {
             return;
         }
         match msg {
+            SoundsMsg::YouTubeLogin => {
+                if !studio.prefs.youtube_audio_library {
+                    return;
+                }
+                let api = studio.prefs.youtube_audio_api.clone();
+                let dirs = studio.host.dirs.clone();
+                crate::host::spawn(
+                    move || concat_host::youtube_audio::open_studio_login(&dirs, &api),
+                    |studio, _, _, result| {
+                        studio.handle(Msg::Sounds(SoundsMsg::YouTubeLoginOpened(result)))
+                    },
+                );
+            }
+            SoundsMsg::YouTubeLoginOpened(result) => match result {
+                Ok(()) => studio.notify(&t("youtube.signInOpened"), false),
+                Err(error) => studio.notify(&youtube_error(&error), true),
+            },
             SoundsMsg::Shown(on) => self.shown = on,
             SoundsMsg::YouTubeCategory(index) => {
                 if !studio.prefs.youtube_audio_library {
@@ -636,7 +655,12 @@ impl Studio {
             .map(|voice| VoiceCardData {
                 id: format!("saved-{}", voice.id).into(),
                 name: voice.name.as_str().into(),
-                detail: t("speech.savedVoice").into(),
+                // The line the user wrote about it, or what it is.
+                detail: voice
+                    .description
+                    .clone()
+                    .unwrap_or_else(|| t("speech.savedVoice"))
+                    .into(),
                 avatar: self.speech.saved_avatar(voice),
                 removable: true,
             })

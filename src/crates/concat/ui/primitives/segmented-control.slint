@@ -80,7 +80,7 @@ export component SegmentedControl inherits Rectangle {
         width: root.seg-w;
         height: root.tabs ? 2px : root.height - 2 * root.inset;
         border-radius: Theme.r-sm;
-        background: root.tabs ? Theme.accent : Theme.field-hover;
+        background: root.tabs ? Colors.transparent : Theme.field-hover;
 
         animate x, width { duration: 180ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
     }
@@ -101,7 +101,7 @@ export component SegmentedControl inherits Rectangle {
             height: parent.height;
             text: option;
             color: root.disabled[index] ? Theme.fg-dim
-                : (index == root.current || segment.has-hover) ? Theme.fg : Theme.fg-muted;
+                : index == root.current ? Theme.accent : segment.has-hover ? Theme.fg : Theme.fg-muted;
             font-size: Theme.fs;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -114,7 +114,7 @@ export component SegmentedControl inherits Rectangle {
             y: (parent.height - self.height) / 2;
             glyph: root.icons[index];
             size: 14px;
-            tint: (index == root.current || segment.has-hover) ? Theme.fg : Theme.fg-muted;
+            tint: index == root.current ? Theme.accent : segment.has-hover ? Theme.fg : Theme.fg-muted;
         }
 
         Tip { text: option; active: segment.has-hover; }

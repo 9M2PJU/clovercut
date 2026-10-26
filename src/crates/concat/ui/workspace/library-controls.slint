@@ -12,9 +12,9 @@ export component LibraryTabs inherits HorizontalLayout {
         min-width: 0px;
         horizontal-stretch: 1;
         border-radius: Theme.r-sm;
-        background: root.mode == index ? Theme.accent-soft : hit.has-hover ? Theme.field-hover : Theme.field;
+        background: hit.has-hover ? Theme.field-hover : Colors.transparent;
         border-width: 1px;
-        border-color: root.mode == index ? Theme.accent : Theme.line;
+        border-color: Colors.transparent;
         Text { x: 2px; width: parent.width - 4px; height: parent.height; text: label; color: root.mode == index ? Theme.accent : Theme.fg-muted; font-size: Theme.fs-xs; horizontal-alignment: center; vertical-alignment: center; wrap: word-wrap; overflow: elide; }
         hit := TouchArea { mouse-cursor: pointer; clicked => { root.selected(index); } }
     }

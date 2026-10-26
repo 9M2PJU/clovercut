@@ -21,7 +21,7 @@ import { SegmentedControl } from "../primitives/segmented-control.slint";
 import { InspectorFmt, Param, ParamFormat } from "../inspector/controls.slint";
 import { ClipField, ClipKeyData, Keyframes, SelectedClipData } from "../timeline/model.slint";
 import { Pane, PaneHeader } from "pane.slint";
-import { PaneKind, PaneSwitcher } from "pane-switcher.slint";
+import { PaneKind } from "pane-switcher.slint";
 
 /// One key on a row: where in the clip, its value as a fraction of the
 /// knob's range, and the ease into it from the key behind.
@@ -299,17 +299,6 @@ export component KeyframesPane inherits Pane {
         // to go off the end was the switcher.
         PaneHeader {
             title: I18n.t("common.keyframes");
-
-            VerticalLayout {
-                alignment: center;
-                PaneSwitcher {
-                    kind: PaneKind.keyframes;
-                    seat: root.pane-seat;
-                    removable: root.pane-removable;
-                    picked(kind) => { root.pane-picked(kind); }
-                    removed => { root.pane-removed(); }
-                }
-            }
         }
 
         // ── the tools ───────────────────────────────────────────────────

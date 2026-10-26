@@ -63,6 +63,7 @@ pub enum SettingsMsg {
     GpuChanged(bool),
     /// The magnetic timeline switch; the tray's button is the same fact.
     MagneticChanged(bool),
+    TimelineGridChanged(bool),
     DownloadSourceChanged(i32),
     DownloadBaseEdited(String),
     ServerEnabledChanged(bool),
@@ -337,6 +338,10 @@ impl SettingsPane {
                 studio.prefs.software_after_crash = None;
                 studio.prefs.save(&studio.host.dirs);
                 studio.notify(&t("settings.gpuNextStart"), false);
+            }
+            SettingsMsg::TimelineGridChanged(on) => {
+                studio.prefs.timeline_grid = on;
+                studio.prefs.save(&studio.host.dirs);
             }
             SettingsMsg::MagneticChanged(on) => {
                 studio.prefs.magnetic = on;
@@ -865,6 +870,7 @@ impl SettingsPane {
             gpu: !studio.prefs.draws_in_software(),
             gpu_switchable: cfg!(any(windows, target_os = "linux")),
             magnetic: studio.prefs.magnetic,
+            timeline_grid: studio.prefs.timeline_grid,
             download_source: self.download_source as i32,
             download_base: self.download_base.as_str().into(),
             server_enabled: studio.prefs.server.enabled,

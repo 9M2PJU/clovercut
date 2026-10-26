@@ -65,6 +65,9 @@ export global Sounds {
     callback voice-open(id: string);
     /// A saved voice deleted.
     callback voice-remove(id: string);
+    /// The Import voice button: the system's picker, for a recording to
+    /// keep as a voice, and then the New voice sheet on it.
+    callback voice-import();
 
     /// The Mine shelf: the user's own sounds, newest first.
     in property <[SoundCardData]> mine;
@@ -83,6 +86,7 @@ export global Sounds {
     callback youtube-category-changed(category: int);
     /// "Load Concat sounds", Refresh, Try again: the list fetched.
     callback load-concat();
+    callback youtube-login();
     in property <string> query;
     in property <int> result-page;
     in property <bool> more;
@@ -159,7 +163,7 @@ export component SoundRow inherits Rectangle {
     property <string> payload: root.touch-sized ? ""
         : "sound:\{root.item.id}:\{root.item.name}";
 
-    height: root.touch-sized ? 56px : 44px;
+    height: root.touch-sized ? 72px : 80px;
     border-radius: Theme.r;
     background: root.playing-row ? Theme.field-active
         : card.has-hover ? Theme.field : Colors.transparent;
@@ -187,7 +191,7 @@ export component SoundRow inherits Rectangle {
                 VerticalLayout {
                     alignment: center;
                     Rectangle {
-                        width: root.touch-sized ? 40px : 32px;
+                        width: root.touch-sized ? 48px : 56px;
                         height: self.width;
                         border-radius: Theme.r-sm;
                         background: Theme.kind-audio-well;
@@ -218,6 +222,8 @@ export component SoundRow inherits Rectangle {
                     }
                     Text {
                         text: root.item.detail;
+                        height: 32px;
+                        wrap: word-wrap;
                         color: Theme.fg-dim;
                         font-family: Theme.font-technical;
                         font-size: Theme.fs-xs;
@@ -408,6 +414,12 @@ component ShelfHeading inherits Text {
 
 // The Voices shelf: the user's own voices, then the built-in ones, or the
 // styles. Opening one is a click; on a phone the sheet goes down with it.
+//
+// The children go at the head of the user's own, under its heading: the
+// Import voice button, which is each shell's own - the desk's dashed drop
+// zone, the phone's button the width of its sheet - as Import sounds is.
+// `@children` cannot sit inside a conditional, so a caller shows its
+// button only while the shelf is the voices.
 export component VoiceList inherits VerticalLayout {
     /// The Styles shelf rather than the voices.
     in property <bool> styles;
@@ -417,6 +429,7 @@ export component VoiceList inherits VerticalLayout {
     spacing: 2px;
 
     if !root.styles: ShelfHeading { text: I18n.t("voices.yours"); }
+    @children
     if !root.styles && Sounds.voices-saved.length == 0: Text {
         text: I18n.t("voices.noneSavedYet");
         color: Theme.fg-dim;

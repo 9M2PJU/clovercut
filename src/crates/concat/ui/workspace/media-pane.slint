@@ -7,7 +7,7 @@ import { I18n } from "../i18n.slint";
 import { Theme, Fmt, Glyph, Icon, Payload, Tip } from "../primitives/primitives.slint";
 import { Pane, PaneScroll } from "pane.slint";
 import { HairlineSplitter } from "splitter.slint";
-import { PaneKind, PaneSwitcher } from "pane-switcher.slint";
+import { PaneKind } from "pane-switcher.slint";
 import { TextAlignment } from "../timeline/model.slint";
 import { CatalogueEntryData, Library } from "../inspector/clip-inspector.slint";
 import { SearchField, SwitchRow } from "../inspector/controls.slint";
@@ -100,12 +100,13 @@ component LibraryTab inherits Rectangle {
     // shared, so "Transitions" is never crammed to make room for padding
     // around "Text". A Slint layout distributes spare width on top of each
     // child's own preferred width, which is the same rule.
-    min-width: 60px;
+    min-width: 0px;
+    preferred-width: 60px;
     horizontal-stretch: 1;
     border-radius: Theme.r-sm;
     // A soft accent surface distinguishes the active category; hover stays
     // neutral so it cannot be confused with the selected page.
-    background: root.current ? Theme.accent-soft : touch.has-hover ? Theme.field : Colors.transparent;
+    background: touch.has-hover ? Theme.field : Colors.transparent;
 
     animate background { duration: 120ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
 
@@ -160,169 +161,9 @@ component LibraryTab inherits Rectangle {
     }
 }
 
-component OverflowCategoryRow inherits Rectangle {
-    in property <Glyph> glyph;
-    in property <string> label;
-    in property <bool> current;
 
-    callback chosen();
 
-    height: 26px;
 
-    Rectangle {
-        x: 4px;
-        y: 0;
-        width: parent.width - 8px;
-        height: parent.height;
-        border-radius: Theme.r-sm;
-        background: touch.has-hover ? Theme.field-hover : Colors.transparent;
-
-        HorizontalLayout {
-            padding-left: 8px;
-            padding-right: 8px;
-            spacing: 8px;
-
-            VerticalLayout {
-                alignment: center;
-                Icon {
-                    glyph: root.glyph;
-                    size: 13px;
-                    tint: root.current ? Theme.accent : Theme.fg-muted;
-                }
-            }
-
-            Text {
-                horizontal-stretch: 1;
-                text: root.label;
-                color: root.current ? Theme.fg : Theme.fg-muted;
-                font-size: Theme.fs;
-                vertical-alignment: center;
-                overflow: elide;
-            }
-
-            if root.current: VerticalLayout {
-                alignment: center;
-                Icon {
-                    glyph: Glyph.check;
-                    size: 12px;
-                    tint: Theme.accent;
-                }
-            }
-        }
-
-        touch := TouchArea {
-            mouse-cursor: pointer;
-            clicked => { root.chosen(); }
-        }
-    }
-}
-
-component CategoryOverflowButton inherits Rectangle {
-    in property <int> current-tab;
-    callback picked(tab: int, strip-ratio: float);
-
-    width: 24px;
-    height: 24px;
-    border-radius: Theme.r;
-    background: touch.pressed ? Theme.field-active
-        : touch.has-hover ? Theme.field-hover
-        : Theme.field;
-
-    Icon {
-        x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
-        glyph: Glyph.more;
-        size: 13px;
-        tint: touch.has-hover ? Theme.fg : Theme.fg-muted;
-    }
-
-    touch := TouchArea {
-        mouse-cursor: pointer;
-        clicked => { menu.show(); }
-    }
-
-    menu := PopupWindow {
-        x: root.width - 172px;
-        y: root.height + 4px;
-        width: 172px;
-        height: 10 * 26px + 8px;
-        close-policy: close-on-click-outside;
-
-        Rectangle {
-            background: Theme.field;
-            border-width: 1px;
-            border-color: Theme.line-strong;
-            border-radius: Theme.r;
-            clip: true;
-
-            VerticalLayout {
-                padding: 4px;
-                alignment: start;
-
-                OverflowCategoryRow {
-                    glyph: Glyph.film;
-                    label: I18n.t("common.media");
-                    current: root.current-tab == 0;
-                    chosen => { menu.close(); root.picked(0, 0.0); }
-                }
-                OverflowCategoryRow {
-                    glyph: Glyph.music;
-                    label: I18n.t("common.audio");
-                    current: root.current-tab == 8;
-                    chosen => { menu.close(); root.picked(8, 0.11); }
-                }
-                OverflowCategoryRow {
-                    glyph: Glyph.text-mark;
-                    label: I18n.t("common.text");
-                    current: root.current-tab == 1;
-                    chosen => { menu.close(); root.picked(1, 0.22); }
-                }
-                OverflowCategoryRow {
-                    glyph: Glyph.captions;
-                    label: I18n.t("captions.captions");
-                    current: root.current-tab == 9;
-                    chosen => { menu.close(); root.picked(9, 0.33); }
-                }
-                OverflowCategoryRow {
-                    glyph: Glyph.sticker;
-                    label: I18n.t("mediaPane.stickers");
-                    current: root.current-tab == 2;
-                    chosen => { menu.close(); root.picked(2, 0.44); }
-                }
-                OverflowCategoryRow {
-                    glyph: Glyph.transition;
-                    label: I18n.t("mediaPane.transitions");
-                    current: root.current-tab == 3;
-                    chosen => { menu.close(); root.picked(3, 0.56); }
-                }
-                OverflowCategoryRow {
-                    glyph: Glyph.sparkle;
-                    label: I18n.t("common.effects");
-                    current: root.current-tab == 4;
-                    chosen => { menu.close(); root.picked(4, 0.67); }
-                }
-                OverflowCategoryRow {
-                    glyph: Glyph.filter;
-                    label: I18n.t("mediaPane.filters");
-                    current: root.current-tab == 5;
-                    chosen => { menu.close(); root.picked(5, 0.78); }
-                }
-                OverflowCategoryRow {
-                    glyph: Glyph.sun;
-                    label: I18n.t("mediaPane.adjustments");
-                    current: root.current-tab == 7;
-                    chosen => { menu.close(); root.picked(7, 0.89); }
-                }
-                OverflowCategoryRow {
-                    glyph: Glyph.slot;
-                    label: I18n.t("mediaPane.templates");
-                    current: root.current-tab == 6;
-                    chosen => { menu.close(); root.picked(6, 1.0); }
-                }
-            }
-        }
-    }
-}
 
 // One end of the page strip: a slim button that moves the chips along by
 // most of a track, fading the chips out under itself so a chip half under
@@ -2102,35 +1943,6 @@ export component MediaPane inherits Rectangle {
     /// How far left the page strip can be pushed: nothing, while its chips
     /// fit. See `strip`.
     property <length> strip-floor: Math.min(0px, strip.width - strip.content-width);
-    // Page by complete categories. End-button overlays are excluded from
-    // the usable width, so the next group starts with an accessible chip.
-    property <[length]> strip-starts: [media-chip.x, audio-chip.x, text-chip.x, captions-chip.x, stickers-chip.x, transitions-chip.x, effects-chip.x, filters-chip.x, adjustments-chip.x, templates-chip.x];
-    property <[length]> strip-ends: [media-chip.x + media-chip.width, audio-chip.x + audio-chip.width, text-chip.x + text-chip.width, captions-chip.x + captions-chip.width, stickers-chip.x + stickers-chip.width, transitions-chip.x + transitions-chip.width, effects-chip.x + effects-chip.width, filters-chip.x + filters-chip.width, adjustments-chip.x + adjustments-chip.width, templates-chip.x + templates-chip.width];
-    pure function strip-index(at: length) -> int {
-        return (root.strip-starts[1] <= at ? 1 : 0)
-            + (root.strip-starts[2] <= at ? 1 : 0)
-            + (root.strip-starts[3] <= at ? 1 : 0)
-            + (root.strip-starts[4] <= at ? 1 : 0)
-            + (root.strip-starts[5] <= at ? 1 : 0)
-            + (root.strip-starts[6] <= at ? 1 : 0)
-            + (root.strip-starts[7] <= at ? 1 : 0)
-            + (root.strip-starts[8] <= at ? 1 : 0)
-            + (root.strip-starts[9] <= at ? 1 : 0);
-    }
-    function jump-strip(forward: bool) {
-        let inset = 24px;
-        let page = Math.max(60px, strip.width - 2 * inset);
-        let current = root.strip-index(-strip.content-x + inset);
-        let target = forward ? -strip.content-x + strip.width - inset
-            : Math.max(0px, -strip.content-x - page);
-        let near = root.strip-index(target);
-        let first-unread = root.strip-ends[near] <= target ? near + 1 : near;
-        let index = forward
-            ? Math.min(root.strip-starts.length - 1, Math.max(current + 1, first-unread))
-            : Math.max(0, Math.min(current - 1, near));
-        let offset = index == 0 ? 0px : inset - root.strip-starts[index];
-        strip.content-x = Math.max(root.strip-floor, Math.min(0px, offset));
-    }
     property <bool> categories-open: true;
     property <bool> generated-open: true;
     property <bool> text-open: true;
@@ -2219,17 +2031,17 @@ export component MediaPane inherits Rectangle {
                     // run past its end when they do not: seven pages in a
                     // narrow seat would otherwise be seven labels elided to
                     // nothing. What runs past is reached by the two end
-                    // buttons below, mouse wheel scroll, or the overflow menu.
+                    // toggle below or the mouse wheel.
                     strip := Flickable {
                         x: 0;
                         y: 0;
-                        width: parent.width;
+                        width: parent.width < 724px ? Math.max(0px, parent.width - 24px) : parent.width;
                         height: parent.height;
                         // A chip is clicked, not flicked: a Flickable that
                         // took the drag would take it off the chips, and
                         // the buttons do the moving.
                         interactive: false;
-                        content-width: Math.max(self.width, chips.preferred-width);
+                        content-width: self.width >= 700px ? self.width : self.width * 2;
                         content-height: self.height;
 
                         animate content-x { duration: 180ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
@@ -2246,15 +2058,15 @@ export component MediaPane inherits Rectangle {
                             y: 0;
                             width: strip.content-width;
                             height: strip.height;
-                            padding: 2px;
-                            spacing: 6px;
+                            padding: 0px;
+                            spacing: 0px;
 
                         media-chip := LibraryTab {
                             glyph: Glyph.film;
                             label: I18n.t("common.media");
                             current: root.tab == 0;
                             clicked => { root.tab = 0; }
-                            scrolled(d) => { strip.content-x = Math.max(root.strip-floor, Math.min(0px, strip.content-x + d)); }
+                            scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         // Beside Media, where CapCut keeps it: the page
                         // number is the last one handed out, not the place.
@@ -2263,49 +2075,49 @@ export component MediaPane inherits Rectangle {
                             label: I18n.t("common.audio");
                             current: root.tab == 8;
                             clicked => { root.tab = 8; }
-                            scrolled(d) => { strip.content-x = Math.max(root.strip-floor, Math.min(0px, strip.content-x + d)); }
+                            scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         text-chip := LibraryTab {
                             glyph: Glyph.text-mark;
                             label: I18n.t("common.text");
                             current: root.tab == 1;
                             clicked => { root.tab = 1; }
-                            scrolled(d) => { strip.content-x = Math.max(root.strip-floor, Math.min(0px, strip.content-x + d)); }
+                            scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         captions-chip := LibraryTab {
                             glyph: Glyph.captions;
                             label: I18n.t("captions.captions");
                             current: root.tab == 9;
                             clicked => { root.tab = 9; }
-                            scrolled(d) => { strip.content-x = Math.max(root.strip-floor, Math.min(0px, strip.content-x + d)); }
+                            scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         stickers-chip := LibraryTab {
                             glyph: Glyph.sticker;
                             label: I18n.t("mediaPane.stickers");
                             current: root.tab == 2;
                             clicked => { root.tab = 2; }
-                            scrolled(d) => { strip.content-x = Math.max(root.strip-floor, Math.min(0px, strip.content-x + d)); }
+                            scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         transitions-chip := LibraryTab {
                             glyph: Glyph.transition;
                             label: I18n.t("mediaPane.transitions");
                             current: root.tab == 3;
                             clicked => { root.tab = 3; }
-                            scrolled(d) => { strip.content-x = Math.max(root.strip-floor, Math.min(0px, strip.content-x + d)); }
+                            scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         effects-chip := LibraryTab {
                             glyph: Glyph.sparkle;
                             label: I18n.t("common.effects");
                             current: root.tab == 4;
                             clicked => { root.tab = 4; }
-                            scrolled(d) => { strip.content-x = Math.max(root.strip-floor, Math.min(0px, strip.content-x + d)); }
+                            scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         filters-chip := LibraryTab {
                             glyph: Glyph.filter;
                             label: I18n.t("mediaPane.filters");
                             current: root.tab == 5;
                             clicked => { root.tab = 5; }
-                            scrolled(d) => { strip.content-x = Math.max(root.strip-floor, Math.min(0px, strip.content-x + d)); }
+                            scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         // Beside Filters, where CapCut keeps it: the page
                         // number is the last one handed out, not the place.
@@ -2314,65 +2126,35 @@ export component MediaPane inherits Rectangle {
                             label: I18n.t("mediaPane.adjustments");
                             current: root.tab == 7;
                             clicked => { root.tab = 7; }
-                            scrolled(d) => { strip.content-x = Math.max(root.strip-floor, Math.min(0px, strip.content-x + d)); }
+                            scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         templates-chip := LibraryTab {
                             glyph: Glyph.slot;
                             label: I18n.t("mediaPane.templates");
                             current: root.tab == 6;
                             clicked => { root.tab = 6; }
-                            scrolled(d) => { strip.content-x = Math.max(root.strip-floor, Math.min(0px, strip.content-x + d)); }
+                            scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         }
                     }
 
                     // The end buttons, over the strip, each there only while
-                    // there is something past its end to go to.
-                    if strip.content-x < 0px: StripEnd {
-                        x: 0;
-                        height: parent.height;
-                        glyph: Glyph.chevron-left;
-                        fade: @linear-gradient(90deg, Theme.panel 60%, transparent);
-                        clicked => {
-                            root.jump-strip(false);
-                        }
-                    }
-                    if strip.content-x > root.strip-floor: StripEnd {
+                    // there is a second page to show.
+                    if root.strip-floor < 0px: StripEnd {
                         x: parent.width - self.width;
                         height: parent.height;
-                        glyph: Glyph.chevron-right;
+                        glyph: strip.content-x < 0px ? Glyph.chevron-left : Glyph.chevron-right;
                         fade: @linear-gradient(270deg, Theme.panel 60%, transparent);
-                        clicked => {
-                            root.jump-strip(true);
-                        }
+                        clicked => { strip.content-x = strip.content-x < 0px ? 0px : root.strip-floor; }
                     }
+
                 }
 
-                VerticalLayout {
-                    alignment: center;
-                    CategoryOverflowButton {
-                        current-tab: root.tab;
-                        picked(tab, ratio) => {
-                            root.tab = tab;
-                            strip.content-x = Math.max(root.strip-floor, Math.min(0px, root.strip-floor * ratio));
-                        }
-                    }
-                }
 
                 // Outside the sunken track, not in it: the track holds the
                 // pages of *this* view and this button changes which view the
                 // pane is, which is a different question about a different
                 // thing.
-                VerticalLayout {
-                    alignment: center;
-                    PaneSwitcher {
-                        kind: PaneKind.media;
-                        seat: root.pane-seat;
-                        removable: root.pane-removable;
-                        picked(kind) => { root.pane-picked(kind); }
-                        removed => { root.pane-removed(); }
-                    }
-                }
             }
         }
 
@@ -2994,6 +2776,11 @@ export component MediaPane inherits Rectangle {
                     padding: 8px;
                     spacing: 8px;
 
+                    if Sounds.provider == 1: ImportButton {
+                        label: I18n.t("youtube.signIn");
+                        glyph: Glyph.arrow-up-right;
+                        clicked => { Sounds.youtube-login(); }
+                    }
                     HorizontalLayout {
                         spacing: 6px;
                         online-search := SearchField {
@@ -3092,6 +2879,17 @@ export component MediaPane inherits Rectangle {
                     }
                     VoiceList {
                         styles: root.audio-category == 11;
+
+                        // A recording of the user's own kept as a voice,
+                        // brought in as Mine brings in a sound.
+                        if root.audio-category == 10: VerticalLayout {
+                            padding-top: 4px;
+                            padding-bottom: 6px;
+                            ImportButton {
+                                label: I18n.t("voices.importVoice");
+                                clicked => { Sounds.voice-import(); }
+                            }
+                        }
                     }
                 }
 

@@ -3,7 +3,7 @@
 
 import { Theme } from "../theme/theme.slint";
 import { Pane } from "pane.slint";
-import { PaneKind, PaneSwitcher } from "pane-switcher.slint";
+import { PaneKind } from "pane-switcher.slint";
 import { I18n } from "../i18n.slint";
 import { Glyph } from "../icons.slint";
 import { ContextMenu, MenuItemData, MenuMetrics, MenuRow } from "../primitives/context-menu.slint";
@@ -174,7 +174,8 @@ export component TimelinePane inherits Rectangle {
     /// pane that grows again finds its column where it left it.
     property <length> headers-w: Math.max(0px,
         Math.min(root.header-width, root.width / 2));
-    in property <length> ruler-height: 44px;
+    in property <length> ruler-height: 84px;
+    in property <bool> timeline-grid;
     /// The meters' column: the ruler, two bars and their gaps, a few
     /// pixels of air, and nothing when they are put away.
     property <length> meters-w: root.meters-shown ? 60px : 0px;
@@ -309,13 +310,7 @@ export component TimelinePane inherits Rectangle {
             close-requested(index) => { root.tab-close-requested(index); }
             moved(from, to) => { root.tab-moved(from, to); }
 
-            PaneSwitcher {
-                kind: PaneKind.timeline;
-                seat: root.pane-seat;
-                removable: root.pane-removable;
-                picked(kind) => { root.pane-picked(kind); }
-                removed => { root.pane-removed(); }
-            }
+
         }
 
         tray := TimelineTray {
@@ -377,13 +372,6 @@ export component TimelinePane inherits Rectangle {
             // speak of. -1 is read as "keep the left edge".
             zoom(factor) => { root.zoom(factor, -1); }
 
-            if root.tabs.length <= 1: PaneSwitcher {
-                kind: PaneKind.timeline;
-                seat: root.pane-seat;
-                removable: root.pane-removable;
-                picked(kind) => { root.pane-picked(kind); }
-                removed => { root.pane-removed(); }
-            }
         }
 
         // The lane grid. Positioned by hand for the reason the workspace is:
@@ -446,6 +434,7 @@ export component TimelinePane inherits Rectangle {
                 seconds-per-pixel: root.seconds-per-pixel;
                 track-scroll: root.at;
                 ruler-height: root.ruler-height;
+                timeline-grid: root.timeline-grid;
                 pan-mode: root.pan-mode;
                 preview-axis: root.preview-axis;
 

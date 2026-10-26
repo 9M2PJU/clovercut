@@ -56,6 +56,7 @@ pub mod titles;
 pub mod updates;
 pub mod voices;
 pub mod youtube_audio;
+pub mod youtube_service;
 
 pub use brush::{Brushes, RegionRequest};
 pub use cutout::{AnalyseRequest, Cutouts};

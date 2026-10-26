@@ -32,6 +32,7 @@ import { RelinkDialog, RelinkData, MissingMediaItem } from "dialogs/relink.slint
 import { ConfirmData, ConfirmDialog } from "dialogs/confirm.slint";
 import { CaptionsDialog, CaptionsSheetData } from "dialogs/captions.slint";
 import { SpeechDialog, SpeechSheetData } from "dialogs/speech.slint";
+import { NewVoiceData, NewVoiceDialog } from "dialogs/new-voice.slint";
 import { AvatarData } from "primitives/avatar.slint";
 import { VoiceoverData, VoiceoverPanel } from "dialogs/voiceover.slint";
 import { DockDivider, DockSide, SeatBox } from "dock.slint";
@@ -78,7 +79,7 @@ export {
     SelectedClipData, SelectedTransitionData, StageGuideData, StageItemData, TextAlignment, TimelineTabData,
     TimelineTool, TrackData, TrackKind, TrackSize, MenuItemData, MenuRow, ExportData, ExportPhase, ModelData, SettingsData,
     ChipOption, RecentProjectData, StartData, SystemFactData, ToastData, ProjectSheetData,
-    CaptionsSheetData, SpeechSheetData, VoiceoverData, SoundCardData, Sounds, VoiceCardData,
+    CaptionsSheetData, SpeechSheetData, VoiceoverData, SoundCardData, Sounds, VoiceCardData, NewVoiceData,
 }
 
 export component App inherits Window {
@@ -133,7 +134,7 @@ export component App inherits Window {
     }
     property <bool> sheet-open: root.export.open || root.settings.open
         || root.project-sheet.open || root.captions.open || root.speech.open
-        || root.start.composing;
+        || root.start.composing || root.new-voice.open;
     changed sheet-open => {
         if (!root.sheet-open) {
             keys.focus();
@@ -283,6 +284,7 @@ export component App inherits Window {
     callback settings-proxies-changed(on: bool);
     callback settings-gpu-changed(on: bool);
     callback settings-magnetic-changed(on: bool);
+    callback settings-timeline-grid-changed(on: bool);
     callback settings-download-source-changed(index: int);
     callback settings-download-base-edited(text: string);
     callback settings-server-enabled-changed(on: bool);
@@ -367,6 +369,16 @@ export component App inherits Window {
     callback speech-pick-picture();
     callback speech-save-voice();
     callback speech-clear-style();
+
+    /// The Voices shelf's New voice sheet: a recording picked to be kept
+    /// as a voice; see NewVoiceDialog.
+    in property <NewVoiceData> new-voice;
+    callback new-voice-closed();
+    callback new-voice-name-edited(name: string);
+    callback new-voice-description-edited(text: string);
+    callback new-voice-start-changed(seconds: float);
+    callback new-voice-pick-picture();
+    callback new-voice-save();
 
     /// The voiceover panel; see VoiceoverPanel. Its meter and clock come
     /// on the Editor global, from a timer.
@@ -524,6 +536,10 @@ export component App inherits Window {
             if (event.text == Key.Escape || event.text == Key.Back) {
                 if (root.confirm.open) { root.confirm-dismissed(); return accept; }
                 if (root.relink.open) { root.relink-dismiss(); return accept; }
+                if (root.new-voice.open) {
+                    if (!root.new-voice.saving) { root.new-voice-closed(); }
+                    return accept;
+                }
                 if (root.project-sheet.open) { root.project-closed(); return accept; }
                 if (root.settings.open) { root.settings-closed(); return accept; }
                 if (root.export.open) {
@@ -895,6 +911,7 @@ export component App inherits Window {
         proxies-changed(on) => { root.settings-proxies-changed(on); }
         gpu-changed(on) => { root.settings-gpu-changed(on); }
         magnetic-changed(on) => { root.settings-magnetic-changed(on); }
+        timeline-grid-changed(on) => { root.settings-timeline-grid-changed(on); }
         download-source-changed(index) => { root.settings-download-source-changed(index); }
         download-base-edited(text) => { root.settings-download-base-edited(text); }
         server-enabled-changed(on) => { root.settings-server-enabled-changed(on); }
@@ -937,6 +954,28 @@ export component App inherits Window {
         custom-fps-edited(fps) => { root.project-custom-fps-edited(fps); }
         color-space-changed(index) => { root.project-color-space-changed(index); }
         apply => { root.project-apply(); }
+    }
+
+    // Over the Audio page it was opened from, and over the tool cards,
+    // which may be open beside the page on a desk.
+    NewVoiceDialog {
+        fill: root.sheets-fill;
+        inset-top: root.safe-area-insets.top;
+        inset-bottom: root.safe-area-insets.bottom;
+        inset-left: root.safe-area-insets.left;
+        inset-right: root.safe-area-insets.right;
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
+        data: root.new-voice;
+
+        closed => { root.new-voice-closed(); }
+        name-edited(name) => { root.new-voice-name-edited(name); }
+        description-edited(text) => { root.new-voice-description-edited(text); }
+        start-changed(seconds) => { root.new-voice-start-changed(seconds); }
+        pick-picture => { root.new-voice-pick-picture(); }
+        save => { root.new-voice-save(); }
     }
 
     RelinkDialog {

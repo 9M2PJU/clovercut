@@ -1040,9 +1040,17 @@
   "voiceover.title": "Voix off",
   "voiceover.tryAgain": "Réessayer",
   "voices.builtIn": "Voix intégrées",
+  "voices.description": "Description de la voix",
+  "voices.descriptionPlaceholder": "Facultatif · une ligne sur cette voix",
   "voices.hint": "Cliquez sur une voix pour écrire avec elle dans Synthèse vocale.",
+  "voices.importVoice": "Importer une voix",
+  "voices.keptHint": "Jusqu’à 12 secondes à partir d’ici sont conservées comme voix sur cet appareil. Rien n’est téléversé.",
+  "voices.listening": "Recherche d’un passage parlé…",
+  "voices.newVoice": "Nouvelle voix",
   "voices.noModel": "Téléchargez un modèle de voix dans Réglages › Parole pour entendre les voix intégrées.",
   "voices.noneSavedYet": "Pas encore de voix à vous. Dans Synthèse vocale, activez Utiliser une voix d’exemple, choisissez un enregistrement et enregistrez-le sous un nom. Il reste sur cet appareil.",
+  "voices.picture": "Image",
+  "voices.recordings": "Enregistrements",
   "voices.removed": "La voix {0} a été supprimée",
   "voices.saved": "La voix {0} est enregistrée. Elle figure dans la liste des voix de chaque projet.",
   "voices.styleChipmunk": "Tamia",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "Adresse de l’API audio",
   "youtube.attributionRequired": "Attribution requise",
   "youtube.connectStudio": "Connectez la bibliothèque audio de Studio au service audio pour télécharger cette piste.",
-  "youtube.invalidUrl": "Utilisez une adresse HTTPS ou HTTP sur localhost."
+  "youtube.invalidUrl": "Utilisez une adresse HTTPS ou HTTP sur localhost.",
+  "settings.timelineGrid": "Repères verticaux de la timeline",
+  "youtube.signIn": "Se connecter à YouTube Studio",
+  "youtube.signInOpened": "Connectez-vous dans le navigateur, ouvrez la bibliothèque audio, puis actualisez ici. Votre session sera conservée."
 }

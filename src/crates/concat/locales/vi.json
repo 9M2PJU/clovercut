@@ -1040,9 +1040,17 @@
   "voiceover.title": "Lời thuyết minh",
   "voiceover.tryAgain": "Thử lại",
   "voices.builtIn": "Giọng có sẵn",
+  "voices.description": "Mô tả giọng nói",
+  "voices.descriptionPlaceholder": "Không bắt buộc · một dòng về giọng này",
   "voices.hint": "Nhấp vào một giọng để viết bằng giọng đó trong Chuyển văn bản thành giọng nói.",
+  "voices.importVoice": "Nhập giọng nói",
+  "voices.keptHint": "Tối đa 12 giây từ đây được lưu làm giọng nói trên thiết bị này. Không có gì được tải lên.",
+  "voices.listening": "Đang tìm đoạn có giọng nói…",
+  "voices.newVoice": "Giọng nói mới",
   "voices.noModel": "Tải một mô hình giọng nói trong Cài đặt › Giọng nói để nghe các giọng có sẵn.",
   "voices.noneSavedYet": "Bạn chưa có giọng riêng nào. Trong Chuyển văn bản thành giọng nói, bật Dùng giọng mẫu, chọn một bản ghi và lưu với một cái tên. Giọng đó ở lại trên thiết bị này.",
+  "voices.picture": "Hình ảnh",
+  "voices.recordings": "Bản ghi âm",
   "voices.removed": "Đã xóa giọng {0}",
   "voices.saved": "Đã lưu giọng {0}. Giọng này có trong danh sách giọng của mọi dự án.",
   "voices.styleChipmunk": "Sóc chuột",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "Địa chỉ API âm thanh",
   "youtube.attributionRequired": "Bắt buộc ghi công",
   "youtube.connectStudio": "Kết nối Thư viện âm thanh Studio với dịch vụ âm thanh để tải bản nhạc này.",
-  "youtube.invalidUrl": "Dùng địa chỉ HTTPS hoặc HTTP trên localhost."
+  "youtube.invalidUrl": "Dùng địa chỉ HTTPS hoặc HTTP trên localhost.",
+  "settings.timelineGrid": "Đường dẫn dọc trên dòng thời gian",
+  "youtube.signIn": "Đăng nhập YouTube Studio",
+  "youtube.signInOpened": "Đăng nhập trong trình duyệt, mở Thư viện âm thanh rồi làm mới tại đây. Phiên đăng nhập sẽ được lưu."
 }

@@ -1040,9 +1040,17 @@
   "voiceover.title": "Narração",
   "voiceover.tryAgain": "Tentar de novo",
   "voices.builtIn": "Vozes integradas",
+  "voices.description": "Descrição da voz",
+  "voices.descriptionPlaceholder": "Opcional · uma linha sobre esta voz",
   "voices.hint": "Clique em uma voz para escrever com ela em Texto para fala.",
+  "voices.importVoice": "Importar voz",
+  "voices.keptHint": "Até 12 segundos a partir daqui são salvos como voz neste dispositivo. Nada é enviado para a internet.",
+  "voices.listening": "Procurando um trecho de voz…",
+  "voices.newVoice": "Nova voz",
   "voices.noModel": "Baixe um modelo de voz em Configurações › Fala para ouvir as vozes integradas.",
   "voices.noneSavedYet": "Ainda não há vozes suas. Em Texto para fala, ative Usar voz de amostra, escolha uma gravação e salve-a com um nome. Ela fica neste dispositivo.",
+  "voices.picture": "Imagem",
+  "voices.recordings": "Gravações",
   "voices.removed": "A voz {0} foi removida",
   "voices.saved": "A voz {0} foi salva. Ela está na lista de vozes de todos os projetos.",
   "voices.styleChipmunk": "Esquilo",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "Endereço da API de áudio",
   "youtube.attributionRequired": "Atribuição obrigatória",
   "youtube.connectStudio": "Conecte a Biblioteca de áudio do Studio ao serviço de áudio para baixar esta faixa.",
-  "youtube.invalidUrl": "Use um endereço HTTPS ou HTTP em localhost."
+  "youtube.invalidUrl": "Use um endereço HTTPS ou HTTP em localhost.",
+  "settings.timelineGrid": "Linhas verticais na linha do tempo",
+  "youtube.signIn": "Entrar no YouTube Studio",
+  "youtube.signInOpened": "Entre no navegador, abra a Biblioteca de áudio e atualize aqui. Sua sessão será salva."
 }

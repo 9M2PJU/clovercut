@@ -1040,9 +1040,17 @@
   "voiceover.title": "旁白",
   "voiceover.tryAgain": "重試",
   "voices.builtIn": "內建嗓音",
+  "voices.description": "聲音描述",
+  "voices.descriptionPlaceholder": "選填 · 簡短描述這個聲音",
   "voices.hint": "點選一個嗓音，即可在文字轉語音中用它來寫。",
+  "voices.importVoice": "匯入聲音",
+  "voices.keptHint": "從這裡開始最多儲存12秒，作為此裝置上的聲音樣本。不會上傳任何內容。",
+  "voices.listening": "正在尋找語音片段…",
+  "voices.newVoice": "新聲音",
   "voices.noModel": "在「設定 › 語音」中下載一個語音模型，即可聽到內建嗓音。",
   "voices.noneSavedYet": "還沒有你自己的嗓音。在文字轉語音中開啟「使用樣本嗓音」，選一段錄音並命名儲存。它只保存在這台裝置上。",
+  "voices.picture": "圖片",
+  "voices.recordings": "錄音",
   "voices.removed": "已移除嗓音 {0}",
   "voices.saved": "已儲存嗓音 {0}。它會出現在每個專案的嗓音列表中。",
   "voices.styleChipmunk": "花栗鼠",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "音訊 API 位址",
   "youtube.attributionRequired": "需要姓名標示",
   "youtube.connectStudio": "請將 Studio 音訊庫連接至音訊服務以下載此音軌。",
-  "youtube.invalidUrl": "請使用 HTTPS 位址或 localhost 上的 HTTP。"
+  "youtube.invalidUrl": "請使用 HTTPS 位址或 localhost 上的 HTTP。",
+  "settings.timelineGrid": "時間軸垂直參考線",
+  "youtube.signIn": "登入 YouTube Studio",
+  "youtube.signInOpened": "請在瀏覽器中登入並開啟音訊庫，然後在此重新整理。登入狀態將會儲存。"
 }

@@ -1040,9 +1040,17 @@
   "voiceover.title": "Sulih suara",
   "voiceover.tryAgain": "Coba lagi",
   "voices.builtIn": "Suara bawaan",
+  "voices.description": "Deskripsi suara",
+  "voices.descriptionPlaceholder": "Opsional · satu baris tentang suara ini",
   "voices.hint": "Klik suara untuk menulis dengannya di Teks ke ucapan.",
+  "voices.importVoice": "Impor suara",
+  "voices.keptHint": "Hingga 12 detik dari titik ini disimpan sebagai suara di perangkat ini. Tidak ada yang diunggah.",
+  "voices.listening": "Mencari bagian suara…",
+  "voices.newVoice": "Suara baru",
   "voices.noModel": "Unduh model suara di Pengaturan › Ucapan untuk mendengar suara bawaan.",
   "voices.noneSavedYet": "Belum ada suara milikmu. Di Teks ke ucapan, aktifkan Gunakan suara sampel, pilih rekaman, lalu simpan dengan nama. Suara itu tetap di perangkat ini.",
+  "voices.picture": "Gambar",
+  "voices.recordings": "Rekaman",
   "voices.removed": "Suara {0} dihapus",
   "voices.saved": "Suara {0} disimpan. Suara itu ada di daftar suara setiap proyek.",
   "voices.styleChipmunk": "Tupai",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "Alamat API audio",
   "youtube.attributionRequired": "Atribusi wajib",
   "youtube.connectStudio": "Hubungkan Koleksi Audio Studio ke layanan audio untuk mengunduh trek ini.",
-  "youtube.invalidUrl": "Gunakan alamat HTTPS atau HTTP di localhost."
+  "youtube.invalidUrl": "Gunakan alamat HTTPS atau HTTP di localhost.",
+  "settings.timelineGrid": "Garis panduan vertikal linimasa",
+  "youtube.signIn": "Login ke YouTube Studio",
+  "youtube.signInOpened": "Login di browser, buka Koleksi Audio, lalu muat ulang di sini. Sesi Anda akan disimpan."
 }

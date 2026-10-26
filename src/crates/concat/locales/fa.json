@@ -1040,9 +1040,17 @@
   "voiceover.title": "صداگذاری",
   "voiceover.tryAgain": "تلاش دوباره",
   "voices.builtIn": "صداهای داخلی",
+  "voices.description": "توضیح صدا",
+  "voices.descriptionPlaceholder": "اختیاری · یک خط دربارهٔ این صدا",
   "voices.hint": "روی یک صدا کلیک کنید تا در تبدیل متن به گفتار با آن بنویسید.",
+  "voices.importVoice": "وارد کردن صدا",
+  "voices.keptHint": "تا ۱۲ ثانیه از اینجا به‌عنوان صدا در همین دستگاه ذخیره می‌شود. هیچ چیزی بارگذاری نمی‌شود.",
+  "voices.listening": "در حال یافتن بخش گفتار…",
+  "voices.newVoice": "صدای جدید",
   "voices.noModel": "برای شنیدن صداهای داخلی، یک مدل صدا را از تنظیمات › گفتار دانلود کنید.",
   "voices.noneSavedYet": "هنوز صدایی از خودتان ندارید. در تبدیل متن به گفتار، استفاده از صدای نمونه را روشن کنید، یک ضبط را انتخاب کنید و با یک نام ذخیره‌اش کنید. روی همین دستگاه می‌ماند.",
+  "voices.picture": "تصویر",
+  "voices.recordings": "ضبط‌ها",
   "voices.removed": "صدای {0} حذف شد",
   "voices.saved": "صدای {0} ذخیره شد. در فهرست صداهای هر پروژه هست.",
   "voices.styleChipmunk": "سنجاب",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "نشانی API صدا",
   "youtube.attributionRequired": "ذکر نام پدیدآورنده الزامی است",
   "youtube.connectStudio": "برای دریافت این قطعه، کتابخانهٔ صوتی Studio را به سرویس صدا متصل کنید.",
-  "youtube.invalidUrl": "از نشانی HTTPS یا HTTP روی localhost استفاده کنید."
+  "youtube.invalidUrl": "از نشانی HTTPS یا HTTP روی localhost استفاده کنید.",
+  "settings.timelineGrid": "خطوط راهنمای عمودی خط زمانی",
+  "youtube.signIn": "ورود به YouTube Studio",
+  "youtube.signInOpened": "در مرورگر وارد شوید، کتابخانهٔ صوتی را باز کنید و اینجا تازه‌سازی کنید. نشست شما ذخیره می‌شود."
 }

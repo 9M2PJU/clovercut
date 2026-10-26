@@ -1,5 +1,5 @@
 'use strict';
-(() => {
+(async () => {
   const views = [
     {id:'captions', file:'auto-captions', label:'AI captions', title:'Captions, right where you edit.', description:'Generate on your device. Style them in the same workspace.', alt:'Clovercut desktop workspace with captions, a video preview, caption styling and a multitrack timeline'},
     {id:'style', file:'caption-styling', label:'Text & styling', title:'Give every word your own style.', description:'Type presets, colour and placement alongside your preview.', alt:'Clovercut text style presets and caption typography controls'},
@@ -117,13 +117,30 @@
     card.querySelector('.platform-badge').hidden = false;
     const button = document.getElementById('smart-download-btn');
     const label = document.getElementById('smart-download-label');
-    if (detected === 'macos') { button.href = '#downloads'; label.textContent = 'Choose your Mac version'; }
-    else {
-      const arm = /aarch64|arm64/i.test(ua);
-      const arch = arm ? 'aarch64' : 'x86_64';
+    // Windows on ARM often advertises x64 in the legacy user-agent string.
+    // Ask for the OS architecture, rather than the browser binary's branding.
+    let arch = /aarch64|arm64/i.test(ua) ? 'aarch64' : null;
+    try {
+      const hints = await navigator.userAgentData?.getHighEntropyValues(['architecture', 'bitness']);
+      if (hints?.bitness === '64') {
+        if (hints.architecture === 'arm') arch = 'aarch64';
+        else if (hints.architecture === 'x86') arch = 'x86_64';
+      }
+    } catch { /* Browsers may withhold high-entropy hints. Keep both choices. */ }
+    if (detected === 'linux' && !arch && /x86_64|amd64/i.test(ua)) arch = 'x86_64';
+    if (detected === 'macos' || !arch) {
+      button.href = '#downloads';
+      label.textContent = detected === 'macos' ? 'Choose your Mac version' : `Choose your ${detected === 'windows' ? 'Windows' : 'Linux'} version`;
+    } else {
       const file = detected === 'windows' ? `windows-${arch}-setup.exe` : `${arch}.AppImage`;
-      button.href = `https://github.com/tulcoturo/clovercut/releases/download/v0.1.6/Clovercut-0.1.6-${file}`;
-      label.textContent = detected === 'windows' ? 'Download for Windows' : 'Download for Linux';
+      const href = `https://github.com/tulcoturo/clovercut/releases/download/v0.1.6/Clovercut-0.1.6-${file}`;
+      const architecture = arch === 'aarch64' ? 'ARM64' : 'x64';
+      button.href = href;
+      label.textContent = `Download for ${detected === 'windows' ? 'Windows' : 'Linux'} ${architecture}`;
+      const primary = card.querySelector('.button');
+      primary.href = href;
+      primary.firstChild.textContent = `Download for ${architecture}`;
+      // The explicit architecture links remain available regardless of detection.
     }
   }
 })();

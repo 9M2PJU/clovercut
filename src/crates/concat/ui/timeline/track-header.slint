@@ -241,7 +241,7 @@ component Header inherits Rectangle {
         HorizontalLayout {
             padding-left: 8px;
             padding-right: 4px;
-            padding-top: 6px;
+            padding-top: Math.min(6px, Math.max(0px, (root.height - 26px) / 2));
             spacing: 2px;
             // No `alignment: start` here. A start-aligned row gives every
             // child its preferred width and stops stretching altogether — and

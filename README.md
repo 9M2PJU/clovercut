@@ -70,7 +70,7 @@ Online assets retain their own licences and availability.
 * **Public Domain / CC0 Music:** Integrated OpenGameArt music and sound effects library.
 * **Waveform Previews:** Listen to tracks and view waveforms directly inside the media bin before placing them on audio tracks.
 * **More Sources:** Freesound previews and separate YouTube music/sound-effect sections, with per-track licences and copyable credits. Freesound requires an API key.
-* **YouTube companion service:** The new integration currently requires the separately running local [Audio API](https://github.com/tulcoturo/clovercut-audio-api) and an authenticated Studio connector for fresh downloads; it is not a bundled or hosted service. See [audio setup](docs/AUDIO_LIBRARY.md).
+* **Local YouTube sign-in:** The current source starts the bundled [Audio API connector](https://github.com/tulcoturo/clovercut-audio-api) on demand and opens a dedicated browser for Studio sign-in. The saved session is reused in the background; no VPS is needed. Chrome, Chromium or Edge must be installed. Published 0.1.6 still requires the separate service. See [audio setup](docs/AUDIO_LIBRARY.md).
 
 <p align="center">
   <img src="assets/screenshots/audio-library.png" alt="clovercut YouTube Audio Library with music and sound effects" width="1000" />

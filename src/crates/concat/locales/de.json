@@ -1040,9 +1040,17 @@
   "voiceover.title": "Sprachaufnahme",
   "voiceover.tryAgain": "Erneut versuchen",
   "voices.builtIn": "Eingebaute Stimmen",
+  "voices.description": "Stimmbeschreibung",
+  "voices.descriptionPlaceholder": "Optional · eine Zeile über diese Stimme",
   "voices.hint": "Klicke auf eine Stimme, um mit ihr in Text zu Sprache zu schreiben.",
+  "voices.importVoice": "Stimme importieren",
+  "voices.keptHint": "Ab hier werden bis zu 12 Sekunden als Stimme auf diesem Gerät gespeichert. Es wird nichts hochgeladen.",
+  "voices.listening": "Sprachabschnitt wird gesucht…",
+  "voices.newVoice": "Neue Stimme",
   "voices.noModel": "Lade unter Einstellungen › Sprache ein Stimmmodell herunter, um die eingebauten Stimmen zu hören.",
   "voices.noneSavedYet": "Noch keine eigenen Stimmen. Schalte in Text zu Sprache die Beispielstimme ein, wähle eine Aufnahme und speichere sie unter einem Namen. Sie bleibt auf diesem Gerät.",
+  "voices.picture": "Bild",
+  "voices.recordings": "Aufnahmen",
   "voices.removed": "Die Stimme {0} wurde entfernt",
   "voices.saved": "Die Stimme {0} wurde gespeichert. Sie steht in jedem Projekt in der Stimmenliste.",
   "voices.styleChipmunk": "Streifenhörnchen",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "Adresse der Audio-API",
   "youtube.attributionRequired": "Namensnennung erforderlich",
   "youtube.connectStudio": "Verbinde die Studio-Audiobibliothek mit dem Audiodienst, um diesen Titel herunterzuladen.",
-  "youtube.invalidUrl": "Verwende eine HTTPS-Adresse oder HTTP auf localhost."
+  "youtube.invalidUrl": "Verwende eine HTTPS-Adresse oder HTTP auf localhost.",
+  "settings.timelineGrid": "Vertikale Hilfslinien der Zeitleiste",
+  "youtube.signIn": "Bei YouTube Studio anmelden",
+  "youtube.signInOpened": "Melde dich im Browser an, öffne die Audiomediathek und aktualisiere hier. Deine Sitzung wird gespeichert."
 }

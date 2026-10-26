@@ -1040,9 +1040,17 @@
   "voiceover.title": "Snimanje glasa",
   "voiceover.tryAgain": "Pokušaj ponovno",
   "voices.builtIn": "Ugrađeni glasovi",
+  "voices.description": "Opis glasa",
+  "voices.descriptionPlaceholder": "Neobavezno · redak o ovom glasu",
   "voices.hint": "Kliknite glas da biste njime pisali u Tekstu u govor.",
+  "voices.importVoice": "Uvezi glas",
+  "voices.keptHint": "Odavde se sprema do 12 sekundi kao glas na ovom uređaju. Ništa se ne prenosi na internet.",
+  "voices.listening": "Traženje govornog odsječka…",
+  "voices.newVoice": "Novi glas",
   "voices.noModel": "Preuzmite glasovni model u Postavke › Govor da biste čuli ugrađene glasove.",
   "voices.noneSavedYet": "Još nemate vlastitih glasova. U Tekstu u govor uključite Koristi glas iz uzorka, odaberite snimku i spremite je pod imenom. Ostaje na ovom uređaju.",
+  "voices.picture": "Slika",
+  "voices.recordings": "Snimke",
   "voices.removed": "Glas {0} je uklonjen",
   "voices.saved": "Glas {0} je spremljen. Nalazi se na popisu glasova u svakom projektu.",
   "voices.styleChipmunk": "Vjeverica",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "Adresa audio API-ja",
   "youtube.attributionRequired": "Obavezno navođenje autora",
   "youtube.connectStudio": "Povežite Studio audioteku s audio uslugom za preuzimanje ove snimke.",
-  "youtube.invalidUrl": "Koristite HTTPS adresu ili HTTP na localhostu."
+  "youtube.invalidUrl": "Koristite HTTPS adresu ili HTTP na localhostu.",
+  "settings.timelineGrid": "Okomite vodilice vremenske crte",
+  "youtube.signIn": "Prijava u YouTube Studio",
+  "youtube.signInOpened": "Prijavite se u pregledniku, otvorite audioteku i osvježite ovdje. Sesija će biti spremljena."
 }

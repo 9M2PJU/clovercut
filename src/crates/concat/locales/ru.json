@@ -1040,9 +1040,17 @@
   "voiceover.title": "Закадровый голос",
   "voiceover.tryAgain": "Повторить",
   "voices.builtIn": "Встроенные голоса",
+  "voices.description": "Описание голоса",
+  "voices.descriptionPlaceholder": "Необязательно · строка об этом голосе",
   "voices.hint": "Нажмите на голос, чтобы писать им в «Озвучке текста».",
+  "voices.importVoice": "Импортировать голос",
+  "voices.keptHint": "До 12 секунд отсюда сохраняются как голос на этом устройстве. Ничего не загружается в интернет.",
+  "voices.listening": "Поиск фрагмента речи…",
+  "voices.newVoice": "Новый голос",
   "voices.noModel": "Скачайте голосовую модель в «Настройки › Речь», чтобы услышать встроенные голоса.",
   "voices.noneSavedYet": "Своих голосов пока нет. В «Озвучке текста» включите «Голос из образца», выберите запись и сохраните её под именем. Голос останется на этом устройстве.",
+  "voices.picture": "Изображение",
+  "voices.recordings": "Записи",
   "voices.removed": "Голос «{0}» удалён",
   "voices.saved": "Голос «{0}» сохранён. Он есть в списке голосов любого проекта.",
   "voices.styleChipmunk": "Бурундук",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "Адрес аудио API",
   "youtube.attributionRequired": "Требуется указание авторства",
   "youtube.connectStudio": "Подключите фонотеку Studio к аудиосервису для загрузки этого трека.",
-  "youtube.invalidUrl": "Используйте HTTPS или HTTP на localhost."
+  "youtube.invalidUrl": "Используйте HTTPS или HTTP на localhost.",
+  "settings.timelineGrid": "Вертикальные направляющие таймлайна",
+  "youtube.signIn": "Войти в YouTube Studio",
+  "youtube.signInOpened": "Войдите в браузере, откройте фонотеку и обновите список здесь. Сеанс будет сохранён."
 }

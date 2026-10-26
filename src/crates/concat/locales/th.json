@@ -1040,9 +1040,17 @@
   "voiceover.title": "เสียงพากย์",
   "voiceover.tryAgain": "ลองอีกครั้ง",
   "voices.builtIn": "เสียงพูดในตัว",
+  "voices.description": "คำอธิบายเสียง",
+  "voices.descriptionPlaceholder": "ไม่บังคับ · คำอธิบายสั้น ๆ เกี่ยวกับเสียงนี้",
   "voices.hint": "คลิกเสียงพูดเพื่อเขียนด้วยเสียงนั้นใน แปลงข้อความเป็นเสียง",
+  "voices.importVoice": "นำเข้าเสียง",
+  "voices.keptHint": "เสียงจากจุดนี้สูงสุด 12 วินาทีจะถูกบันทึกเป็นเสียงบนอุปกรณ์นี้ ไม่มีการอัปโหลดข้อมูล",
+  "voices.listening": "กำลังค้นหาช่วงที่มีเสียงพูด…",
+  "voices.newVoice": "เสียงใหม่",
   "voices.noModel": "ดาวน์โหลดโมเดลเสียงพูดใน การตั้งค่า › เสียงพูด เพื่อฟังเสียงพูดในตัว",
   "voices.noneSavedYet": "ยังไม่มีเสียงพูดของคุณเอง ในแปลงข้อความเป็นเสียง เปิดใช้เสียงจากตัวอย่าง เลือกการบันทึก แล้วบันทึกพร้อมตั้งชื่อ เสียงนั้นจะอยู่บนอุปกรณ์นี้",
+  "voices.picture": "รูปภาพ",
+  "voices.recordings": "ไฟล์บันทึกเสียง",
   "voices.removed": "นำเสียงพูด {0} ออกแล้ว",
   "voices.saved": "บันทึกเสียงพูด {0} แล้ว เสียงนี้อยู่ในรายการเสียงพูดของทุกโปรเจกต์",
   "voices.styleChipmunk": "ชิปมังก์",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "ที่อยู่ API เสียง",
   "youtube.attributionRequired": "ต้องระบุที่มา",
   "youtube.connectStudio": "เชื่อมต่อคลังเพลงและเสียงของ Studio กับบริการเสียงเพื่อดาวน์โหลดแทร็กนี้",
-  "youtube.invalidUrl": "ใช้ที่อยู่ HTTPS หรือ HTTP บน localhost"
+  "youtube.invalidUrl": "ใช้ที่อยู่ HTTPS หรือ HTTP บน localhost",
+  "settings.timelineGrid": "เส้นไกด์แนวตั้งบนไทม์ไลน์",
+  "youtube.signIn": "ลงชื่อเข้าใช้ YouTube Studio",
+  "youtube.signInOpened": "ลงชื่อเข้าใช้ในเบราว์เซอร์ เปิดคลังเพลงและเสียง แล้วรีเฟรชที่นี่ ระบบจะบันทึกเซสชันของคุณ"
 }

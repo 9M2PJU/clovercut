@@ -80,6 +80,7 @@ export struct SettingsData {
     gpu-switchable: bool,
     /// the magnetic timeline: deleting and trimming close the gap
     magnetic: bool,
+    timeline-grid: bool,
     /// where model downloads look first: automatic, Concat's mirror,
     /// hf-mirror.com, the original source, a custom URL
     download-source: int,
@@ -656,6 +657,7 @@ export component SettingsDialog inherits Modal {
     callback proxies-changed(on: bool);
     callback gpu-changed(on: bool);
     callback magnetic-changed(on: bool);
+    callback timeline-grid-changed(on: bool);
     callback download-source-changed(index: int);
     callback download-base-edited(text: string);
     callback server-enabled-changed(on: bool);
@@ -1063,6 +1065,15 @@ export component SettingsDialog inherits Modal {
                     on: root.data.magnetic;
                     open: false;
                     switched(on) => { root.magnetic-changed(on); }
+                }
+
+                DialogSection {
+                    ruled: false;
+                    title: I18n.t("settings.timelineGrid");
+                    switchable: true;
+                    on: root.data.timeline-grid;
+                    open: false;
+                    switched(on) => { root.timeline-grid-changed(on); }
                 }
 
                 // Off, the playhead goes wherever the ruler is clicked, past

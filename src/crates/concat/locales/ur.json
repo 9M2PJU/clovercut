@@ -1040,9 +1040,17 @@
   "voiceover.title": "وائس اوور",
   "voiceover.tryAgain": "دوبارہ کوشش کریں",
   "voices.builtIn": "بلٹ اِن صوتیں",
+  "voices.description": "آواز کی تفصیل",
+  "voices.descriptionPlaceholder": "اختیاری · اس آواز کے بارے میں ایک سطر",
   "voices.hint": "متن سے آواز میں کسی صوت سے لکھنے کے لیے اس پر کلک کریں۔",
+  "voices.importVoice": "آواز درآمد کریں",
+  "voices.keptHint": "یہاں سے زیادہ سے زیادہ 12 سیکنڈ اسی آلے پر آواز کے طور پر محفوظ کیے جاتے ہیں۔ کچھ بھی اپ لوڈ نہیں ہوتا۔",
+  "voices.listening": "آواز والا حصہ تلاش کیا جا رہا ہے…",
+  "voices.newVoice": "نئی آواز",
   "voices.noModel": "بلٹ اِن صوتیں سننے کے لیے ترتیبات › تقریر سے کوئی وائس ماڈل ڈاؤن لوڈ کریں۔",
   "voices.noneSavedYet": "ابھی آپ کی اپنی کوئی صوت نہیں۔ متن سے آواز میں نمونے کی آواز استعمال کریں آن کریں، کوئی ریکارڈنگ چنیں اور نام کے ساتھ محفوظ کریں۔ یہ اسی ڈیوائس پر رہتی ہے۔",
+  "voices.picture": "تصویر",
+  "voices.recordings": "ریکارڈنگز",
   "voices.removed": "صوت {0} ہٹا دی گئی",
   "voices.saved": "صوت {0} محفوظ ہو گئی۔ یہ ہر پروجیکٹ کی صوتوں کی فہرست میں ہے۔",
   "voices.styleChipmunk": "گلہری",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "آڈیو API کا پتہ",
   "youtube.attributionRequired": "انتساب ضروری ہے",
   "youtube.connectStudio": "یہ ٹریک ڈاؤن لوڈ کرنے کے لیے Studio آڈیو لائبریری کو آڈیو سروس سے جوڑیں۔",
-  "youtube.invalidUrl": "HTTPS پتہ یا localhost پر HTTP استعمال کریں۔"
+  "youtube.invalidUrl": "HTTPS پتہ یا localhost پر HTTP استعمال کریں۔",
+  "settings.timelineGrid": "ٹائم لائن کی عمودی رہنما لکیریں",
+  "youtube.signIn": "YouTube Studio میں سائن ان کریں",
+  "youtube.signInOpened": "براؤزر میں سائن ان کریں، آڈیو لائبریری کھولیں اور یہاں ریفریش کریں۔ آپ کا سیشن محفوظ رہے گا۔"
 }

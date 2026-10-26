@@ -1040,9 +1040,17 @@
   "voiceover.title": "ナレーション",
   "voiceover.tryAgain": "再試行",
   "voices.builtIn": "内蔵ボイス",
+  "voices.description": "声の説明",
+  "voices.descriptionPlaceholder": "任意 · この声についての短い説明",
   "voices.hint": "ボイスをクリックすると、読み上げでその声を使えます。",
+  "voices.importVoice": "声をインポート",
+  "voices.keptHint": "ここから最大12秒間が、このデバイス上に声として保存されます。アップロードはされません。",
+  "voices.listening": "声が入った区間を探しています…",
+  "voices.newVoice": "新しい声",
   "voices.noModel": "内蔵ボイスを聞くには、設定 › 音声 で音声モデルをダウンロードしてください。",
   "voices.noneSavedYet": "自分のボイスはまだありません。読み上げで「サンプルの声を使う」をオンにし、録音を選んで名前を付けて保存してください。この端末にだけ保存されます。",
+  "voices.picture": "画像",
+  "voices.recordings": "録音",
   "voices.removed": "ボイス {0} を削除しました",
   "voices.saved": "ボイス {0} を保存しました。どのプロジェクトのボイス一覧にも表示されます。",
   "voices.styleChipmunk": "シマリス",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "音声APIのアドレス",
   "youtube.attributionRequired": "帰属表示が必要",
   "youtube.connectStudio": "この曲をダウンロードするには、Studioオーディオライブラリを音声サービスに接続してください。",
-  "youtube.invalidUrl": "HTTPS、またはlocalhostのHTTPアドレスを使用してください。"
+  "youtube.invalidUrl": "HTTPS、またはlocalhostのHTTPアドレスを使用してください。",
+  "settings.timelineGrid": "タイムラインの縦ガイド線",
+  "youtube.signIn": "YouTube Studio にログイン",
+  "youtube.signInOpened": "ブラウザでログインしてオーディオライブラリを開き、ここで更新してください。ログイン状態は保存されます。"
 }

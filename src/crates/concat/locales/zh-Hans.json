@@ -1040,9 +1040,17 @@
   "voiceover.title": "旁白",
   "voiceover.tryAgain": "重试",
   "voices.builtIn": "内置嗓音",
+  "voices.description": "声音描述",
+  "voices.descriptionPlaceholder": "可选 · 简要描述这个声音",
   "voices.hint": "点击一个嗓音，即可在文字转语音中用它来写。",
+  "voices.importVoice": "导入声音",
+  "voices.keptHint": "从这里开始最多保存12秒，作为此设备上的声音样本。不会上传任何内容。",
+  "voices.listening": "正在查找语音片段…",
+  "voices.newVoice": "新声音",
   "voices.noModel": "在“设置 › 语音”中下载一个语音模型，即可听到内置嗓音。",
   "voices.noneSavedYet": "还没有你自己的嗓音。在文字转语音中打开“使用样本嗓音”，选一段录音并命名保存。它只保存在这台设备上。",
+  "voices.picture": "图片",
+  "voices.recordings": "录音",
   "voices.removed": "已移除嗓音 {0}",
   "voices.saved": "已保存嗓音 {0}。它会出现在每个项目的嗓音列表中。",
   "voices.styleChipmunk": "花栗鼠",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "音频 API 地址",
   "youtube.attributionRequired": "需要署名",
   "youtube.connectStudio": "请将 Studio 音频库连接到音频服务以下载此音轨。",
-  "youtube.invalidUrl": "请使用 HTTPS 地址或 localhost 上的 HTTP。"
+  "youtube.invalidUrl": "请使用 HTTPS 地址或 localhost 上的 HTTP。",
+  "settings.timelineGrid": "时间线垂直参考线",
+  "youtube.signIn": "登录 YouTube Studio",
+  "youtube.signInOpened": "请在浏览器中登录并打开音频库，然后在此刷新。登录状态将被保存。"
 }

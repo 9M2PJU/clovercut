@@ -1040,9 +1040,17 @@
   "voiceover.title": "Voice-over",
   "voiceover.tryAgain": "Opnieuw proberen",
   "voices.builtIn": "Ingebouwde stemmen",
+  "voices.description": "Stembeschrijving",
+  "voices.descriptionPlaceholder": "Optioneel · een regel over deze stem",
   "voices.hint": "Klik op een stem om ermee te schrijven in Tekst naar spraak.",
+  "voices.importVoice": "Stem importeren",
+  "voices.keptHint": "Vanaf hier worden maximaal 12 seconden als stem op dit apparaat opgeslagen. Er wordt niets geüpload.",
+  "voices.listening": "Een gesproken fragment zoeken…",
+  "voices.newVoice": "Nieuwe stem",
   "voices.noModel": "Download een stemmodel in Instellingen › Spraak om de ingebouwde stemmen te horen.",
   "voices.noneSavedYet": "Nog geen eigen stemmen. Zet in Tekst naar spraak Voorbeeldstem gebruiken aan, kies een opname en bewaar die met een naam. Hij blijft op dit apparaat.",
+  "voices.picture": "Afbeelding",
+  "voices.recordings": "Opnamen",
   "voices.removed": "Stem {0} verwijderd",
   "voices.saved": "Stem {0} bewaard. Hij staat in de stemmenlijst van elk project.",
   "voices.styleChipmunk": "Eekhoorn",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "Adres van de audio-API",
   "youtube.attributionRequired": "Naamsvermelding vereist",
   "youtube.connectStudio": "Verbind de Studio-audiobibliotheek met de audiodienst om dit nummer te downloaden.",
-  "youtube.invalidUrl": "Gebruik een HTTPS-adres of HTTP op localhost."
+  "youtube.invalidUrl": "Gebruik een HTTPS-adres of HTTP op localhost.",
+  "settings.timelineGrid": "Verticale tijdlijnhulplijnen",
+  "youtube.signIn": "Aanmelden bij YouTube Studio",
+  "youtube.signInOpened": "Meld je aan in de browser, open de audiobibliotheek en vernieuw hier. Je sessie wordt opgeslagen."
 }

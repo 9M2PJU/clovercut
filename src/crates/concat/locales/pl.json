@@ -1040,9 +1040,17 @@
   "voiceover.title": "Nagranie lektora",
   "voiceover.tryAgain": "Spróbuj ponownie",
   "voices.builtIn": "Wbudowane głosy",
+  "voices.description": "Opis głosu",
+  "voices.descriptionPlaceholder": "Opcjonalnie · kilka słów o tym głosie",
   "voices.hint": "Kliknij głos, aby pisać nim w Zamianie tekstu na mowę.",
+  "voices.importVoice": "Importuj głos",
+  "voices.keptHint": "Od tego miejsca zostanie zapisane do 12 sekund jako głos na tym urządzeniu. Nic nie jest przesyłane do internetu.",
+  "voices.listening": "Wyszukiwanie fragmentu mowy…",
+  "voices.newVoice": "Nowy głos",
   "voices.noModel": "Pobierz model głosu w Ustawienia › Mowa, aby usłyszeć wbudowane głosy.",
   "voices.noneSavedYet": "Nie masz jeszcze własnych głosów. W Zamianie tekstu na mowę włącz Użyj głosu z próbki, wybierz nagranie i zapisz je pod nazwą. Zostaje na tym urządzeniu.",
+  "voices.picture": "Zdjęcie",
+  "voices.recordings": "Nagrania",
   "voices.removed": "Usunięto głos {0}",
   "voices.saved": "Zapisano głos {0}. Jest na liście głosów w każdym projekcie.",
   "voices.styleChipmunk": "Wiewiórka",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "Adres API audio",
   "youtube.attributionRequired": "Wymagane uznanie autorstwa",
   "youtube.connectStudio": "Połącz Bibliotekę audio Studio z usługą audio, aby pobrać ten utwór.",
-  "youtube.invalidUrl": "Użyj adresu HTTPS lub HTTP na localhost."
+  "youtube.invalidUrl": "Użyj adresu HTTPS lub HTTP na localhost.",
+  "settings.timelineGrid": "Pionowe linie pomocnicze osi czasu",
+  "youtube.signIn": "Zaloguj się do YouTube Studio",
+  "youtube.signInOpened": "Zaloguj się w przeglądarce, otwórz Bibliotekę audio i odśwież tutaj. Sesja zostanie zapisana."
 }

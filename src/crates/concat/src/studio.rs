@@ -87,12 +87,12 @@ pub const OUTPUTS: [(i32, i32); 6] = [
 /// splits both floor at this, as the engine's own `MIN_CLIP_DURATION` does.
 pub const MIN_DURATION: f32 = 1.0 / 60.0;
 
-/// Manual lane heights, in logical pixels. Auto uses a compact common
-/// height just above Small; explicit user sizes keep their existing values.
+/// Manual lane heights, in logical pixels. Auto follows track content and
+/// emphasizes the main video; explicit user sizes keep their existing values.
 const LANE_LARGE: f32 = 108.0;
 const LANE_MEDIUM: f32 = 80.0;
 const LANE_SMALL: f32 = 44.0;
-const LANE_AUTO: f32 = 52.0;
+const LANE_AUTO: f32 = 48.0;
 
 /// How long a title runs when it is placed: long enough to read, short
 /// enough that trimming it is a nudge rather than a fight.
@@ -2919,13 +2919,25 @@ impl Studio {
             .collect()
     }
 
-    /// Auto stays compact; explicit per-lane size preferences take precedence.
+    /// Auto follows content type; explicit per-lane size preferences take precedence.
     fn lane_height(&self, lane: &Track) -> f32 {
         match self.lane_size(&lane.id) {
             TrackSize::Small => LANE_SMALL,
             TrackSize::Medium => LANE_MEDIUM,
             TrackSize::Large => LANE_LARGE,
-            TrackSize::Auto => LANE_AUTO,
+            TrackSize::Auto => {
+                if lane.is_main {
+                    64.0
+                } else {
+                    match self.track_kind(lane) {
+                        model::TrackKind::Video | model::TrackKind::Audio => LANE_AUTO,
+                        model::TrackKind::Sticker => 36.0,
+                        model::TrackKind::Text
+                        | model::TrackKind::Captions
+                        | model::TrackKind::Filter => 28.0,
+                    }
+                }
+            }
         }
     }
 
@@ -10468,6 +10480,7 @@ impl Studio {
             || self.confirm.is_some()
             || self.captions.open
             || self.speech.open
+            || self.speech.new_voice.open
             || self.start.composing
     }
 
@@ -10565,9 +10578,9 @@ impl Studio {
                 &self.dock,
                 (
                     SEAT_GAP,
-                    SEAT_GAP,
+                    3.0,
                     width - 2.0 * SEAT_GAP,
-                    height - 2.0 * SEAT_GAP,
+                    height - SEAT_GAP - 3.0,
                 ),
                 &mut out,
                 &self.inspector_minimums,
@@ -10876,6 +10889,7 @@ impl Studio {
         editor.set_tool(self.lanes.tool);
         editor.set_snap(self.lanes.snap);
         editor.set_magnetic(self.prefs.magnetic);
+        editor.set_timeline_grid(self.prefs.timeline_grid);
         editor.set_trim_follow(self.prefs.trim_follow);
         editor.set_meters_shown(self.prefs.meters_shown());
         editor.set_preview_axis(self.prefs.preview_axis);
@@ -13178,6 +13192,7 @@ impl Studio {
             self.speech.sample_detail_rows(self),
         );
         app.set_speech(self.speech.data(self));
+        app.set_new_voice(self.speech.new_voice_data());
         {
             let page = app.global::<crate::ui::Stickers>();
             page.set_configured(self.stickers.configured());

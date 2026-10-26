@@ -5,7 +5,7 @@ import { I18n } from "../i18n.slint";
 import { Theme, SegmentedControl } from "../primitives/primitives.slint";
 import { Select } from "../primitives/select.slint";
 import { Pane, PaneBody, PaneScroll } from "pane.slint";
-import { PaneKind, PaneSwitcher } from "pane-switcher.slint";
+import { PaneKind } from "pane-switcher.slint";
 import { EffectData } from "../demo/effects-panel.slint";
 import {
     AdjustPanel, AppliedEntryData, AppliedParamData, AudioPanel, BackgroundRows, ProcessorRows,
@@ -418,17 +418,6 @@ export component ConfigPane inherits Rectangle {
                 }
 
                 Rectangle { horizontal-stretch: 1; }
-
-                VerticalLayout {
-                    alignment: center;
-                    PaneSwitcher {
-                        kind: PaneKind.inspector;
-                        seat: root.pane-seat;
-                        removable: root.pane-removable;
-                        picked(kind) => { root.pane-picked(kind); }
-                        removed => { root.pane-removed(); }
-                    }
-                }
             }
         }
 
@@ -533,17 +522,6 @@ export component ConfigPane inherits Rectangle {
                 }
 
                 Rectangle { horizontal-stretch: 1; }
-
-                VerticalLayout {
-                    alignment: center;
-                    PaneSwitcher {
-                        kind: PaneKind.inspector;
-                        seat: root.pane-seat;
-                        removable: root.pane-removable;
-                        picked(kind) => { root.pane-picked(kind); }
-                        removed => { root.pane-removed(); }
-                    }
-                }
             }
         }
 
@@ -610,17 +588,6 @@ export component ConfigPane inherits Rectangle {
                         tabs: true;
                         options: root.tabs-shown;
                         current <=> root.tab;
-                    }
-                }
-
-                VerticalLayout {
-                    alignment: center;
-                    PaneSwitcher {
-                        kind: PaneKind.inspector;
-                        seat: root.pane-seat;
-                        removable: root.pane-removable;
-                        picked(kind) => { root.pane-picked(kind); }
-                        removed => { root.pane-removed(); }
                     }
                 }
             }

@@ -1040,9 +1040,17 @@
   "voiceover.title": "التعليق الصوتي",
   "voiceover.tryAgain": "إعادة المحاولة",
   "voices.builtIn": "الأصوات المدمجة",
+  "voices.description": "وصف الصوت",
+  "voices.descriptionPlaceholder": "اختياري · سطر عن هذا الصوت",
   "voices.hint": "انقر على صوت لتكتب به في تحويل النص إلى كلام.",
+  "voices.importVoice": "استيراد صوت",
+  "voices.keptHint": "يُحفظ ما يصل إلى 12 ثانية من هنا كصوت على هذا الجهاز. لا يتم رفع أي شيء.",
+  "voices.listening": "جارٍ البحث عن مقطع الصوت…",
+  "voices.newVoice": "صوت جديد",
   "voices.noModel": "نزّل نموذج صوت من الإعدادات › الكلام لتسمع الأصوات المدمجة.",
   "voices.noneSavedYet": "لا توجد أصوات خاصة بك بعد. في تحويل النص إلى كلام، فعّل استخدام صوت من عينة، واختر تسجيلًا واحفظه باسم. يبقى على هذا الجهاز.",
+  "voices.picture": "صورة",
+  "voices.recordings": "التسجيلات",
   "voices.removed": "أُزيل الصوت {0}",
   "voices.saved": "حُفظ الصوت {0}. ستجده في قائمة الأصوات في كل مشروع.",
   "voices.styleChipmunk": "سنجاب",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "عنوان API الصوت",
   "youtube.attributionRequired": "يلزم نسب العمل إلى صاحبه",
   "youtube.connectStudio": "اربط مكتبة Studio الصوتية بخدمة الصوت لتنزيل هذا المقطع.",
-  "youtube.invalidUrl": "استخدم عنوان HTTPS أو HTTP على localhost."
+  "youtube.invalidUrl": "استخدم عنوان HTTPS أو HTTP على localhost.",
+  "settings.timelineGrid": "خطوط إرشاد عمودية في المخطط الزمني",
+  "youtube.signIn": "تسجيل الدخول إلى YouTube Studio",
+  "youtube.signInOpened": "سجّل الدخول في المتصفح وافتح مكتبة الملفات الصوتية ثم حدّث هنا. سيتم حفظ جلستك."
 }

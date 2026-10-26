@@ -7,11 +7,29 @@ media ownership, cancellation, atomic exports and Clovercut's existing UI.
 
 ## Current review
 
-Reviewed through `94f4255f` (26 October 2026), following the previous review at
-`2429c0ca`. Adaptations below are newer than the source used by the published
+Reviewed through `9e20c562` (26 October 2026). The latest comparison adds eleven
+commits after `94f4255f`; the earlier adaptation batch starts at `2429c0ca`. Adaptations below are newer than the source used by the published
 0.1.6 release and require a newer app build.
 
-### Latest batch
+### New commits reviewed, pending adaptation
+
+These eleven commits have been read and compared with Clovercut; they have not
+been merged by this review. Existing desktop/audio work is independent.
+
+| Commit | Assessment |
+|---|---|
+| `153cce29` | High priority: Kokoro archive sizes/digests changed upstream at 09:08 UTC on 26 October. Clovercut still has both old digests. The replacement sizes/digests were independently checked against the official sherpa-onnx GitHub release metadata. Update the manifest and compiled speech table together; retain already installed voices and stable speaker IDs. |
+| `e0111c01` | High priority: reuse a compatible mapped PCM span immediately after a cut, then copy plain spans instead of decoding them again. Also seeks on the audio stream and discards other streams after seeking. Useful beyond earlier A/V alignment work. Preserve Clovercut's cancellation, disk-backed PCM, sound-layer mixing and cache identity; test effects, speed, selected streams, undo and rapid consecutive cuts. |
+| `c2847c16` | Worth adapting: environment/system proxy routing, clearer failure classification and installing a manually downloaded model only after digest verification. Keep strict trust for release manifests, bypass all loopback Audio API traffic, adapt Freesound header authentication and redact signed YouTube query strings from logs. Upstream's automatic direct fallback should not silently bypass an explicitly required proxy. This is a network/model-download fix, not evidence that all stock-audio failures have the same cause. |
+| `83a237e8` | Worth adapting: per-call SVG temporary files avoid concurrent decoder races; relative image resources resolve beside the SVG. Add cache invalidation for changed linked images, not only the SVG's own modification time; retain atomic publication and cross-platform race handling. |
+| `268cd601` | Worth adapting as one coordinated text/render/export change: expanded title canvases preserve ink outside the original frame, with overscan carried through the render plan and export. Preserve caption styles, reveal maps and preview/export geometry. Its 8192-pixel bound can still allocate a large RGBA canvas; keep memory/cache limits in view. |
+| `a6e5ab77` | Worth adapting for macOS: exits past whisper/Metal static destructors after saving and stopping exports. Preserve Clovercut's own close/cancellation path; do not bypass active save/export cleanup. Native macOS validation is required. |
+| `23897dd8`, `3564d450` | Useful optional desktop features: previous/next edit shortcuts and 4:5/3:4 project presets, with matching shortcut documentation. Adapt existing Clovercut shortcut profiles and exact frame-rate handling; upstream rounds the frame rate in edit-point calculation. |
+| `9e20c562` | Adapt the intent, not its bottom-of-stack scroll formula. Clovercut has audio below its fixed main video track, so bottom anchoring can open on audio instead. Locate the actual main-track row, respect restored scroll position, and keep the expanded ruler/scrub band. Shorter tray tooltips are compatible. |
+| `1385c36b` | Needs redesign before adoption: optional linkage should respect the fixed typed main track, grouped captions, multi-lane operations, locks and undo. Upstream defaults linkage on and identifies the main lane dynamically. A mechanical reproduction using its exact `close_gaps`, `removed_before` and `follow_main` helpers confirms a double ripple when both main/text lanes lose the same two-second interval: remaining text at 5 s lands at 1 s instead of 3 s. Do not import this implementation unchanged. |
+| `1e683882` | Phone-specific interface: do not bring into the desktop-focused editor. Ordered multi-selection may be considered separately if a desktop use case is missing; preserve typed placement and existing multi-file import. |
+
+### Previously adapted/reviewed batch
 
 | Commit | Change | Clovercut assessment |
 |---|---|---|
@@ -22,9 +40,16 @@ Reviewed through `94f4255f` (26 October 2026), following the previous review at
 | `f55451e6` | Default title font | Already equivalent: Clovercut's model and UI use bundled Hanken Grotesk, with regression coverage. |
 | `cdbdf074`, `b613ba62` | Stable inspector labels during playback | Clovercut already derives tab choice through cached kind/batch properties and has additional caption/animation tabs. Reproduce any remaining model churn before adapting a held label model; never copy upstream's smaller tab list. |
 | `aa38b9d5`, `84c0e625`, `94f4255f` | GPU Enhance and runtime engine selection | Adapted together: compact-network compute shaders, fixed-shape CoreML and runtime timing of both engines, including CPU on Linux/Windows. Every GPU candidate must execute successfully; initialization errors are captured, and a later GPU failure switches lazily to ONNX Runtime. GPU weights must match the pinned model digest. Keeps the span/cancellation/atomic-copy adaptations above. |
-| `fa2c5168`, `13e67ea2` | Import saved voices with metadata and automatic sample placement | Useful next feature, extending the existing saved-voice library. Adapt the modal and shelf to Clovercut and retain feature-gated speech engines. |
+| `fa2c5168`, `13e67ea2` | Import saved voices with metadata and automatic sample placement | Adapted into the existing saved-voice shelf: import audio/video recordings, retain a local sample with name/picture/description and suggest its start from streamed audio levels. Closing or replacing the recording cancels analysis; request identity prevents stale replies overwriting a reopened dialog. All eight new messages are translated in the 25 locales. Speech engine feature gates are unchanged. |
 | `870290a0`, `23bc6899`, `470391e7` | Transparent canvas and ProRes 4444/VP9 alpha export | Defer as a coordinated feature after the previously reviewed project canvas work. Requires schema compatibility, preview/export alpha parity, codec availability and audio/container tests. The independent ProRes decoder fix above is included. |
 | `b237687c` | Concat application identifier migration | Not applicable: retain Clovercut's identifier, portable mode and storage paths. |
+
+A protected local GPU/ONNX comparison used a 272×64 source crossing two tiles,
+2× output and a two-core CPU quota: GPU 0.089 s versus ONNX Runtime 1.742 s,
+mean difference 0.101 and maximum 2 levels out of 255. These are host-pipeline
+test measurements, not a full-video benchmark or a promise for other machines.
+The real automatic selector and its output were exercised separately in the same
+test. Ordinary tests need no model download; the real-model comparison is opt-in.
 
 The span regression exercises the real decode/encode/audio pipeline with a small
 deterministic picture processor, so it needs no Enhance model download. It checks

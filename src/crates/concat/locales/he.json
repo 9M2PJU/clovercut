@@ -1040,9 +1040,17 @@
   "voiceover.title": "קריינות",
   "voiceover.tryAgain": "ניסיון חוזר",
   "voices.builtIn": "קולות מובנים",
+  "voices.description": "תיאור הקול",
+  "voices.descriptionPlaceholder": "לא חובה · שורה על הקול הזה",
   "voices.hint": "לחצו על קול כדי לכתוב איתו בהקראת טקסט.",
+  "voices.importVoice": "ייבוא קול",
+  "voices.keptHint": "עד 12 שניות מנקודה זו נשמרות כקול במכשיר הזה. שום דבר לא מועלה לרשת.",
+  "voices.listening": "מחפש קטע דיבור…",
+  "voices.newVoice": "קול חדש",
   "voices.noModel": "הורידו מודל קול בהגדרות › דיבור כדי לשמוע את הקולות המובנים.",
   "voices.noneSavedYet": "עדיין אין קולות משלכם. בהקראת טקסט, הפעילו שימוש בקול מדגימה, בחרו הקלטה ושמרו אותה בשם. היא נשארת במכשיר הזה.",
+  "voices.picture": "תמונה",
+  "voices.recordings": "הקלטות",
   "voices.removed": "הקול {0} הוסר",
   "voices.saved": "הקול {0} נשמר. הוא מופיע ברשימת הקולות בכל פרויקט.",
   "voices.styleChipmunk": "סנאי",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "כתובת API השמע",
   "youtube.attributionRequired": "נדרש ייחוס",
   "youtube.connectStudio": "יש לחבר את ספריית האודיו של Studio לשירות השמע כדי להוריד את הרצועה.",
-  "youtube.invalidUrl": "יש להשתמש בכתובת HTTPS או ב־HTTP ב־localhost."
+  "youtube.invalidUrl": "יש להשתמש בכתובת HTTPS או ב־HTTP ב־localhost.",
+  "settings.timelineGrid": "קווי עזר אנכיים בציר הזמן",
+  "youtube.signIn": "כניסה ל-YouTube Studio",
+  "youtube.signInOpened": "יש להיכנס בדפדפן, לפתוח את ספריית האודיו ולרענן כאן. ההתחברות תישמר."
 }

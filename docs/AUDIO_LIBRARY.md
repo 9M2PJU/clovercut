@@ -74,22 +74,23 @@ sections, with search and pagination. The default API address is
 `http://127.0.0.1:8917`; it can be changed in these settings. Remote addresses
 must use HTTPS.
 
-For local development, clone the [companion Audio API](https://github.com/tulcoturo/clovercut-audio-api)
-and follow its Node.js and Chromium/Chrome/Edge prerequisites. In its directory,
-perform the initial setup in this order:
+The desktop source now includes the local connector and starts it on first use.
+Chrome, Chromium or Edge must be installed. If Node.js 22+ is unavailable,
+Clovercut downloads a pinned official runtime, checks its SHA-256 and stores it
+in the app's data directory. Nothing is installed system-wide.
 
-```sh
-npm run login   # Sign in yourself, open Audio Library, then close the window.
-npm run connect
-npm run sync
-npm start
-```
+Choose **Sign in to YouTube Studio**, sign in yourself and open **Audio Library**.
+The first catalogue is collected locally after sign-in; refresh the library
+while it finishes. The initial catalogue may take about a minute. The browser
+can then close: the service restores this dedicated profile in the background.
+Use the same button again if Google expires or revokes the session. No VPS or
+manually started browser is required. The session and catalogue stay local.
 
-The service restores the dedicated local profile in a headless browser after
-the visible window closes or the service restarts. A revoked or expired session
-needs a new interactive sign-in. No VPS is needed. The service's README covers
-browser setup, existing profiles and catalogue synchronization. The companion
-service is installed separately; desktop packages do not bundle it.
+This flow is a source change after release 0.1.6; that published package still
+requires the [separately installed companion API](https://github.com/tulcoturo/clovercut-audio-api).
+Advanced users can retain a separately managed service or choose a remote HTTPS
+endpoint in Settings. The connector never reads the user's unrelated browser
+profile or bundles a personal catalogue or session in the application.
 
 Catalogue pages are cached for offline browsing. Audio is resolved when needed,
 so expiring Google download URLs are not saved in preferences or projects.

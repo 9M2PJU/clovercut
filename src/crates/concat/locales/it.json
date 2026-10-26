@@ -1040,9 +1040,17 @@
   "voiceover.title": "Voce fuori campo",
   "voiceover.tryAgain": "Riprova",
   "voices.builtIn": "Voci integrate",
+  "voices.description": "Descrizione della voce",
+  "voices.descriptionPlaceholder": "Facoltativo · una riga su questa voce",
   "voices.hint": "Fai clic su una voce per scrivere con lei in Sintesi vocale.",
+  "voices.importVoice": "Importa voce",
+  "voices.keptHint": "Da qui vengono salvati fino a 12 secondi come voce su questo dispositivo. Non viene caricato nulla online.",
+  "voices.listening": "Ricerca di un tratto parlato…",
+  "voices.newVoice": "Nuova voce",
   "voices.noModel": "Scarica un modello vocale in Impostazioni › Voce per ascoltare le voci integrate.",
   "voices.noneSavedYet": "Nessuna voce tua per ora. In Sintesi vocale, attiva Usa voce campione, scegli una registrazione e salvala con un nome. Resta su questo dispositivo.",
+  "voices.picture": "Immagine",
+  "voices.recordings": "Registrazioni",
   "voices.removed": "Voce {0} rimossa",
   "voices.saved": "Voce {0} salvata. È nell’elenco delle voci di ogni progetto.",
   "voices.styleChipmunk": "Scoiattolo",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "Indirizzo API audio",
   "youtube.attributionRequired": "Attribuzione obbligatoria",
   "youtube.connectStudio": "Collega la Raccolta audio di Studio al servizio audio per scaricare questo brano.",
-  "youtube.invalidUrl": "Usa un indirizzo HTTPS o HTTP su localhost."
+  "youtube.invalidUrl": "Usa un indirizzo HTTPS o HTTP su localhost.",
+  "settings.timelineGrid": "Guide verticali della timeline",
+  "youtube.signIn": "Accedi a YouTube Studio",
+  "youtube.signInOpened": "Accedi nel browser, apri la Raccolta audio e aggiorna qui. La sessione verrà salvata."
 }

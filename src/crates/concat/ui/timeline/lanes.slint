@@ -1156,7 +1156,8 @@ export component Lanes inherits Rectangle {
     /// The zoom: seconds covered by one pixel.
     in property <float> seconds-per-pixel: 0.05;
     in property <length> track-scroll;
-    in property <length> ruler-height: 44px;
+    in property <length> ruler-height: 84px;
+    in property <bool> timeline-grid;
     property <length> ruler-label-height: Math.min(root.ruler-height, 28px);
     /// How close to a clip's edge counts as taking hold of it. A pointer
     /// finds six pixels; a finger wants more.
@@ -1529,7 +1530,7 @@ export component Lanes inherits Rectangle {
             background: Theme.grid;
             // Nothing before the start of the cut: a centred view begins
             // half a screen before it, and that half is empty ground.
-            visible: root.tick > 0 && self.seconds >= -root.time-origin
+            visible: root.timeline-grid && root.tick > 0 && self.seconds >= -root.time-origin
                 && self.x >= 0px && self.x < parent.width;
         }
 

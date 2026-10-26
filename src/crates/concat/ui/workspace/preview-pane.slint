@@ -10,7 +10,7 @@ import { Tip } from "../primitives/tooltip.slint";
 import { NumberField } from "../primitives/number-field.slint";
 import { Select } from "../primitives/select.slint";
 import { Pane, PaneHeader } from "pane.slint";
-import { PaneKind, PaneSwitcher } from "pane-switcher.slint";
+import { PaneKind } from "pane-switcher.slint";
 import { ClipKind, StageGuideData, StageItemData } from "../timeline/model.slint";
 import { ContextMenu, MenuMetrics, MenuRow } from "../primitives/context-menu.slint";
 
@@ -843,17 +843,6 @@ export component PreviewPane inherits Rectangle {
                     font-family: Theme.font-technical;
                     font-size: Theme.fs;
                     vertical-alignment: center;
-                }
-            }
-
-            VerticalLayout {
-                alignment: center;
-                PaneSwitcher {
-                    kind: PaneKind.preview;
-                    seat: root.pane-seat;
-                    removable: root.pane-removable;
-                    picked(kind) => { root.pane-picked(kind); }
-                    removed => { root.pane-removed(); }
                 }
             }
         }

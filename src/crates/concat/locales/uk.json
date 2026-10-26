@@ -1040,9 +1040,17 @@
   "voiceover.title": "Озвучення",
   "voiceover.tryAgain": "Спробувати ще раз",
   "voices.builtIn": "Вбудовані голоси",
+  "voices.description": "Опис голосу",
+  "voices.descriptionPlaceholder": "Необов’язково · рядок про цей голос",
   "voices.hint": "Натисніть на голос, щоб писати ним в «Озвученні тексту».",
+  "voices.importVoice": "Імпортувати голос",
+  "voices.keptHint": "До 12 секунд звідси зберігаються як голос на цьому пристрої. Нічого не завантажується в інтернет.",
+  "voices.listening": "Пошук фрагмента мовлення…",
+  "voices.newVoice": "Новий голос",
   "voices.noModel": "Завантажте голосову модель у «Налаштування › Мовлення», щоб почути вбудовані голоси.",
   "voices.noneSavedYet": "Власних голосів поки немає. В «Озвученні тексту» увімкніть «Голос зі зразка», виберіть запис і збережіть його з назвою. Голос залишиться на цьому пристрої.",
+  "voices.picture": "Зображення",
+  "voices.recordings": "Записи",
   "voices.removed": "Голос «{0}» вилучено",
   "voices.saved": "Голос «{0}» збережено. Він є у списку голосів кожного проєкту.",
   "voices.styleChipmunk": "Бурундук",
@@ -1058,5 +1066,8 @@
   "youtube.apiUrl": "Адреса аудіо API",
   "youtube.attributionRequired": "Потрібно зазначити авторство",
   "youtube.connectStudio": "Підключіть фонотеку Studio до аудіосервісу для завантаження цього запису.",
-  "youtube.invalidUrl": "Використовуйте HTTPS або HTTP на localhost."
+  "youtube.invalidUrl": "Використовуйте HTTPS або HTTP на localhost.",
+  "settings.timelineGrid": "Вертикальні напрямні таймлайна",
+  "youtube.signIn": "Увійти в YouTube Studio",
+  "youtube.signInOpened": "Увійдіть у браузері, відкрийте фонотеку й оновіть список тут. Сеанс буде збережено."
 }

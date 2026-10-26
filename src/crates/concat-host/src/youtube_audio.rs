@@ -44,6 +44,23 @@ pub fn api_base(value: &str) -> Result<Url, String> {
     Ok(url)
 }
 
+/// Open the service's dedicated persistent Studio profile, never the user's
+/// unrelated browser. A local service is required to own that session.
+pub fn open_studio_login(dirs: &AppDirs, api: &str) -> Result<(), String> {
+    crate::youtube_service::ensure(dirs, api)?;
+    let base = api_base(api)?;
+    if !matches!(base.host_str(), Some("127.0.0.1" | "localhost" | "[::1]")) {
+        return Err(API_UNAVAILABLE.into());
+    }
+    let url = base.join("v1/session/login").map_err(|_| API_UNAVAILABLE)?;
+    crate::net::agent(Duration::from_secs(5), Duration::from_secs(30))
+        .post(url.as_str())
+        .set("X-Clovercut-Client", "desktop")
+        .call()
+        .map_err(|_| STUDIO_UNAVAILABLE.to_string())?;
+    Ok(())
+}
+
 fn valid_id(id: &str) -> bool {
     !id.is_empty()
         && id.len() <= 128
@@ -258,12 +275,23 @@ pub fn search(
         "youtube-studio-{:x}.json",
         Sha256::digest(url.as_str().as_bytes())
     ));
-    let fetched = match crate::net::agent(Duration::from_secs(5), Duration::from_secs(20))
-        .get(url.as_str())
-        .call()
-    {
+    let service = crate::youtube_service::ensure(dirs, api).and_then(|started| {
+        if started {
+            open_studio_login(dirs, api)?;
+        }
+        Ok(())
+    });
+    let fetched = match service.and_then(|_| {
+        crate::net::agent(Duration::from_secs(5), Duration::from_secs(20))
+            .get(url.as_str())
+            .call()
+            .map_err(|error| match error {
+                ureq::Error::Status(503, _) => STUDIO_UNAVAILABLE.to_owned(),
+                _ => API_UNAVAILABLE.to_owned(),
+            })
+    }) {
         Ok(response) => read_page(response.into_reader(), offset),
-        Err(_) => Err(API_UNAVAILABLE.to_owned()),
+        Err(error) => Err(error),
     };
     let parsed = match fetched {
         Ok(parsed) => {
