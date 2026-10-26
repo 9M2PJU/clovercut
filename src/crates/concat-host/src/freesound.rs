@@ -83,21 +83,26 @@ pub fn search(
         .append_pair("page_size", "24")
         .append_pair("fields", "id,name,previews,duration,username,license");
 
-    let agent = crate::net::agent(Duration::from_secs(15), Duration::from_secs(30));
-    let response = agent
-        .get(url.as_str())
-        .set("Authorization", &format!("Token {key}"))
-        .set("User-Agent", "Mozilla/5.0 (compatible; Clovercut/0.1)")
-        .call()
-        .map_err(|e| match e {
-            ureq::Error::Status(401 | 403, _) => {
-                "Freesound rejected the API key. Check Settings > Libraries.".to_string()
-            }
-            ureq::Error::Status(429, _) => {
-                "Freesound request limit reached. Please try again later.".to_string()
-            }
-            _ => format!("Freesound search failed: {e}"),
-        })?;
+    let response = crate::net::get(
+        url.as_str(),
+        Duration::from_secs(15),
+        Duration::from_secs(30),
+        crate::net::Trust::System,
+        &|request| {
+            request
+                .set("Authorization", &format!("Token {key}"))
+                .set("User-Agent", "Mozilla/5.0 (compatible; Clovercut/0.1)")
+        },
+    )
+    .map_err(|e| match e.error {
+        ureq::Error::Status(401 | 403, _) => {
+            "Freesound rejected the API key. Check Settings > Libraries.".to_string()
+        }
+        ureq::Error::Status(429, _) => {
+            "Freesound request limit reached. Please try again later.".to_string()
+        }
+        _ => format!("Freesound search failed: {e}"),
+    })?;
 
     let parsed: FreesoundResponse = serde_json::from_reader(response.into_reader())
         .map_err(|e| format!("Could not read Freesound response: {e}"))?;

@@ -216,20 +216,30 @@ pub fn download(
     // A read timeout: a stalled connection blocks in `read` with the
     // cancel flag unreachable, and thirty seconds without a byte means
     // the download is dead.
-    let agent = crate::net::agent(
+    let response = crate::net::get(
+        url,
         std::time::Duration::from_secs(20),
         std::time::Duration::from_secs(30),
+        crate::net::Trust::System,
+        &|request| {
+            if already > 0 {
+                request.set("Range", &format!("bytes={already}-"))
+            } else {
+                request
+            }
+        },
     );
-    let mut request = agent.get(url);
-    if already > 0 {
-        request = request.set("Range", &format!("bytes={already}-"));
-    }
-    let response = match request.call() {
+    let response = match response {
         Ok(response) => response,
-        // Range not satisfiable: everything is already here. Let the
-        // caller's digest check say whether it is the file.
-        Err(ureq::Error::Status(416, _)) if already > 0 => return Ok((already, already)),
-        Err(error) => return Err(format!("{url} did not answer: {error}")),
+        Err(failure) if matches!(failure.error, ureq::Error::Status(416, _)) && already > 0 => {
+            return Ok((already, already));
+        }
+        Err(failure) => {
+            return Err(format!(
+                "{} did not answer: {failure}",
+                crate::net::safe_url(url)
+            ));
+        }
     };
 
     let resumed = response.status() == 206;
@@ -278,7 +288,7 @@ pub fn download(
     file.flush()
         .map_err(|error| format!("could not write {}: {error}", partial.display()))?;
     if received == 0 {
-        return Err(format!("{url} came back empty"));
+        return Err(format!("{} came back empty", crate::net::safe_url(url)));
     }
     Ok((received, received.max(total)))
 }

@@ -27,7 +27,7 @@ concat-vision = { workspace = true, features = ["infer"] }
 # An enhanced still is written as a PNG: lossless, since the point was
 # the detail.
 png = "0.17"
-ureq = "2"
+ureq = { version = "2", features = ["socks-proxy"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "logging", "std", "tls12"] }
 webpki-roots = "0.26"
 rustls-native-certs = "0.8"
@@ -72,6 +72,7 @@ windows-sys = { version = "0.61", features = [
   "Win32_System_Registry",
   # jobs.rs: whether the process that left a mark is still running.
   "Win32_System_Threading",
+  "Win32_Networking_WinHttp",
 ] }
 
 [dev-dependencies]

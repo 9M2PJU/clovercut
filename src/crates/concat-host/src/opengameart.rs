@@ -74,16 +74,19 @@ fn request(url: &str) -> Result<String, String> {
         std::thread::sleep(Duration::from_secs(10).saturating_sub(at.elapsed()));
     }
     *last = Some(Instant::now());
-    let response = crate::net::agent_builder(Duration::from_secs(15), Duration::from_secs(30))
-        .user_agent(concat!(
-            "Clovercut/",
-            env!("CARGO_PKG_VERSION"),
-            " (+https://github.com/tulcoturo/clovercut)"
-        ))
-        .build()
-        .get(url)
-        .call()
-        .map_err(|error| format!("OpenGameArt did not answer: {error}"))?;
+    let response = crate::net::get(
+        url,
+        Duration::from_secs(15),
+        Duration::from_secs(30),
+        crate::net::Trust::System,
+        &|request| {
+            request.set(
+                "User-Agent",
+                concat!("Clovercut/", env!("CARGO_PKG_VERSION")),
+            )
+        },
+    )
+    .map_err(|error| format!("OpenGameArt did not answer: {error}"))?;
     let mut bytes = Vec::new();
     response
         .into_reader()

@@ -282,13 +282,17 @@ pub fn search(
         Ok(())
     });
     let fetched = match service.and_then(|_| {
-        crate::net::agent(Duration::from_secs(5), Duration::from_secs(20))
-            .get(url.as_str())
-            .call()
-            .map_err(|error| match error {
-                ureq::Error::Status(503, _) => STUDIO_UNAVAILABLE.to_owned(),
-                _ => API_UNAVAILABLE.to_owned(),
-            })
+        crate::net::get(
+            url.as_str(),
+            Duration::from_secs(5),
+            Duration::from_secs(20),
+            crate::net::Trust::System,
+            &|request| request,
+        )
+        .map_err(|failure| match failure.error {
+            ureq::Error::Status(503, _) => STUDIO_UNAVAILABLE.to_owned(),
+            _ => API_UNAVAILABLE.to_owned(),
+        })
     }) {
         Ok(response) => read_page(response.into_reader(), offset),
         Err(error) => Err(error),
