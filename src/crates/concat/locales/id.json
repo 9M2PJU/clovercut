@@ -790,7 +790,7 @@
   "start.safeMode": "Clovercut tertutup saat dimulai dan menggunakan perenderan perangkat lunak hingga pembaruan berikutnya. Untuk mencoba kartu grafis, aktifkan penggambaran pada GPU di Pengaturan > Umum.",
   "start.safeModePhone": "Clovercut tertutup saat dimulai dan menggunakan OpenGL ES alih-alih Vulkan hingga pembaruan berikutnya.",
   "start.searchProjects": "Cari proyek",
-  "start.settingsApplyWholeEdit": "Pengaturan ini berlaku untuk seluruh hasil edit dan tidak dapat diubah nanti.",
+  "start.settingsApplyWholeEdit": "Ukuran bingkai dan laju bingkai dapat diubah nanti di pengaturan proyek.",
   "start.shape": "Bentuk",
   "start.showInFolder": "Tampilkan di folder",
   "start.sortName": "Nama",

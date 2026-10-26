@@ -790,7 +790,7 @@
   "start.safeMode": "Clovercut is tijdens het starten afgesloten en gebruikt tot de volgende update softwarerendering. Schakel Tekenen op de GPU in via Instellingen > Algemeen om de grafische kaart te proberen.",
   "start.safeModePhone": "Clovercut is tijdens het starten afgesloten en gebruikt tot de volgende update OpenGL ES in plaats van Vulkan.",
   "start.searchProjects": "Projecten zoeken",
-  "start.settingsApplyWholeEdit": "Deze instellingen gelden voor de hele montage en kunnen later niet worden gewijzigd.",
+  "start.settingsApplyWholeEdit": "Het beeldformaat en de framerate kun je later wijzigen in de projectinstellingen.",
   "start.shape": "Beeldverhouding",
   "start.showInFolder": "Tonen in map",
   "start.sortName": "Naam",

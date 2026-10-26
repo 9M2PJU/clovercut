@@ -790,7 +790,7 @@
   "start.safeMode": "Clovercut si è chiuso all’avvio e userà il rendering software fino al prossimo aggiornamento. Per provare la scheda grafica, attiva il rendering GPU in Impostazioni > Generali.",
   "start.safeModePhone": "Clovercut si è chiuso all’avvio e userà OpenGL ES anziché Vulkan fino al prossimo aggiornamento.",
   "start.searchProjects": "Cerca progetti",
-  "start.settingsApplyWholeEdit": "Queste impostazioni valgono per tutto il montaggio e non si possono cambiare in seguito.",
+  "start.settingsApplyWholeEdit": "Le dimensioni e la frequenza dei fotogrammi possono essere modificate in seguito nelle impostazioni del progetto.",
   "start.shape": "Forma",
   "start.showInFolder": "Mostra nella cartella",
   "start.sortName": "Nome",

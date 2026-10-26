@@ -790,7 +790,7 @@
   "start.safeMode": "Clovercut başlatılırken kapandı ve sonraki güncellemeye kadar yazılımsal çizim kullanacak. Ekran kartını denemek için Ayarlar > Genel bölümünde GPU üzerinde çizimi açın.",
   "start.safeModePhone": "Clovercut başlatılırken kapandı ve sonraki güncellemeye kadar Vulkan yerine OpenGL ES kullanacak.",
   "start.searchProjects": "Projelerde ara",
-  "start.settingsApplyWholeEdit": "Bu ayarlar tüm düzenleme için geçerlidir ve sonradan değiştirilemez.",
+  "start.settingsApplyWholeEdit": "Kare boyutu ve kare hızı daha sonra proje ayarlarından değiştirilebilir.",
   "start.shape": "Biçim",
   "start.showInFolder": "Klasörde göster",
   "start.sortName": "Ad",

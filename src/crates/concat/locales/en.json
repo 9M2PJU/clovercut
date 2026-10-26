@@ -790,7 +790,7 @@
   "start.safeMode": "Clovercut closed while starting once, so it draws in software until its next update: slower, but it opens. To try the graphics card now, turn on Draw on the GPU in Settings > General.",
   "start.safeModePhone": "Clovercut closed while starting once, so it draws with OpenGL ES instead of Vulkan until its next update.",
   "start.searchProjects": "Search projects",
-  "start.settingsApplyWholeEdit": "These settings apply to the whole edit and cannot be changed later.",
+  "start.settingsApplyWholeEdit": "Frame size and frame rate can be changed later in Project settings.",
   "start.shape": "Shape",
   "start.showInFolder": "Show in folder",
   "start.sortName": "Name",

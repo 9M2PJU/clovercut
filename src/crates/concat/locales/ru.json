@@ -790,7 +790,7 @@
   "start.safeMode": "Clovercut закрылся при запуске и до следующего обновления использует программный рендеринг. Чтобы проверить видеокарту, включите отрисовку на GPU в Настройки > Общие.",
   "start.safeModePhone": "Clovercut закрылся при запуске и до следующего обновления использует OpenGL ES вместо Vulkan.",
   "start.searchProjects": "Поиск проектов",
-  "start.settingsApplyWholeEdit": "Эти настройки действуют на весь монтаж и потом не меняются.",
+  "start.settingsApplyWholeEdit": "Размер кадра и частоту кадров можно изменить позже в настройках проекта.",
   "start.shape": "Форма",
   "start.showInFolder": "Показать в папке",
   "start.sortName": "Имя",

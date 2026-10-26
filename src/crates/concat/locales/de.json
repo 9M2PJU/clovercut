@@ -790,7 +790,7 @@
   "start.safeMode": "Clovercut wurde beim Start beendet und verwendet bis zum nächsten Update Softwarerendering. Aktiviere zum Testen der Grafikkarte „Auf der GPU zeichnen“ unter Einstellungen > Allgemein.",
   "start.safeModePhone": "Clovercut wurde beim Start beendet und verwendet bis zum nächsten Update OpenGL ES statt Vulkan.",
   "start.searchProjects": "Projekte suchen",
-  "start.settingsApplyWholeEdit": "Diese Einstellungen gelten für den ganzen Schnitt und lassen sich später nicht ändern.",
+  "start.settingsApplyWholeEdit": "Bildgröße und Bildrate können später in den Projekteinstellungen geändert werden.",
   "start.shape": "Form",
   "start.showInFolder": "Im Ordner zeigen",
   "start.sortName": "Name",

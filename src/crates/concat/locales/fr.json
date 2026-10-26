@@ -790,7 +790,7 @@
   "start.safeMode": "Clovercut s’est fermé au démarrage et utilisera le rendu logiciel jusqu’à la prochaine mise à jour. Pour essayer la carte graphique maintenant, activez le rendu GPU dans Réglages > Général.",
   "start.safeModePhone": "Clovercut s’est fermé au démarrage et utilisera OpenGL ES à la place de Vulkan jusqu’à la prochaine mise à jour.",
   "start.searchProjects": "Rechercher des projets",
-  "start.settingsApplyWholeEdit": "Ces réglages s'appliquent à tout le montage et ne pourront plus être changés.",
+  "start.settingsApplyWholeEdit": "La taille et la fréquence des images peuvent être modifiées plus tard dans les paramètres du projet.",
   "start.shape": "Forme",
   "start.showInFolder": "Afficher dans le dossier",
   "start.sortName": "Nom",

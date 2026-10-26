@@ -790,7 +790,7 @@
   "start.safeMode": "Clovercut شروع ہوتے وقت بند ہوا تھا، اس لیے اگلی اپ ڈیٹ تک سافٹ ویئر رینڈرنگ استعمال کرے گا۔ گرافکس کارڈ آزمانے کے لیے ترتیبات > عمومی میں GPU پر ڈرائنگ فعال کریں۔",
   "start.safeModePhone": "Clovercut شروع ہوتے وقت بند ہوا تھا، اس لیے اگلی اپ ڈیٹ تک Vulkan کی جگہ OpenGL ES استعمال کرے گا۔",
   "start.searchProjects": "پروجیکٹس تلاش کریں",
-  "start.settingsApplyWholeEdit": "یہ ترتیبات پورے ایڈٹ پر لاگو ہوتی ہیں اور بعد میں بدلی نہیں جا سکتیں۔",
+  "start.settingsApplyWholeEdit": "فریم کا سائز اور فریم ریٹ بعد میں پروجیکٹ کی ترتیبات میں تبدیل کیے جا سکتے ہیں۔",
   "start.shape": "شکل",
   "start.showInFolder": "فولڈر میں دکھائیں",
   "start.sortName": "نام",

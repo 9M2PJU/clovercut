@@ -790,7 +790,7 @@
   "start.safeMode": "Clovercut शुरू होते समय बंद हुआ था, इसलिए अगले अपडेट तक सॉफ़्टवेयर रेंडरिंग का उपयोग होगा। ग्राफ़िक्स कार्ड आज़माने के लिए सेटिंग > सामान्य में GPU पर ड्रॉ करना चालू करें।",
   "start.safeModePhone": "Clovercut शुरू होते समय बंद हुआ था, इसलिए अगले अपडेट तक Vulkan की जगह OpenGL ES का उपयोग होगा।",
   "start.searchProjects": "प्रोजेक्ट खोजें",
-  "start.settingsApplyWholeEdit": "ये सेटिंग पूरे एडिट पर लागू होती हैं और बाद में बदली नहीं जा सकतीं।",
+  "start.settingsApplyWholeEdit": "फ़्रेम का आकार और फ़्रेम दर बाद में प्रोजेक्ट सेटिंग में बदले जा सकते हैं।",
   "start.shape": "आकृति",
   "start.showInFolder": "फ़ोल्डर में दिखाएं",
   "start.sortName": "नाम",

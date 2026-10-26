@@ -790,7 +790,7 @@
   "start.safeMode": "Clovercut נסגר בזמן ההפעלה ולכן ישתמש בעיבוד תוכנה עד העדכון הבא. לבדיקת הכרטיס הגרפי, יש להפעיל ציור ב־GPU בהגדרות > כללי.",
   "start.safeModePhone": "Clovercut נסגר בזמן ההפעלה ולכן ישתמש ב־OpenGL ES במקום Vulkan עד העדכון הבא.",
   "start.searchProjects": "חיפוש פרויקטים",
-  "start.settingsApplyWholeEdit": "ההגדרות האלה חלות על כל העריכה ולא ניתן לשנות אותן מאוחר יותר.",
+  "start.settingsApplyWholeEdit": "אפשר לשנות את גודל הפריים ואת קצב הפריימים בהמשך בהגדרות הפרויקט.",
   "start.shape": "צורה",
   "start.showInFolder": "הצגה בתיקייה",
   "start.sortName": "שם",

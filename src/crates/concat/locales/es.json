@@ -790,7 +790,7 @@
   "start.safeMode": "Clovercut se cerró al iniciarse y usará renderizado por software hasta la próxima actualización. Para probar la tarjeta gráfica ahora, activa Dibujar en la GPU en Ajustes > General.",
   "start.safeModePhone": "Clovercut se cerró al iniciarse y usará OpenGL ES en lugar de Vulkan hasta la próxima actualización.",
   "start.searchProjects": "Buscar proyectos",
-  "start.settingsApplyWholeEdit": "Estos ajustes se aplican a toda la edición y no se pueden cambiar después.",
+  "start.settingsApplyWholeEdit": "El tamaño y la tasa de fotogramas se pueden cambiar después en los ajustes del proyecto.",
   "start.shape": "Forma",
   "start.showInFolder": "Mostrar en la carpeta",
   "start.sortName": "Nombre",

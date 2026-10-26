@@ -790,7 +790,7 @@
   "start.safeMode": "起動中にClovercutが終了したため、次の更新までソフトウェア描画を使用します。GPUを試すには「設定 > 一般」でGPU描画を有効にしてください。",
   "start.safeModePhone": "起動中にClovercutが終了したため、次の更新までVulkanの代わりにOpenGL ESを使用します。",
   "start.searchProjects": "プロジェクトを検索",
-  "start.settingsApplyWholeEdit": "これらの設定は編集全体に適用され、後から変更できません。",
+  "start.settingsApplyWholeEdit": "フレームサイズとフレームレートは、後からプロジェクト設定で変更できます。",
   "start.shape": "形",
   "start.showInFolder": "フォルダーで表示",
   "start.sortName": "名前",

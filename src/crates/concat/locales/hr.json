@@ -790,7 +790,7 @@
   "start.safeMode": "Clovercut se zatvorio tijekom pokretanja i do sljedećeg ažuriranja koristi softversko iscrtavanje. Za isprobavanje grafičke kartice uključite iscrtavanje na GPU-u u Postavke > Općenito.",
   "start.safeModePhone": "Clovercut se zatvorio tijekom pokretanja i do sljedećeg ažuriranja koristi OpenGL ES umjesto Vulkana.",
   "start.searchProjects": "Pretraži projekte",
-  "start.settingsApplyWholeEdit": "Ove postavke vrijede za cijelu montažu i ne mogu se mijenjati kasnije.",
+  "start.settingsApplyWholeEdit": "Veličinu kadra i broj sličica u sekundi možete naknadno promijeniti u postavkama projekta.",
   "start.shape": "Oblik",
   "start.showInFolder": "Prikaži u mapi",
   "start.sortName": "Naziv",

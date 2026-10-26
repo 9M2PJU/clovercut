@@ -790,7 +790,7 @@
   "start.safeMode": "Clovercut đã đóng khi khởi động nên sẽ dùng kết xuất phần mềm đến bản cập nhật tiếp theo. Để thử card đồ họa, bật vẽ bằng GPU trong Cài đặt > Chung.",
   "start.safeModePhone": "Clovercut đã đóng khi khởi động nên sẽ dùng OpenGL ES thay cho Vulkan đến bản cập nhật tiếp theo.",
   "start.searchProjects": "Tìm dự án",
-  "start.settingsApplyWholeEdit": "Các cài đặt này áp dụng cho toàn bộ bản dựng và không thể thay đổi sau này.",
+  "start.settingsApplyWholeEdit": "Kích thước khung hình và tốc độ khung hình có thể thay đổi sau trong phần cài đặt dự án.",
   "start.shape": "Tỷ lệ khung hình",
   "start.showInFolder": "Hiện trong thư mục",
   "start.sortName": "Tên",

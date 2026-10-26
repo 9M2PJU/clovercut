@@ -790,7 +790,7 @@
   "start.safeMode": "Clovercut zamknął się podczas uruchamiania i do następnej aktualizacji będzie używać renderowania programowego. Aby wypróbować kartę graficzną, włącz rysowanie na GPU w Ustawienia > Ogólne.",
   "start.safeModePhone": "Clovercut zamknął się podczas uruchamiania i do następnej aktualizacji będzie używać OpenGL ES zamiast Vulkan.",
   "start.searchProjects": "Szukaj projektów",
-  "start.settingsApplyWholeEdit": "Te ustawienia dotyczą całego montażu i nie można ich później zmienić.",
+  "start.settingsApplyWholeEdit": "Rozmiar klatki i liczbę klatek na sekundę można później zmienić w ustawieniach projektu.",
   "start.shape": "Format",
   "start.showInFolder": "Pokaż w folderze",
   "start.sortName": "Nazwa",

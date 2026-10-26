@@ -790,7 +790,7 @@
   "start.safeMode": "Clovercut 曾在啟動時關閉，因此在下次更新前將使用軟體算繪。若要嘗試顯示卡算繪，請在「設定 > 一般」中啟用 GPU 繪製。",
   "start.safeModePhone": "Clovercut 曾在啟動時關閉，因此在下次更新前將使用 OpenGL ES 而非 Vulkan。",
   "start.searchProjects": "搜尋專案",
-  "start.settingsApplyWholeEdit": "這些設定作用於整個剪輯，之後無法更改。",
+  "start.settingsApplyWholeEdit": "畫面尺寸和影格率之後都可以在專案設定中變更。",
   "start.shape": "形狀",
   "start.showInFolder": "在資料夾中顯示",
   "start.sortName": "名稱",

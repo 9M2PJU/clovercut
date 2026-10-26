@@ -790,7 +790,7 @@
   "start.safeMode": "O Clovercut fechou durante a inicialização e usará renderização por software até a próxima atualização. Para testar a placa gráfica agora, ative Renderizar na GPU em Configurações > Geral.",
   "start.safeModePhone": "O Clovercut fechou durante a inicialização e usará OpenGL ES em vez de Vulkan até a próxima atualização.",
   "start.searchProjects": "Buscar projetos",
-  "start.settingsApplyWholeEdit": "Estas configurações valem para toda a edição e não podem ser alteradas depois.",
+  "start.settingsApplyWholeEdit": "O tamanho do quadro e a taxa de quadros podem ser alterados depois nas configurações do projeto.",
   "start.shape": "Forma",
   "start.showInFolder": "Mostrar na pasta",
   "start.sortName": "Nome",

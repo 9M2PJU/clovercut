@@ -790,7 +790,7 @@
   "start.safeMode": "أُغلق Clovercut أثناء البدء، لذا سيستخدم الرسم البرمجي حتى التحديث التالي. لتجربة بطاقة الرسومات، فعّل الرسم على GPU في الإعدادات > عام.",
   "start.safeModePhone": "أُغلق Clovercut أثناء البدء، لذا سيستخدم OpenGL ES بدلًا من Vulkan حتى التحديث التالي.",
   "start.searchProjects": "البحث في المشاريع",
-  "start.settingsApplyWholeEdit": "تنطبق هذه الإعدادات على التحرير كله ولا يمكن تغييرها لاحقًا.",
+  "start.settingsApplyWholeEdit": "يمكن تغيير حجم الإطار ومعدل الإطارات لاحقًا في إعدادات المشروع.",
   "start.shape": "الشكل",
   "start.showInFolder": "إظهار في المجلد",
   "start.sortName": "الاسم",

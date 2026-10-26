@@ -1280,6 +1280,24 @@ impl Decoder {
                     self.hardware = None;
                 }
             }
+            // FFmpeg's ProRes decoder reads the picture's matrix into the
+            // stream and leaves every frame it makes untagged, and swscale
+            // then reads BT.601 into what is a BT.709 picture: a ProRes
+            // 4444 overlay's reds came back orange. Its frames are given
+            // the stream's matrix where they say none. Only ProRes: the
+            // other decoders tag their frames as their streams are tagged.
+            if self.decoder.id() == ffmpeg::codec::Id::PRORES
+                && self.color.matrix != ffmpeg::color::Space::Unspecified
+            {
+                // SAFETY: a frame this reader owns; the matrix is a plain
+                // field the filtergraph reads with the picture.
+                unsafe {
+                    let raw = frame.as_mut_ptr();
+                    if (*raw).colorspace == ffmpeg::sys::AVColorSpace::UNSPECIFIED {
+                        (*raw).colorspace = self.color.matrix.into();
+                    }
+                }
+            }
             self.discard_before = None;
             self.discard_through = None;
             self.last_pts = pts;
@@ -2159,6 +2177,31 @@ mod tests {
                 "output frame {index} is {difference} levels off source frame {index}"
             );
         }
+    }
+
+    /// ProRes tags the stream's matrix but may leave decoded frames untagged.
+    #[test]
+    fn prores_uses_the_stream_matrix_for_untagged_frames() {
+        let path = std::env::temp_dir().join(format!(
+            "clovercut-prores-matrix-{}.mov",
+            std::process::id()
+        ));
+        let made = std::process::Command::new("ffmpeg").args([
+            "-v", "error", "-y", "-f", "lavfi", "-i",
+            "color=red:s=64x64:r=10:d=0.1,scale=in_color_matrix=bt601:out_color_matrix=bt709,format=yuva444p10le",
+            "-c:v", "prores_ks", "-profile:v", "4", "-colorspace", "bt709",
+            "-color_primaries", "bt709", "-color_trc", "bt709", "-threads", "1",
+        ]).arg(&path).status().expect("ffmpeg fixture tool");
+        assert!(made.success());
+        let mut reader = Decoder::open(&path, &DecodeOptions::default().in_software()).unwrap();
+        let frame = reader.next_frame().unwrap().unwrap();
+        let pixel = frame.pixel(32, 32).unwrap();
+        drop(reader);
+        std::fs::remove_file(path).unwrap();
+        assert!(
+            pixel[0] > 245 && pixel[1] < 8 && pixel[2] < 8,
+            "red stays red, not orange: {pixel:?}"
+        );
     }
 
     /// A thirty-frame H.264 file whose every frame is its own flat grey,

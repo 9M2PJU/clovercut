@@ -790,7 +790,7 @@
   "start.safeMode": "Clovercut هنگام راه‌اندازی بسته شد و تا به‌روزرسانی بعدی از رندر نرم‌افزاری استفاده می‌کند. برای آزمایش کارت گرافیک، ترسیم با GPU را در تنظیمات > عمومی روشن کنید.",
   "start.safeModePhone": "Clovercut هنگام راه‌اندازی بسته شد و تا به‌روزرسانی بعدی به‌جای Vulkan از OpenGL ES استفاده می‌کند.",
   "start.searchProjects": "جستجوی پروژه‌ها",
-  "start.settingsApplyWholeEdit": "این تنظیمات روی کل ویرایش اعمال می‌شوند و بعداً قابل تغییر نیستند.",
+  "start.settingsApplyWholeEdit": "اندازهٔ قاب و نرخ فریم را می‌توانید بعداً در تنظیمات پروژه تغییر دهید.",
   "start.shape": "شکل",
   "start.showInFolder": "نمایش در پوشه",
   "start.sortName": "نام",
