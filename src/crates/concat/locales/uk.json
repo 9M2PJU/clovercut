@@ -1084,5 +1084,11 @@
   "settings.downloadStatus": "Сервери завантаження відповіли помилкою (HTTP {0}).",
   "settings.notTheModelFile": "Цей файл — не ця модель. Завантажте його знову за посиланням.",
   "shortcuts.prevEdit": "До попередньої склейки",
-  "shortcuts.nextEdit": "До наступної склейки"
+  "shortcuts.nextEdit": "До наступної склейки",
+  "export.keepsTransparencyMov": "Прозорий · для монтажних програм, великий",
+  "export.keepsTransparencyWebm": "Прозорий · для вебу та OBS, малий",
+  "export.noTransparency": "Цей формат не зберігає прозорість: прозорі місця будуть чорними. ProRes 4444 або VP9 alpha її зберігають.",
+  "start.background": "Тло",
+  "start.transparent": "Прозорий",
+  "start.transparentHint": "Прозоро там, де нічого немає. Щоб зберегти прозорість, експортуйте в ProRes 4444 (.mov) або WebM; в інших форматах там буде чорний."
 }

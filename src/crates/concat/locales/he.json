@@ -1084,5 +1084,11 @@
   "settings.downloadStatus": "שרתי ההורדה ענו בשגיאה (HTTP {0}).",
   "settings.notTheModelFile": "הקובץ הזה אינו המודל הזה. הורידו אותו שוב מהקישור.",
   "shortcuts.prevEdit": "מעבר לחיתוך הקודם",
-  "shortcuts.nextEdit": "מעבר לחיתוך הבא"
+  "shortcuts.nextEdit": "מעבר לחיתוך הבא",
+  "export.keepsTransparencyMov": "שקוף · לתוכנות עריכה, גדול",
+  "export.keepsTransparencyWebm": "שקוף · לרשת ול־OBS, קטן",
+  "export.noTransparency": "פורמט זה לא שומר על שקיפות: החלקים השקופים יוצאים שחורים. ProRes 4444 או VP9 alpha שומרים עליה.",
+  "start.background": "רקע",
+  "start.transparent": "שקוף",
+  "start.transparentHint": "שקוף במקום ששום דבר לא מכסה אותו. ייצאו כ־ProRes 4444 ‏(.mov) או WebM כדי לשמור על כך; פורמטים אחרים מציגים שם שחור."
 }

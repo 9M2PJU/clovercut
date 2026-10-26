@@ -1084,5 +1084,11 @@
   "settings.downloadStatus": "De downloadservers antwoordden met een fout (HTTP {0}).",
   "settings.notTheModelFile": "Dat bestand is niet dit model. Download het opnieuw via de link.",
   "shortcuts.prevEdit": "Naar vorige knip",
-  "shortcuts.nextEdit": "Naar volgende knip"
+  "shortcuts.nextEdit": "Naar volgende knip",
+  "export.keepsTransparencyMov": "Transparant · voor montageprogramma's, groot",
+  "export.keepsTransparencyWebm": "Transparant · voor web en OBS, klein",
+  "export.noTransparency": "Dit formaat houdt geen transparantie: doorzichtige delen worden zwart. ProRes 4444 of VP9 alpha houden die wel.",
+  "start.background": "Achtergrond",
+  "start.transparent": "Transparant",
+  "start.transparentHint": "Doorzichtig waar niets het bedekt. Exporteer als ProRes 4444 (.mov) of WebM om dat te behouden; andere formaten tonen daar zwart."
 }

@@ -1084,5 +1084,11 @@
   "settings.downloadStatus": "Os servidores de download responderam com um erro (HTTP {0}).",
   "settings.notTheModelFile": "Esse arquivo não é este modelo. Baixe-o de novo pelo link.",
   "shortcuts.prevEdit": "Ir para o corte anterior",
-  "shortcuts.nextEdit": "Ir para o próximo corte"
+  "shortcuts.nextEdit": "Ir para o próximo corte",
+  "export.keepsTransparencyMov": "Transparente · para editores, grande",
+  "export.keepsTransparencyWebm": "Transparente · para web e OBS, pequeno",
+  "export.noTransparency": "Este formato não mantém a transparência: as partes transparentes saem pretas. ProRes 4444 ou VP9 alpha mantêm.",
+  "start.background": "Fundo",
+  "start.transparent": "Transparente",
+  "start.transparentHint": "Transparente onde nada cobre. Exporte como ProRes 4444 (.mov) ou WebM para manter isso; outros formatos mostram preto ali."
 }

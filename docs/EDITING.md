@@ -25,6 +25,26 @@ vertical writing. The development branch also adds strikethrough and display-onl
 uppercase, lowercase and sentence case; selecting the active case again restores
 the original spelling. Captions retain their source text and group editing.
 
+## Frame background and transparent export (unreleased)
+
+Choose Background when creating a project, or change it in Project settings.
+The choice belongs to each timeline: a new timeline inherits it, then can use a
+different colour or Transparent. This fills gaps and space around titles as well
+as uncovered picture edges. Existing main-lane and per-clip image/blur backgrounds
+remain independent and render above the frame background.
+
+Transparent areas use a checker in the monitor and export preview. ProRes 4444
+exports to `.mov` with AAC sound; VP9 alpha exports to `.webm` with Opus sound,
+when the linked encoder is available. Both keep transparency and write SDR;
+HDR timelines are tone-mapped. Other formats composite transparency over black.
+The export dialog explains this before writing and selects an available alpha
+codec for a transparent timeline. ProRes quality comes from its profile, so it
+does not show a bitrate control.
+
+Old projects keep their opaque black background. Canvas changes participate in
+undo/redo and survive save/reopen, including projects with several timelines.
+These features are not part of the published 0.1.7 packages.
+
 ## Copy, paste and duplicate
 
 Copy a selection, open another project in the same window and paste at the

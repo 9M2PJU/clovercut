@@ -310,6 +310,7 @@ mod tests {
     fn visual_motion_survives_edit_reopen_undo_and_split_without_audio_fades() {
         use concat_project::model::CaptionMotion;
         let settings = concat_project::DocumentSettings {
+            canvas: [0, 0, 0, 255],
             name: "Motion".into(),
             width: 640,
             height: 360,

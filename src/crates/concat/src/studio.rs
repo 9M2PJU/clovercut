@@ -465,6 +465,8 @@ pub enum Gesture {
         /// The picture grabbed; it is the one that snaps, and the rest
         /// follow it by the same amount.
         primary: String,
+        /// A plain click may pick an overlapping layer; a drag keeps the selection.
+        click_target: Option<String>,
         origins: Vec<StageOrigin>,
         /// The press, in fractions of the frame.
         from: (f64, f64),
@@ -2931,6 +2933,16 @@ impl Studio {
             })
             .map(|c| c.id.clone())
             .collect()
+    }
+
+    /// Overlay edge edits retain their placement; magnetism closes the main sequence.
+    fn trim_ripple(&self, id: &str) -> bool {
+        self.prefs.magnetic
+            && self.clip(id).is_some_and(|clip| {
+                self.timeline()
+                    .main_track()
+                    .is_some_and(|track| track.id == clip.track_id)
+            })
     }
 
     /// Auto follows content type; explicit per-lane size preferences take precedence.
@@ -6073,9 +6085,20 @@ impl Studio {
                 let (start, duration, source_start) = (*start, *duration, *source_start);
                 let threshold = 8.0 * f64::from(self.lanes.seconds_per_pixel);
                 let speed = self.clip(&id).map_or(1.0, |clip| clip.speed);
+                let source_floor = self
+                    .clip(&id)
+                    .filter(|clip| clip.kind.has_source_head_limit())
+                    .map(|clip| {
+                        let lead = clip
+                            .speed_curve
+                            .as_deref()
+                            .and_then(concat_project::speed::curve_of)
+                            .map_or(speed, |curve| curve.speed_at(0.0));
+                        start - source_start / lead.max(0.01)
+                    });
                 // A plain trim stops at the neighbours, as the command will;
                 // a magnetic one moves them, so the lane is all its room.
-                let (floor, ceiling) = if self.prefs.magnetic {
+                let (floor, ceiling) = if self.trim_ripple(&id) {
                     (0.0, f64::INFINITY)
                 } else {
                     self.timeline()
@@ -6087,17 +6110,13 @@ impl Studio {
                     // out of a file that has none before the in-point.
                     let wanted = self.snapped(start + seconds, threshold, &id);
                     let limit = start + duration - f64::from(MIN_DURATION);
-                    let at = wanted.clamp(
-                        (start - source_start / speed.max(0.01))
-                            .max(floor)
-                            .min(limit),
-                        limit,
-                    );
+                    let at =
+                        wanted.clamp(source_floor.unwrap_or(floor).max(floor).min(limit), limit);
                     let delta = at - start;
                     if let Some(clip) = self.echo_clip_mut(&id) {
                         clip.start = at;
                         clip.duration = duration - delta;
-                        clip.source_start = source_start + delta * speed;
+                        clip.source_start = (source_start + delta * speed).max(0.0);
                     }
                     // Trim follow: the playhead on the new first frame.
                     if self.prefs.trim_follow {
@@ -6286,6 +6305,7 @@ impl Studio {
                 };
                 if delta.abs() > 1e-6 {
                     let id = clip.clone();
+                    let ripple = self.trim_ripple(&clip);
                     self.apply(Command::TrimClip {
                         clip_id: clip,
                         edge: match edge {
@@ -6295,7 +6315,7 @@ impl Studio {
                         delta,
                         // Magnetic: the lane closes behind the edge.
                         // https://github.com/jub0t/Concat/issues/106
-                        ripple: self.prefs.magnetic,
+                        ripple,
                     });
                     // Trim follow: a magnetic head trim slides the clip back
                     // into the gap, and the playhead goes with its first
@@ -7219,16 +7239,28 @@ impl Studio {
         ))
     }
 
-    /// The topmost picture under a frame point, skipping locked lanes the
-    /// way a press on the lanes does.
-    fn stage_hit(&self, x: f64, y: f64) -> Option<String> {
+    /// Prefer a held hit for dragging, while preserving ordinary click selection.
+    fn stage_pick(
+        &self,
+        x: f64,
+        y: f64,
+        additive: bool,
+    ) -> Option<crate::preview_interaction::Pick<String>> {
         let frame = self.output_size();
-        self.stage_clips()
-            .into_iter()
-            .rev()
-            .filter(|clip| !self.locked(&clip.track_id))
-            .find(|clip| self.footprint(clip).contains(x, y, frame))
-            .map(|clip| clip.id.clone())
+        crate::preview_interaction::pick(
+            self.stage_clips()
+                .into_iter()
+                .rev()
+                .filter(|clip| !self.locked(&clip.track_id))
+                .filter(|clip| self.footprint(clip).contains(x, y, frame))
+                .map(|clip| {
+                    (
+                        clip.id.clone(),
+                        self.selection.iter().any(|id| id == &clip.id),
+                    )
+                }),
+            additive,
+        )
     }
 
     /// A press on the stage floor: resolve the selection, then arm a move
@@ -7253,7 +7285,7 @@ impl Studio {
         // press on the floor, which clears it, is the commonest way out of
         // a title's text field.
         self.flush_commit();
-        let Some(id) = self.stage_hit(x, y) else {
+        let Some(pick) = self.stage_pick(x, y, additive) else {
             if !additive {
                 self.selection.clear();
                 self.transition_selected = None;
@@ -7261,6 +7293,7 @@ impl Studio {
             self.gesture = Gesture::None;
             return;
         };
+        let id = pick.drag;
         let already = self.selection.iter().any(|held| held == &id);
         if additive {
             if already {
@@ -7296,6 +7329,7 @@ impl Studio {
         self.stage_guides.clear();
         self.gesture = Gesture::StageMove {
             primary: id,
+            click_target: pick.click,
             origins,
             from: (x, y),
         };
@@ -7440,6 +7474,10 @@ impl Studio {
             self.gesture = gesture;
             return;
         }
+        // The stage emits movement only after its screen-space drag threshold.
+        if let Gesture::StageMove { click_target, .. } = &mut gesture {
+            *click_target = None;
+        }
         let (x, y) = (f64::from(x), f64::from(y));
         let (width, height) = self.output_size();
         match &gesture {
@@ -7447,6 +7485,7 @@ impl Studio {
                 primary,
                 origins,
                 from,
+                ..
             } => {
                 let (mut dx, mut dy) = (x - from.0, y - from.1);
                 if snap {
@@ -7713,6 +7752,26 @@ impl Studio {
         self.request_preview();
     }
 
+    /// Discard a cancelled preview gesture, including a pending click selection.
+    pub fn stage_cancelled(&mut self) {
+        if matches!(
+            self.gesture,
+            Gesture::StageMove { .. }
+                | Gesture::StageScale { .. }
+                | Gesture::StageRotate { .. }
+                | Gesture::StageStretch { .. }
+                | Gesture::StageMask { .. }
+                | Gesture::TextWidth { .. }
+                | Gesture::TextHeight { .. }
+                | Gesture::Paint { .. }
+        ) {
+            self.gesture = Gesture::None;
+            self.echo = None;
+            self.stage_guides.clear();
+            self.request_preview();
+        }
+    }
+
     /// The stage gesture is over: whatever the echo moved becomes one
     /// transform command per picture, batched when there are several.
     pub fn stage_released(&mut self) {
@@ -7721,6 +7780,18 @@ impl Studio {
             .then(|| self.stroke_overlay())
             .filter(|(path, _, _)| !path.is_empty());
         let gesture = std::mem::replace(&mut self.gesture, Gesture::None);
+        if let Gesture::StageMove {
+            click_target: Some(id),
+            ..
+        } = &gesture
+        {
+            self.echo = None;
+            if self.clip(id).is_some() {
+                self.selection = vec![id.clone()];
+                self.transition_selected = None;
+            }
+            return;
+        }
         let touched: Vec<String> = match gesture {
             Gesture::StageMove { origins, .. } => {
                 origins.into_iter().map(|origin| origin.clip).collect()
@@ -9199,6 +9270,7 @@ impl Studio {
             moving: false,
             proxy: false,
             color_space: self.project().active().video.color_space,
+            canvas: self.project().active().video.canvas,
         };
         let monitor = self.host.monitor.clone();
         let out_dir = project_dir.join("frames");
@@ -10756,7 +10828,11 @@ impl Studio {
                 .as_ref()
                 .map(|source| (source.name.as_str(), source.kind)),
         );
-        editor.set_has_picture(showing.is_some());
+        editor.set_has_picture(
+            showing.is_some()
+                || (self.source.is_none() && timeline.video.canvas != model::OPAQUE_BLACK),
+        );
+        editor.set_see_through(self.source.is_none() && timeline.video.canvas[3] < 255);
         editor.set_preview_clip_name(showing.unwrap_or_default().into());
         editor.set_preview_duration(self.duration() as f32);
         editor.set_playhead_free(!self.prefs.playhead_stops_at_end);
@@ -14852,6 +14928,7 @@ mod tests {
         project.active_mut().clips.push(clip.into());
         let mut editor = Editor::from_document(&to_document(
             &DocumentSettings {
+                canvas: [0, 0, 0, 255],
                 name: "position".into(),
                 width: 1920,
                 height: 1080,

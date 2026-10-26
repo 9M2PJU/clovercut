@@ -20,9 +20,11 @@ export async function connectBridge(c, { reconnect = false, sleep = ms => new Pr
       if (ready) break;
     }
     if (!ready) throw Error('Studio sign-in is required before connecting the Audio Library');
+    // The row/play IDs are structural. An aria-label contains translated text,
+    // so matching Portuguese/English labels rejects other Studio locales.
     let played = false;
     for (let i = 0; i < 40; i++) {
-      played = await evaluate(`(() => { const button = document.querySelector('ytcp-icon-button[aria-label^="Reproduzir faixa de áudio"], ytcp-icon-button[aria-label^="Play audio track"]'); if (!button) return false; document.addEventListener('play', e => { if (e.target instanceof HTMLMediaElement) e.target.pause(); }, { capture: true, once: true }); button.click(); return true; })()`);
+      played = await evaluate(`(() => { const button = document.querySelector('ytmus-library-row ytcp-icon-button#play'); if (!button) return false; document.addEventListener('play', e => { if (e.target instanceof HTMLMediaElement) e.target.pause(); }, { capture: true, once: true }); button.click(); return true; })()`);
       if (played) break;
       await sleep(500);
     }

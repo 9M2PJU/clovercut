@@ -16,6 +16,7 @@ fn media(id: &str, path: &str) -> MediaItem {
 fn editor(project: &Project) -> Editor {
     Editor::from_document(&to_document(
         &DocumentSettings {
+            canvas: [0, 0, 0, 255],
             name: "Copy".into(),
             width: 640,
             height: 360,

@@ -251,6 +251,10 @@ export global Editor {
     /// The engine's composited frame at the playhead, or an empty image
     /// while one is on its way. Set from Rust; see `Studio::request_preview`.
     in-out property <image> preview-frame;
+    /// The timeline's canvas lets something show through (#456): the
+    /// monitor draws a checker under the frame, so what is clear reads as
+    /// clear rather than as the stage's black.
+    in-out property <bool> see-through;
 
     callback play-toggled();
     callback seek(seconds: float);
@@ -277,6 +281,7 @@ export global Editor {
     /// for a move, steps for a scale, fifteen degrees for a turn.
     callback stage-dragged(x: float, y: float, snap: bool);
     callback stage-released();
+    callback stage-cancelled();
 
     /// A custom cutout's brush, as the inspector set it: which of the four
     /// tools, how wide as a fraction of the picture, and whether a press on

@@ -1084,5 +1084,11 @@
   "settings.downloadStatus": "ردّت خوادم التنزيل بخطأ (HTTP {0}).",
   "settings.notTheModelFile": "هذا الملف ليس هذا النموذج. نزّله مجددًا من الرابط.",
   "shortcuts.prevEdit": "الانتقال إلى القطع السابق",
-  "shortcuts.nextEdit": "الانتقال إلى القطع التالي"
+  "shortcuts.nextEdit": "الانتقال إلى القطع التالي",
+  "export.keepsTransparencyMov": "شفاف · لبرامج المونتاج، كبير",
+  "export.keepsTransparencyWebm": "شفاف · للويب وOBS، صغير",
+  "export.noTransparency": "هذه الصيغة لا تحفظ الشفافية: الأجزاء الشفافة تظهر سوداء. ProRes 4444 أو VP9 alpha تحفظانها.",
+  "start.background": "الخلفية",
+  "start.transparent": "شفاف",
+  "start.transparentHint": "شفاف حيث لا يغطيه شيء. صدّر بصيغة ProRes 4444 (‎.mov) أو WebM للحفاظ على ذلك؛ الصيغ الأخرى تُظهر الأسود هناك."
 }

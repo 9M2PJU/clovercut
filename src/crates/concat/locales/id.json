@@ -1084,5 +1084,11 @@
   "settings.downloadStatus": "Server unduhan menjawab dengan galat (HTTP {0}).",
   "settings.notTheModelFile": "Berkas itu bukan model ini. Unduh lagi lewat tautan.",
   "shortcuts.prevEdit": "Ke potongan sebelumnya",
-  "shortcuts.nextEdit": "Ke potongan berikutnya"
+  "shortcuts.nextEdit": "Ke potongan berikutnya",
+  "export.keepsTransparencyMov": "Transparan · untuk editor, besar",
+  "export.keepsTransparencyWebm": "Transparan · untuk web dan OBS, kecil",
+  "export.noTransparency": "Format ini tidak menyimpan transparansi: bagian transparan jadi hitam. ProRes 4444 atau VP9 alpha menyimpannya.",
+  "start.background": "Latar",
+  "start.transparent": "Transparan",
+  "start.transparentHint": "Transparan di bagian yang tidak tertutup apa pun. Ekspor sebagai ProRes 4444 (.mov) atau WebM untuk mempertahankannya; format lain menampilkan hitam di sana."
 }

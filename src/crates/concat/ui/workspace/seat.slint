@@ -181,6 +181,7 @@ export component Seat inherits Rectangle {
             has-picture: Editor.has-picture;
             clip-name: Editor.preview-clip-name;
             frame: Editor.preview-frame;
+            see-through: Editor.see-through && !SourcePreview.open;
             stage-items: SourcePreview.open ? [] : Editor.stage-items;
             stage-guides: Editor.stage-guides;
             stroke-path: Editor.stroke-path;
@@ -216,6 +217,7 @@ export component Seat inherits Rectangle {
             }
             stage-dragged(x, y, snap) => { Editor.stage-dragged(x, y, snap); }
             stage-released => { Editor.stage-released(); }
+            stage-cancelled => { Editor.stage-cancelled(); }
             save-frame => { Editor.save-frame(); }
         }
 

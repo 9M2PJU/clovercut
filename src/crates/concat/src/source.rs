@@ -460,6 +460,7 @@ mod tests {
         let render = |studio: &mut Studio, time: f64| {
             let (clips, settings) = studio.preview_clips(64, 36, time).unwrap();
             let spec = concat_host::preview::FrameSpec {
+                canvas: [0, 0, 0, 255],
                 time,
                 width: 64,
                 height: 36,

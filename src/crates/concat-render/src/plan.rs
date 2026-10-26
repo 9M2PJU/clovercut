@@ -749,6 +749,11 @@ pub struct FramePlan {
     pub width: u32,
     /// Output height.
     pub height: u32,
+    /// What is drawn under the bottom layer, where no picture covers the
+    /// frame: the timeline's canvas colour, eight-bit straight
+    /// `[r, g, b, a]`. Short of opaque, the frame comes back with its
+    /// alpha (see [`FramePlan::see_through`]).
+    pub canvas: [u8; 4],
     /// Visible layers, bottom-most first.
     pub layers: Vec<PlannedLayer>,
     /// The treatments live at this instant, in ascending track order.
@@ -766,14 +771,22 @@ impl FramePlan {
             time: Rational::ZERO,
             width,
             height,
+            canvas: [0, 0, 0, 255],
             layers: Vec::new(),
             treatments: Vec::new(),
             output: Signal::Sdr,
         }
     }
 
-    /// True if nothing is on screen. The result is a black frame, not an error:
-    /// gaps in a timeline are ordinary.
+    /// Whether the canvas lets something show through, so the frame keeps
+    /// the alpha of what covers it rather than coming back opaque: an
+    /// overlay bound for a file that keeps alpha (#456).
+    pub fn see_through(&self) -> bool {
+        self.canvas[3] < 255
+    }
+
+    /// True if nothing is on screen. The result is the canvas, not an
+    /// error: gaps in a timeline are ordinary.
     pub fn is_empty(&self) -> bool {
         self.layers.is_empty()
     }
@@ -852,6 +865,7 @@ pub fn plan_frame(timeline: &Timeline, time: Rational) -> FramePlan {
         time,
         width: timeline.width,
         height: timeline.height,
+        canvas: timeline.canvas,
         layers,
         treatments: Vec::new(),
         output: Signal::Sdr,

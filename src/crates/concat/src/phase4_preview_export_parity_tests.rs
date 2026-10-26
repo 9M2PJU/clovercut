@@ -287,6 +287,7 @@ impl ParityHarness {
             .preview_clips(self.width, self.height, time)
             .expect("preview clips");
         let spec = concat_host::preview::FrameSpec {
+            canvas: [0, 0, 0, 255],
             time,
             width: self.width,
             height: self.height,
@@ -855,6 +856,7 @@ fn subtest_proxy_vs_original() {
         .preview_clips(WIDTH, HEIGHT, 0.5)
         .expect("preview clips");
     let spec_proxy = concat_host::preview::FrameSpec {
+        canvas: [0, 0, 0, 255],
         time: 0.5,
         width: WIDTH,
         height: HEIGHT,

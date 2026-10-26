@@ -41,7 +41,8 @@
     "voices.styleRadio": "Radio",
     "libraries.groupAudio": "Audio",
     "grading.vignette": "Vignette",
-    "grading.gamma": "Gamma"
+    "grading.gamma": "Gamma",
+    "start.transparent": "Transparent"
   },
   "es": {
     "captions.horizontalWriting": "Horizontal",
@@ -137,7 +138,8 @@
     "libraries.groupTransitions": "Transitions",
     "grading.saturation": "Saturation",
     "grading.gamma": "Gamma",
-    "grading.gain": "Gain"
+    "grading.gain": "Gain",
+    "start.transparent": "Transparent"
   },
   "hr": {
     "common.auto": "Auto",

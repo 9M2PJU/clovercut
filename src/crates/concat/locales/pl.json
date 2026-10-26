@@ -1084,5 +1084,11 @@
   "settings.downloadStatus": "Serwery pobierania odpowiedziały błędem (HTTP {0}).",
   "settings.notTheModelFile": "Ten plik nie jest tym modelem. Pobierz go ponownie z linku.",
   "shortcuts.prevEdit": "Przejdź do poprzedniego cięcia",
-  "shortcuts.nextEdit": "Przejdź do następnego cięcia"
+  "shortcuts.nextEdit": "Przejdź do następnego cięcia",
+  "export.keepsTransparencyMov": "Przezroczyste · do programów montażowych, duże",
+  "export.keepsTransparencyWebm": "Przezroczyste · do sieci i OBS, małe",
+  "export.noTransparency": "Ten format nie zachowuje przezroczystości: przezroczyste części będą czarne. ProRes 4444 lub VP9 alpha ją zachowują.",
+  "start.background": "Tło",
+  "start.transparent": "Przezroczyste",
+  "start.transparentHint": "Przezroczyste tam, gdzie nic go nie zakrywa. Eksportuj jako ProRes 4444 (.mov) lub WebM, aby to zachować; inne formaty pokażą tam czerń."
 }

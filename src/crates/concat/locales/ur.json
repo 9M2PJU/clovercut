@@ -1084,5 +1084,11 @@
   "settings.downloadStatus": "ڈاؤن لوڈ سرورز نے خرابی کے ساتھ جواب دیا (HTTP {0})۔",
   "settings.notTheModelFile": "یہ فائل یہ ماڈل نہیں ہے۔ لنک سے اسے دوبارہ ڈاؤن لوڈ کریں۔",
   "shortcuts.prevEdit": "پچھلے کٹ پر جائیں",
-  "shortcuts.nextEdit": "اگلے کٹ پر جائیں"
+  "shortcuts.nextEdit": "اگلے کٹ پر جائیں",
+  "export.keepsTransparencyMov": "شفاف · ایڈیٹرز کے لیے، بڑا",
+  "export.keepsTransparencyWebm": "شفاف · ویب اور OBS کے لیے، چھوٹا",
+  "export.noTransparency": "یہ فارمیٹ شفافیت نہیں رکھتا: شفاف حصے سیاہ آتے ہیں۔ ProRes 4444 یا VP9 alpha اسے رکھتے ہیں۔",
+  "start.background": "پس منظر",
+  "start.transparent": "شفاف",
+  "start.transparentHint": "جہاں کچھ نہ ڈھکا ہو وہاں شفاف۔ اسے برقرار رکھنے کے لیے ProRes 4444 (‎.mov) یا WebM میں ایکسپورٹ کریں؛ دوسرے فارمیٹ وہاں سیاہ دکھاتے ہیں۔"
 }

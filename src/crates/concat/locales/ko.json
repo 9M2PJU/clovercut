@@ -1084,5 +1084,11 @@
   "settings.downloadStatus": "다운로드 서버가 오류로 응답했습니다 (HTTP {0}).",
   "settings.notTheModelFile": "이 파일은 이 모델이 아닙니다. 링크로 다시 다운로드하세요.",
   "shortcuts.prevEdit": "이전 컷으로 이동",
-  "shortcuts.nextEdit": "다음 컷으로 이동"
+  "shortcuts.nextEdit": "다음 컷으로 이동",
+  "export.keepsTransparencyMov": "투명 · 편집 프로그램용, 큼",
+  "export.keepsTransparencyWebm": "투명 · 웹·OBS용, 작음",
+  "export.noTransparency": "이 형식은 투명도를 유지하지 않습니다. 투명한 부분은 검게 나옵니다. ProRes 4444 또는 VP9 alpha는 유지합니다.",
+  "start.background": "배경",
+  "start.transparent": "투명",
+  "start.transparentHint": "아무것도 덮지 않은 곳은 투명합니다. 유지하려면 ProRes 4444(.mov) 또는 WebM으로 내보내세요. 다른 형식은 그 부분이 검게 보입니다."
 }

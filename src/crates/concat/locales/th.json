@@ -1084,5 +1084,11 @@
   "settings.downloadStatus": "เซิร์ฟเวอร์ดาวน์โหลดตอบกลับด้วยข้อผิดพลาด (HTTP {0})",
   "settings.notTheModelFile": "ไฟล์นั้นไม่ใช่โมเดลนี้ ดาวน์โหลดอีกครั้งจากลิงก์",
   "shortcuts.prevEdit": "ไปยังจุดตัดก่อนหน้า",
-  "shortcuts.nextEdit": "ไปยังจุดตัดถัดไป"
+  "shortcuts.nextEdit": "ไปยังจุดตัดถัดไป",
+  "export.keepsTransparencyMov": "โปร่งใส · สำหรับโปรแกรมตัดต่อ, ไฟล์ใหญ่",
+  "export.keepsTransparencyWebm": "โปร่งใส · สำหรับเว็บและ OBS, ไฟล์เล็ก",
+  "export.noTransparency": "รูปแบบนี้ไม่เก็บความโปร่งใส ส่วนที่โปร่งใสจะเป็นสีดำ ProRes 4444 หรือ VP9 alpha เก็บไว้ได้",
+  "start.background": "พื้นหลัง",
+  "start.transparent": "โปร่งใส",
+  "start.transparentHint": "โปร่งใสในส่วนที่ไม่มีอะไรทับ ส่งออกเป็น ProRes 4444 (.mov) หรือ WebM เพื่อคงไว้ รูปแบบอื่นจะแสดงเป็นสีดำตรงนั้น"
 }

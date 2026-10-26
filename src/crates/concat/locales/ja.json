@@ -1084,5 +1084,11 @@
   "settings.downloadStatus": "ダウンロードサーバーがエラーを返しました（HTTP {0}）。",
   "settings.notTheModelFile": "このファイルはこのモデルではありません。リンクからもう一度ダウンロードしてください。",
   "shortcuts.prevEdit": "前のカットへ移動",
-  "shortcuts.nextEdit": "次のカットへ移動"
+  "shortcuts.nextEdit": "次のカットへ移動",
+  "export.keepsTransparencyMov": "透明 · 編集ソフト向け、大きい",
+  "export.keepsTransparencyWebm": "透明 · Web・OBS 向け、小さい",
+  "export.noTransparency": "この形式は透明を保持しません。透明な部分は黒になります。ProRes 4444 か VP9 alpha なら保持します。",
+  "start.background": "背景",
+  "start.transparent": "透明",
+  "start.transparentHint": "何も重なっていない部分は透明です。透明を保つには ProRes 4444 (.mov) か WebM で書き出します。ほかの形式ではそこが黒になります。"
 }
