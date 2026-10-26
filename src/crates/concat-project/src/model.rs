@@ -1401,6 +1401,18 @@ pub struct Enhanced {
     pub copy: String,
     /// Whether the clip shows the copy.
     pub on: bool,
+    /// Seconds into the original the copy starts at: a copy of the span the
+    /// clip covers, rather than of the whole file, starts partway in. The
+    /// clip's in-point is in the copy's seconds while it shows the copy, so
+    /// switching between the two moves it by this much and the same moment
+    /// stays on screen. Zero, and left out of the document, for a copy of
+    /// the whole file.
+    #[serde(default, skip_serializing_if = "is_zero_seconds")]
+    pub offset: f64,
+}
+
+fn is_zero_seconds(seconds: &f64) -> bool {
+    *seconds == 0.0
 }
 
 /// A transition on the cut into a clip.
@@ -2192,6 +2204,9 @@ impl Clip {
         self.start = finite(self.start, 0.0).clamp(0.0, MAX_TIME);
         self.duration = finite(self.duration, 1.0).clamp(MIN_CLIP_DURATION, MAX_TIME);
         self.source_start = finite(self.source_start, 0.0).clamp(0.0, MAX_TIME);
+        if let Some(link) = &mut self.enhanced {
+            link.offset = finite(link.offset, 0.0).clamp(0.0, MAX_TIME);
+        }
         self.volume = finite(self.volume, 1.0).max(0.0);
         self.fade_in = finite(self.fade_in, 0.0).clamp(0.0, MAX_TIME);
         self.fade_out = finite(self.fade_out, 0.0).clamp(0.0, MAX_TIME);
@@ -3215,5 +3230,24 @@ mod tests {
     fn default_text_style_uses_bundled_hanken_grotesk_family() {
         let style = TextStyle::default();
         assert_eq!(style.font_family, "Hanken Grotesk");
+    }
+}
+
+#[cfg(test)]
+mod enhanced_compatibility_tests {
+    use super::*;
+
+    #[test]
+    fn old_copies_start_at_zero_and_span_offsets_survive_documents() {
+        let old: Enhanced =
+            serde_json::from_str(r#"{"original":"a","copy":"b","on":true}"#).unwrap();
+        assert_eq!(old.offset, 0.0);
+        let clip = Clip {
+            enhanced: Some(Enhanced { offset: 4.0, ..old }),
+            ..Default::default()
+        };
+        let text = serde_json::to_string(&clip).unwrap();
+        let restored: Clip = serde_json::from_str(&text).unwrap();
+        assert_eq!(restored.enhanced.unwrap().offset, 4.0);
     }
 }

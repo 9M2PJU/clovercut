@@ -119,6 +119,7 @@ fn decorated(kind: ClipKind, lane: &str) -> Clip {
         media_id: "m3".into(),
     });
     c.enhanced = Some(Enhanced {
+        offset: 4.0,
         original: "m1".into(),
         copy: "m2".into(),
         on: false,

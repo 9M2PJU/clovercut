@@ -524,6 +524,7 @@ fn subtest_reversed_playback() {
         item: summary.to_new_media(),
         source_start: None,
         enhanced: false,
+        offset: 0.0,
     });
 
     let (_, frames, _) = harness.export_video("reversed");

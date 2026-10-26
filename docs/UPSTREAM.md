@@ -7,9 +7,32 @@ media ownership, cancellation, atomic exports and Clovercut's existing UI.
 
 ## Current review
 
-Reviewed through `2429c0ca`, following the previous review at `971ad1d9`.
-The WAV, waveform and typography follow-ups below are on the development branch,
-after the source used by the 0.1.6 release workflow. They require a newer app build.
+Reviewed through `94f4255f` (26 October 2026), following the previous review at
+`2429c0ca`. Adaptations below are newer than the source used by the published
+0.1.6 release and require a newer app build.
+
+### Latest batch
+
+| Commit | Change | Clovercut assessment |
+|---|---|---|
+| `c63c7ecf` | Direct3D effect sampling | Adapted: effect and transition helpers use explicit mip level zero, avoiding implicit derivatives in parameter-controlled loops. Keeps the existing shader contracts and single-mip pictures. |
+| `23bc6899` (decoder only) | ProRes colour matrix | Adapted independently of alpha export: untagged ProRes frames inherit the stream's matrix before colour conversion. Other codecs and explicitly tagged frames retain their behaviour. |
+| `e6bfd3fc` | New-project notice | Adapted in all locales, referring only to Clovercut's editable frame size and frame rate; does not promise the upstream canvas control. |
+| `7db37f2a` | Enhance only the used source span; reuse identical frames | Adapted with a one-second margin, span-specific cache identity, original/copy offsets, preview alignment and rejection when a clip changes source while the job runs. Keeps cancellation-aware audio mixing/muxing, bounded decoder/encoder threads and atomic publication. Old enhanced links default to offset zero; clipboard retains the offset. |
+| `f55451e6` | Default title font | Already equivalent: Clovercut's model and UI use bundled Hanken Grotesk, with regression coverage. |
+| `cdbdf074`, `b613ba62` | Stable inspector labels during playback | Clovercut already derives tab choice through cached kind/batch properties and has additional caption/animation tabs. Reproduce any remaining model churn before adapting a held label model; never copy upstream's smaller tab list. |
+| `aa38b9d5`, `84c0e625`, `94f4255f` | GPU Enhance and runtime engine selection | Deferred to a separate measured integration. Review the final series together: the initial CoreML preference regressed in-app performance and was replaced by runtime timing. Preserve low resource limits and CPU fallback; published Mac timings are not Clovercut measurements. |
+| `fa2c5168`, `13e67ea2` | Import saved voices with metadata and automatic sample placement | Useful next feature, extending the existing saved-voice library. Adapt the modal and shelf to Clovercut and retain feature-gated speech engines. |
+| `870290a0`, `23bc6899`, `470391e7` | Transparent canvas and ProRes 4444/VP9 alpha export | Defer as a coordinated feature after the previously reviewed project canvas work. Requires schema compatibility, preview/export alpha parity, codec availability and audio/container tests. The independent ProRes decoder fix above is included. |
+| `b237687c` | Concat application identifier migration | Not applicable: retain Clovercut's identifier, portable mode and storage paths. |
+
+The span regression exercises the real decode/encode/audio pipeline with a small
+deterministic picture processor, so it needs no Enhance model download. It checks
+picture and sound start times, output duration, exact-frame reuse and cancellation
+cleanup. Separate tests cover ProRes colour, old enhanced links, toggling copies
+and preservation through Clovercut's typed clipboard.
+
+### Previous batch
 
 | Commit | Change | Clovercut assessment |
 |---|---|---|
