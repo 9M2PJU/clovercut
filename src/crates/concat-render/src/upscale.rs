@@ -710,11 +710,23 @@ mod tests {
             })
             .collect();
         let Some(gpu) = Upscaler::new(&layers, 2, side as u32) else {
+            // The upscaler takes no CPU adapter, so a machine with only a
+            // software one (CI's lavapipe among them) has nothing to
+            // compare and no flag should make that a failure. Where a
+            // hardware adapter is there, the flag still means an upscaler
+            // that would not open is one.
+            let hardware = pollster::block_on(wgpu::Instance::default().request_adapter(
+                &wgpu::RequestAdapterOptions {
+                    power_preference: wgpu::PowerPreference::HighPerformance,
+                    ..Default::default()
+                },
+            ))
+            .is_ok_and(|adapter| adapter.get_info().device_type != wgpu::DeviceType::Cpu);
             assert!(
-                std::env::var_os("CONCAT_REQUIRE_GPU").is_none(),
+                !(hardware && std::env::var_os("CONCAT_REQUIRE_GPU").is_some()),
                 "a usable GPU is required"
             );
-            eprintln!("no GPU here; skipped");
+            eprintln!("no hardware GPU here; skipped");
             return;
         };
         let got = gpu.run(&planes).expect("runs");
