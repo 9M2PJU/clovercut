@@ -73,7 +73,7 @@ Online assets retain their own licences and availability.
 * **YouTube companion service:** The new integration currently requires the separately running local [Audio API](https://github.com/tulcoturo/clovercut-audio-api) and an authenticated Studio connector for fresh downloads; it is not a bundled or hosted service. See [audio setup](docs/AUDIO_LIBRARY.md).
 
 <p align="center">
-  <img src="assets/screenshots/audio-library.png" alt="clovercut royalty-free audio library with waveforms" width="1000" />
+  <img src="assets/screenshots/audio-library.png" alt="clovercut YouTube Audio Library with music and sound effects" width="1000" />
 </p>
 
 ### 4. CapCut-Style Workflow with Native Rust Speed
@@ -85,7 +85,7 @@ Online assets retain their own licences and availability.
 * **Clean 4K Export:** Export high-bitrate MP4 (H.264), ProRes, and AV1 up to 60 FPS without watermarks.
 
 <p align="center">
-  <img src="assets/screenshots/export-dialog.png" alt="clovercut centered 4K export dialog" width="900" />
+  <img src="assets/screenshots/export-dialog.png" alt="clovercut centered video and audio export dialog" width="900" />
 </p>
 
 ---
