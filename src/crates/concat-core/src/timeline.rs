@@ -106,6 +106,12 @@ pub struct Clip {
     /// The shape that keeps part of the picture, when one does; its
     /// numbers ride the animation's mask tracks.
     pub mask: Option<ShapeMask>,
+    /// How many times the frame the picture is drawn for, along the axis
+    /// it is most: one - every picture but a title whose ink runs past the
+    /// frame's edges, painted on a canvas grown to hold it. A picture past
+    /// one is drawn at one of its pixels to one of the frame's, centred on
+    /// the clip's centre, where any other is fitted inside the frame.
+    pub overscan: f64,
 }
 
 /// How a layer's colour meets what is beneath it.
@@ -230,6 +236,7 @@ impl Clip {
             hold: false,
             loop_duration: None,
             mask: None,
+            overscan: 1.0,
         }
     }
 
