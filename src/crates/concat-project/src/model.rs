@@ -71,6 +71,12 @@ pub enum ClipKind {
 }
 
 impl ClipKind {
+    /// Recorded video/audio cannot extend their head before source time zero.
+    /// Stills and generated layers have no such source boundary.
+    pub fn has_source_head_limit(self) -> bool {
+        matches!(self, ClipKind::Video | ClipKind::Audio)
+    }
+
     /// True for the kinds that put pixels on screen.
     pub fn is_visual(self) -> bool {
         matches!(self, ClipKind::Video | ClipKind::Image)

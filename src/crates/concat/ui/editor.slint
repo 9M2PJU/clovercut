@@ -277,6 +277,7 @@ export global Editor {
     /// for a move, steps for a scale, fifteen degrees for a turn.
     callback stage-dragged(x: float, y: float, snap: bool);
     callback stage-released();
+    callback stage-cancelled();
 
     /// A custom cutout's brush, as the inspector set it: which of the four
     /// tools, how wide as a fraction of the picture, and whether a press on

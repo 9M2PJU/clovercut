@@ -603,6 +603,7 @@ component StageOverlay inherits Rectangle {
     callback grip-pressed(id: string, grip: int, x: float, y: float);
     callback dragged(x: float, y: float, snap: bool);
     callback released();
+    callback cancelled();
     /// A right-click on the picture, at (`x`, `y`) in the overlay.
     callback context-requested(x: length, y: length);
     /// An alt drag or a middle drag over the stage moves the view, not a
@@ -620,6 +621,9 @@ component StageOverlay inherits Rectangle {
     // it against the pictures, rotation and stacking included.
     floor := TouchArea {
         property <bool> live;
+        property <bool> dragging;
+        property <length> press-x;
+        property <length> press-y;
         property <bool> panning;
         property <bool> snap;
         mouse-cursor: self.panning ? MouseCursor.grabbing
@@ -644,6 +648,9 @@ component StageOverlay inherits Rectangle {
             } else if (event.kind == PointerEventKind.down
                 && event.button == PointerEventButton.left) {
                 self.live = true;
+                self.dragging = false;
+                self.press-x = self.mouse-x;
+                self.press-y = self.mouse-y;
                 // Shift, or the platform's command key - ⌘ on a Mac, Ctrl
                 // elsewhere - adds to the selection, as it does in the
                 // lanes and the media pane; alt is the view's.
@@ -653,7 +660,9 @@ component StageOverlay inherits Rectangle {
                 || event.kind == PointerEventKind.cancel) {
                 if (self.live) {
                     self.live = false;
-                    root.released();
+                    self.dragging = false;
+                    if (event.kind == PointerEventKind.cancel) { root.cancelled(); }
+                    else { root.released(); }
                 }
                 if (self.panning) {
                     self.panning = false;
@@ -662,7 +671,10 @@ component StageOverlay inherits Rectangle {
             }
         }
         moved => {
-            if (self.live) {
+            if (self.live && (root.painting || self.dragging
+                || Math.abs(self.mouse-x - self.press-x) >= 3px
+                || Math.abs(self.mouse-y - self.press-y) >= 3px)) {
+                self.dragging = true;
                 root.dragged(self.mouse-x / root.width, self.mouse-y / root.height,
                     self.snap);
             }
@@ -787,6 +799,7 @@ export component PreviewPane inherits Rectangle {
     callback stage-grip-pressed(id: string, grip: int, x: float, y: float);
     callback stage-dragged(x: float, y: float, snap: bool);
     callback stage-released();
+    callback stage-cancelled();
 
     /// The corner button: show something else in this pane's seat.
     callback pane-picked(kind: PaneKind);
@@ -1064,6 +1077,7 @@ export component PreviewPane inherits Rectangle {
                 grip-pressed(id, grip, x, y) => { root.stage-grip-pressed(id, grip, x, y); }
                 dragged(x, y, snap) => { root.stage-dragged(x, y, snap); }
                 released => { root.stage-released(); }
+                cancelled => { root.stage-cancelled(); }
                 pan-pressed(x, y) => { viewport.grab(x, y); }
                 pan-dragged(x, y) => { viewport.drag-to(x, y); }
                 pan-released => { }

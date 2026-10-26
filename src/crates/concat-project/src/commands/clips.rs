@@ -310,9 +310,14 @@ pub(super) fn apply(
                         .as_deref()
                         .and_then(crate::speed::curve_of)
                         .map_or(clip.speed, |curve| curve.speed_at(0.0));
+                    let source_floor = if clip.kind.has_source_head_limit() {
+                        -clip.source_start / lead
+                    } else {
+                        f64::NEG_INFINITY
+                    };
                     let shift = delta
                         .min(clip.duration - MIN_CLIP_DURATION)
-                        .max(-clip.source_start / lead);
+                        .max(source_floor);
                     // A magnetic head trim never moves the clip, so the
                     // timeline's own start is no limit to it; a plain one
                     // stops at zero.

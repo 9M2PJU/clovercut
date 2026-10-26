@@ -64,6 +64,7 @@ mod panes;
 mod phase5_ui_walkthrough;
 mod prefs;
 mod presets;
+mod preview_interaction;
 mod source;
 mod speed_ramp;
 mod studio;
@@ -1762,6 +1763,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     ));
     editor.on_stage_dragged(on_lanes!(|state, x: f32, y: f32, snap: bool| {
         state.stage_dragged(x, y, snap);
+    }));
+    editor.on_stage_cancelled(on_window!(|state| {
+        state.stage_cancelled();
     }));
     editor.on_stage_released(on_window!(|state| {
         state.stage_released();
