@@ -9,13 +9,13 @@ media ownership, cancellation, atomic exports and Clovercut's existing UI.
 
 Reviewed through `9e20c562` (26 October 2026). The latest comparison adds eleven
 commits after `94f4255f`; the earlier adaptation batch starts at `2429c0ca`. Adaptations below are newer than the source used by the published
-0.1.6 release and require a newer app build.
+0.1.6 release and are included in desktop release 0.1.7.
 
 ### Latest adaptations and pending work
 
 The eleven commits below were compared with Clovercut. Status is explicit: the
 first batch adapts independent correctness fixes; the timeline redesigns remain
-separate. None of these changes is in the published 0.1.6 executable.
+separate. These selected adaptations are included in release 0.1.7; they are absent from the older 0.1.6 executable.
 
 | Commit | Assessment |
 |---|---|
@@ -48,8 +48,8 @@ The initial Rust window check stopped at its memory guard. The full Linux deskto
 application subsequently compiled successfully from `637c15df`, using the existing
 `quick` profile and temporary disk swap. A fresh-profile startup check passed on
 the AMD Radeon RX 6600 XT Vulkan adapter and initialized Whisper successfully.
-The resulting local executable includes these adaptations; the published 0.1.6
-release remains unchanged.
+The resulting local executable includes these adaptations, which subsequently
+shipped in desktop release 0.1.7.
 
 ### Previously adapted/reviewed batch
 

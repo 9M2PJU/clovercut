@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://tulcoturo.github.io/clovercut/"><img src="https://img.shields.io/badge/Website-tulcoturo.github.io%2Fclovercut-16b86a?style=flat-square" alt="clovercut website" /></a>
-  <a href="https://github.com/tulcoturo/clovercut/releases/tag/v0.1.6"><img src="https://img.shields.io/badge/Release-v0.1.6-00bcd4?style=flat-square" alt="Current version 0.1.6" /></a>
+  <a href="https://github.com/tulcoturo/clovercut/releases/tag/v0.1.7"><img src="https://img.shields.io/badge/Release-v0.1.7-00bcd4?style=flat-square" alt="Current version 0.1.7" /></a>
   <a href="https://github.com/tulcoturo/clovercut/issues"><img src="https://img.shields.io/badge/Feedback-Issues-blue?style=flat-square" alt="Issues and Feedback" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-16b86a?style=flat-square" alt="License: AGPL-3.0-or-later" /></a>
   <img src="https://img.shields.io/badge/Desktop-Linux%20%7C%20Windows%20%7C%20macOS-blueviolet?style=flat-square" alt="Desktop focus: Linux, Windows, macOS" />
@@ -70,7 +70,7 @@ Online assets retain their own licences and availability.
 * **Public Domain / CC0 Music:** Integrated OpenGameArt music and sound effects library.
 * **Waveform Previews:** Listen to tracks and view waveforms directly inside the media bin before placing them on audio tracks.
 * **More Sources:** Freesound previews and separate YouTube music/sound-effect sections, with per-track licences and copyable credits. Freesound requires an API key.
-* **Local YouTube sign-in:** The current source starts the bundled [Audio API connector](https://github.com/tulcoturo/clovercut-audio-api) on demand and opens a dedicated browser for Studio sign-in. The saved session is reused in the background; no VPS is needed. Chrome, Chromium or Edge must be installed. Published 0.1.6 still requires the separate service. See [audio setup](docs/AUDIO_LIBRARY.md).
+* **Local YouTube sign-in:** Clovercut starts the bundled [Audio API connector](https://github.com/tulcoturo/clovercut-audio-api) on demand and opens a dedicated browser for Studio sign-in. The saved session is reused in the background; no VPS is needed. Chrome, Chromium or Edge must be installed. See [audio setup](docs/AUDIO_LIBRARY.md).
 
 <p align="center">
   <img src="assets/screenshots/audio-library.png" alt="clovercut YouTube Audio Library with music and sound effects" width="1000" />
@@ -90,32 +90,32 @@ Online assets retain their own licences and availability.
 
 ---
 
-## New in 0.1.6
+## New in 0.1.7
 
-Complete clip copy/paste between projects, grouped duplication, a compact desktop timeline, transition indicators across both clips, an adaptive inspector and Clovercut green by default. Selecting a clip keeps the playhead in place; the time ruler has its own scrub strip and a white marker. Library categories page in groups; standard colour controls and new messages are translated across all 25 supported languages. YouTube music and sound effects use the new companion API, with offline cache and licence details.
+A more compact desktop workspace with track heights by content, simpler category paging and a larger scrub strip. Navigate between cuts with Up/Down and use the new 4:5 and 3:4 presets. Desktop packages now include the local YouTube Audio API connector. This release also adds GPU Enhance with measured engine selection, saved-voice imports and verified manual model installation, alongside playback and rendering fixes. [Read the full release notes](docs/releases/0.1.7.md).
 
-## Downloads (Version 0.1.6)
+## Downloads (Version 0.1.7)
 
-The desktop packages are available on [GitHub Releases](https://github.com/tulcoturo/clovercut/releases/tag/v0.1.6):
+The desktop packages are available on [GitHub Releases](https://github.com/tulcoturo/clovercut/releases/tag/v0.1.7):
 
 | Platform | Package | Architecture | Format |
 |---|---|---|---|
-| **Linux** | [Download AppImage](https://github.com/tulcoturo/clovercut/releases/download/v0.1.6/Clovercut-0.1.6-x86_64.AppImage) | x86_64 | Portable `.AppImage` |
-| **Linux (ARM)** | [Download AppImage](https://github.com/tulcoturo/clovercut/releases/download/v0.1.6/Clovercut-0.1.6-aarch64.AppImage) | aarch64 | Portable `.AppImage` |
-| **Windows** | [Download Setup Installer](https://github.com/tulcoturo/clovercut/releases/download/v0.1.6/Clovercut-0.1.6-windows-x86_64-setup.exe) | x86_64 | Guided `.exe` installer |
-| **Windows** | [Download Portable Zip](https://github.com/tulcoturo/clovercut/releases/download/v0.1.6/Clovercut-0.1.6-windows-x86_64-portable.zip) | x86_64 | Standalone `.zip` |
-| **Windows (ARM)** | [Download Setup Installer](https://github.com/tulcoturo/clovercut/releases/download/v0.1.6/Clovercut-0.1.6-windows-aarch64-setup.exe) | aarch64 | Native `.exe` installer |
-| **Windows (ARM)** | [Download Portable Zip](https://github.com/tulcoturo/clovercut/releases/download/v0.1.6/Clovercut-0.1.6-windows-aarch64-portable.zip) | aarch64 | Standalone `.zip` |
-| **macOS (Apple Silicon)** | [Download DMG](https://github.com/tulcoturo/clovercut/releases/download/v0.1.6/Clovercut-0.1.6-macos-arm64.dmg) | arm64 | `.dmg` disk image |
-| **macOS (Intel)** | [Download DMG](https://github.com/tulcoturo/clovercut/releases/download/v0.1.6/Clovercut-0.1.6-macos-x86_64.dmg) | x86_64 | `.dmg` disk image |
+| **Linux** | [Download AppImage](https://github.com/tulcoturo/clovercut/releases/download/v0.1.7/Clovercut-0.1.7-x86_64.AppImage) | x86_64 | Portable `.AppImage` |
+| **Linux (ARM)** | [Download AppImage](https://github.com/tulcoturo/clovercut/releases/download/v0.1.7/Clovercut-0.1.7-aarch64.AppImage) | aarch64 | Portable `.AppImage` |
+| **Windows** | [Download Setup Installer](https://github.com/tulcoturo/clovercut/releases/download/v0.1.7/Clovercut-0.1.7-windows-x86_64-setup.exe) | x86_64 | Guided `.exe` installer |
+| **Windows** | [Download Portable Zip](https://github.com/tulcoturo/clovercut/releases/download/v0.1.7/Clovercut-0.1.7-windows-x86_64-portable.zip) | x86_64 | Standalone `.zip` |
+| **Windows (ARM)** | [Download Setup Installer](https://github.com/tulcoturo/clovercut/releases/download/v0.1.7/Clovercut-0.1.7-windows-aarch64-setup.exe) | aarch64 | Native `.exe` installer |
+| **Windows (ARM)** | [Download Portable Zip](https://github.com/tulcoturo/clovercut/releases/download/v0.1.7/Clovercut-0.1.7-windows-aarch64-portable.zip) | aarch64 | Standalone `.zip` |
+| **macOS (Apple Silicon)** | [Download DMG](https://github.com/tulcoturo/clovercut/releases/download/v0.1.7/Clovercut-0.1.7-macos-arm64.dmg) | arm64 | `.dmg` disk image |
+| **macOS (Intel)** | [Download DMG](https://github.com/tulcoturo/clovercut/releases/download/v0.1.7/Clovercut-0.1.7-macos-x86_64.dmg) | x86_64 | `.dmg` disk image |
 
-Desktop is the primary supported workflow. Version 0.1.6 is desktop-only; mobile builds follow a separate schedule. The previous [Android 0.1.3 APK](https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-android-arm64.apk) remains available.
+Desktop is the primary supported workflow. Version 0.1.7 is desktop-only; mobile builds follow a separate schedule. The previous [Android 0.1.3 APK](https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-android-arm64.apk) remains available.
 
 
 ### Running on Linux
 ```bash
-chmod +x Clovercut-0.1.6-x86_64.AppImage
-./Clovercut-0.1.6-x86_64.AppImage
+chmod +x Clovercut-0.1.7-x86_64.AppImage
+./Clovercut-0.1.7-x86_64.AppImage
 ```
 
 *(On systems without FUSE installed, launch with `APPIMAGE_EXTRACT_AND_RUN=1`).*
@@ -171,7 +171,7 @@ cargo test --manifest-path src/Cargo.toml -p concat-core -p concat-media -p conc
 * [Keyboard Shortcuts](docs/KEYBOARD_SHORTCUTS.md): List of editing shortcuts and key bindings.
 * [Audio & Content Libraries](docs/AUDIO_LIBRARY.md): Guide to OpenGameArt, YouTube Audio Library, Freesound and GIPHY.
 * [Model Context Protocol (MCP)](docs/MCP.md): Headless automation, CLI tools, and AI agent integration.
-* [Release Notes v0.1.6](docs/releases/0.1.6.md): Complete changelog for version 0.1.6.
+* [Release Notes v0.1.7](docs/releases/0.1.7.md): Complete changelog for version 0.1.7.
 * [Translating clovercut](TRANSLATING.md): Guide to contributing translations across 24 supported languages.
 
 ---

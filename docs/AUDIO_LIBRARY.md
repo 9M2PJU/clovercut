@@ -74,7 +74,7 @@ sections, with search and pagination. The default API address is
 `http://127.0.0.1:8917`; it can be changed in these settings. Remote addresses
 must use HTTPS.
 
-The desktop source now includes the local connector and starts it on first use.
+Desktop packages from 0.1.7 include the local connector and start it on first use.
 Chrome, Chromium or Edge must be installed. If Node.js 22+ is unavailable,
 Clovercut downloads a pinned official runtime, checks its SHA-256 and stores it
 in the app's data directory. Nothing is installed system-wide.
@@ -86,7 +86,7 @@ can then close: the service restores this dedicated profile in the background.
 Use the same button again if Google expires or revokes the session. No VPS or
 manually started browser is required. The session and catalogue stay local.
 
-This flow is a source change after release 0.1.6; that published package still
+Version 0.1.6 predates the bundled connector and still
 requires the [separately installed companion API](https://github.com/tulcoturo/clovercut-audio-api).
 Advanced users can retain a separately managed service or choose a remote HTTPS
 endpoint in Settings. The connector never reads the user's unrelated browser
