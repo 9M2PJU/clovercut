@@ -1090,5 +1090,9 @@
   "export.noTransparency": "Định dạng này không giữ độ trong suốt: phần trong suốt sẽ thành màu đen. ProRes 4444 hoặc VP9 alpha giữ được.",
   "start.background": "Nền",
   "start.transparent": "Trong suốt",
-  "start.transparentHint": "Trong suốt ở chỗ không có gì che. Xuất dưới dạng ProRes 4444 (.mov) hoặc WebM để giữ lại; các định dạng khác hiển thị màu đen ở đó."
+  "start.transparentHint": "Trong suốt ở chỗ không có gì che. Xuất dưới dạng ProRes 4444 (.mov) hoặc WebM để giữ lại; các định dạng khác hiển thị màu đen ở đó.",
+  "textPanel.resetWords": "Đặt lại",
+  "textPanel.stylingTitle": "Đang tạo kiểu cho cả tiêu đề. Chọn từ ở trên để chỉ tạo kiểu cho những từ đó.",
+  "textPanel.stylingWords": "Đang tạo kiểu cho các từ đã chọn",
+  "textPanel.wholeTitle": "Cả tiêu đề"
 }

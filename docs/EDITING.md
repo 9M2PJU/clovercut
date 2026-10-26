@@ -67,3 +67,17 @@ same group operation after the selected span, as one undo step.
 See [audio sources](AUDIO_LIBRARY.md), [GL Transitions](GL_TRANSITIONS.md) and
 [favourites and usage lists](LIBRARY_ORGANIZATION.md). Category arrows page
 through groups of library icons; wheel scrolling remains available.
+
+### Styling selected words
+
+In the Text inspector, select part of a title or caption, then change its fill,
+bold/italic/underline/strike or size. Those controls apply to the selection;
+**Whole title** returns them to the base style. **Reset** removes the selected
+words' overrides. Selected-word formatting affects that caption alone, even when
+whole-caption styling is configured to apply to its collection.
+
+Word sizes remain relative to the title size. Their formatting follows inserted
+and removed characters and survives undo, save/reopen and copying between
+projects. Changing display casing keeps the original editable words. New titles
+and generated captions use the default whole-title style without carrying over
+formatting ranges from another title's words.

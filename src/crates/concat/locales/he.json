@@ -1090,5 +1090,9 @@
   "export.noTransparency": "פורמט זה לא שומר על שקיפות: החלקים השקופים יוצאים שחורים. ProRes 4444 או VP9 alpha שומרים עליה.",
   "start.background": "רקע",
   "start.transparent": "שקוף",
-  "start.transparentHint": "שקוף במקום ששום דבר לא מכסה אותו. ייצאו כ־ProRes 4444 ‏(.mov) או WebM כדי לשמור על כך; פורמטים אחרים מציגים שם שחור."
+  "start.transparentHint": "שקוף במקום ששום דבר לא מכסה אותו. ייצאו כ־ProRes 4444 ‏(.mov) או WebM כדי לשמור על כך; פורמטים אחרים מציגים שם שחור.",
+  "textPanel.resetWords": "איפוס",
+  "textPanel.stylingTitle": "מעצב את כל הכותרת. בחרו מילים למעלה כדי לעצב רק אותן.",
+  "textPanel.stylingWords": "מעצב את המילים שנבחרו",
+  "textPanel.wholeTitle": "כל הכותרת"
 }

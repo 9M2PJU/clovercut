@@ -1090,5 +1090,9 @@
   "export.noTransparency": "Dit formaat houdt geen transparantie: doorzichtige delen worden zwart. ProRes 4444 of VP9 alpha houden die wel.",
   "start.background": "Achtergrond",
   "start.transparent": "Transparant",
-  "start.transparentHint": "Doorzichtig waar niets het bedekt. Exporteer als ProRes 4444 (.mov) of WebM om dat te behouden; andere formaten tonen daar zwart."
+  "start.transparentHint": "Doorzichtig waar niets het bedekt. Exporteer als ProRes 4444 (.mov) of WebM om dat te behouden; andere formaten tonen daar zwart.",
+  "textPanel.resetWords": "Herstellen",
+  "textPanel.stylingTitle": "Stijl voor de hele titel. Selecteer hierboven woorden om alleen die op te maken.",
+  "textPanel.stylingWords": "Stijl voor de geselecteerde woorden",
+  "textPanel.wholeTitle": "Hele titel"
 }

@@ -99,6 +99,15 @@ fn decorated(kind: ClipKind, lane: &str) -> Clip {
     if kind == ClipKind::Text {
         c.text = Some(TextStyle {
             content: "Words".into(),
+            runs: vec![TextRun {
+                start: 1,
+                end: 4,
+                style: RunStyle {
+                    color: Some("#ff0000".into()),
+                    font_scale: Some(1.5),
+                    ..Default::default()
+                },
+            }],
             text_case: concat_project::model::TextCase::Upper,
             strikethrough: true,
             underline: true,

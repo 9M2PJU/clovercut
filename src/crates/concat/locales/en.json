@@ -1090,5 +1090,9 @@
   "export.noTransparency": "This format keeps no transparency: the clear parts come out black. ProRes 4444 or VP9 alpha keep it.",
   "start.background": "Background",
   "start.transparent": "Transparent",
-  "start.transparentHint": "Clear where nothing covers it. Export as ProRes 4444 (.mov) or WebM to keep that; other formats show black there."
+  "start.transparentHint": "Clear where nothing covers it. Export as ProRes 4444 (.mov) or WebM to keep that; other formats show black there.",
+  "textPanel.resetWords": "Reset",
+  "textPanel.stylingTitle": "Styling the whole title. Select words above to style just those.",
+  "textPanel.stylingWords": "Styling the selected words",
+  "textPanel.wholeTitle": "Whole title"
 }

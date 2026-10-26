@@ -1090,5 +1090,9 @@
   "export.noTransparency": "Ovaj format ne čuva prozirnost: prozirni dijelovi izlaze crni. ProRes 4444 ili VP9 alpha je čuvaju.",
   "start.background": "Pozadina",
   "start.transparent": "Prozirno",
-  "start.transparentHint": "Prozirno gdje ga ništa ne prekriva. Izvezite kao ProRes 4444 (.mov) ili WebM da to zadržite; drugi formati ondje prikazuju crno."
+  "start.transparentHint": "Prozirno gdje ga ništa ne prekriva. Izvezite kao ProRes 4444 (.mov) ili WebM da to zadržite; drugi formati ondje prikazuju crno.",
+  "textPanel.resetWords": "Vrati",
+  "textPanel.stylingTitle": "Uređuje se izgled cijelog naslova. Odaberite riječi gore za uređivanje samo njih.",
+  "textPanel.stylingWords": "Uređuje se izgled odabranih riječi",
+  "textPanel.wholeTitle": "Cijeli naslov"
 }

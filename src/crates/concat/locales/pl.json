@@ -1090,5 +1090,9 @@
   "export.noTransparency": "Ten format nie zachowuje przezroczystości: przezroczyste części będą czarne. ProRes 4444 lub VP9 alpha ją zachowują.",
   "start.background": "Tło",
   "start.transparent": "Przezroczyste",
-  "start.transparentHint": "Przezroczyste tam, gdzie nic go nie zakrywa. Eksportuj jako ProRes 4444 (.mov) lub WebM, aby to zachować; inne formaty pokażą tam czerń."
+  "start.transparentHint": "Przezroczyste tam, gdzie nic go nie zakrywa. Eksportuj jako ProRes 4444 (.mov) lub WebM, aby to zachować; inne formaty pokażą tam czerń.",
+  "textPanel.resetWords": "Resetuj",
+  "textPanel.stylingTitle": "Styl całego tytułu. Zaznacz słowa powyżej, aby zmienić tylko je.",
+  "textPanel.stylingWords": "Styl zaznaczonych słów",
+  "textPanel.wholeTitle": "Cały tytuł"
 }

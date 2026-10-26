@@ -1090,5 +1090,9 @@
   "export.noTransparency": "Bu biçim saydamlığı korumaz: saydam yerler siyah çıkar. ProRes 4444 veya VP9 alpha korur.",
   "start.background": "Arka plan",
   "start.transparent": "Saydam",
-  "start.transparentHint": "Hiçbir şeyin örtmediği yerler saydamdır. Bunu korumak için ProRes 4444 (.mov) veya WebM olarak dışa aktarın; diğer biçimler orada siyah gösterir."
+  "start.transparentHint": "Hiçbir şeyin örtmediği yerler saydamdır. Bunu korumak için ProRes 4444 (.mov) veya WebM olarak dışa aktarın; diğer biçimler orada siyah gösterir.",
+  "textPanel.resetWords": "Sıfırla",
+  "textPanel.stylingTitle": "Başlığın tamamına stil veriliyor. Yalnızca onlara stil vermek için yukarıda sözcük seçin.",
+  "textPanel.stylingWords": "Seçili sözcüklere stil veriliyor",
+  "textPanel.wholeTitle": "Tüm başlık"
 }

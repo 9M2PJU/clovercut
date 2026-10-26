@@ -1090,5 +1090,9 @@
   "export.noTransparency": "این قالب شفافیت را نگه نمی‌دارد: بخش‌های شفاف سیاه می‌شوند. ProRes 4444 یا VP9 alpha آن را نگه می‌دارند.",
   "start.background": "پس‌زمینه",
   "start.transparent": "شفاف",
-  "start.transparentHint": "جایی که چیزی آن را نپوشانده شفاف است. برای حفظ آن با ProRes 4444 (‎.mov) یا WebM خروجی بگیرید؛ قالب‌های دیگر آنجا سیاه نشان می‌دهند."
+  "start.transparentHint": "جایی که چیزی آن را نپوشانده شفاف است. برای حفظ آن با ProRes 4444 (‎.mov) یا WebM خروجی بگیرید؛ قالب‌های دیگر آنجا سیاه نشان می‌دهند.",
+  "textPanel.resetWords": "بازنشانی",
+  "textPanel.stylingTitle": "سبک‌دهی به کل عنوان. برای سبک‌دهی فقط به چند واژه، آن‌ها را در بالا انتخاب کنید.",
+  "textPanel.stylingWords": "سبک‌دهی به واژه‌های انتخاب‌شده",
+  "textPanel.wholeTitle": "کل عنوان"
 }

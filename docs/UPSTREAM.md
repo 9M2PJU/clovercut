@@ -57,6 +57,34 @@ on these properties rather than animated clip values, while retaining its extra
 caption and animation tabs. No replacement of its tab model is warranted from
 this inspection; playback interaction still needs runtime verification.
 
+### Per-word text follow-up
+
+Adapted `64b25e90` for desktop titles and captions: select characters in the
+Text inspector to change their colour, weight, italic, underline, strike or
+relative size. The title's base style stays independent. Runs follow Unicode
+characters through edits and casing, participate in undo/redo, project persistence,
+typed clipboard copying, presets and the MCP tools.
+
+Clovercut retains vertical CJK/rotated Latin shaping, transformed colour glyphs,
+caption collection scopes, locked-track protection, vertical alignment, expanded
+ink canvases and bounded shadow rendering. Per-word changes target only the
+selected caption. Generated captions and defaults discard runs from unrelated
+source words. The title cache version advances from 8 to 9.
+
+Validation: 490 distinct passing regressions across project, text, host and MCP,
+including typed clipboard copying, caption-local formatting, undo/reopen, Unicode
+case remapping, vertical mixed-script runs and preview/export title caching.
+Eight optional provider/model/platform cases retain their prerequisites. Strict
+engine Clippy, Slint code generation, all 1,093 messages in 25 locales and nine
+locale-tool tests pass. No new full desktop executable or native Windows/macOS
+runtime validation was produced by this follow-up.
+
+Optional track linkage (`1385c36b`) remains deferred because of the confirmed
+double-ripple defect and its interaction with typed tracks and caption groups.
+The global SoundLayer/audio-bus redesign is also deferred; the current mixer
+already covers the editor's gain, fades, keys, retiming and cancellation needs.
+Neither is a missing independent correctness fix.
+
 ### Latest adaptations and pending work
 
 The eleven commits below were compared with Clovercut. Status is explicit: the
@@ -69,7 +97,7 @@ separate. These selected adaptations are included in release 0.1.7; they are abs
 | `e0111c01` | Adapted to Clovercut: compatible PCM spans play immediately after a cut and plain spans copy from the mapped recording. Preserves project-change cache isolation, disk-backed PCM, gain curves, stream selection and the existing continuous-speed-ramp engine; nonlinear retimes are deliberately excluded from linear source reuse. Audio-stream seeks and post-seek stream discard include MPG, TS and Matroska regression fixtures. Deferred upstream sound-layer features are not imported incidentally. |
 | `c2847c16` | Adapted: environment/SOCKS routing, Windows per-user proxy/PAC and fixed macOS proxy settings; useful failure classification; resumable downloads retain range headers; Freesound retains header authentication; all loopback Audio API traffic bypasses proxies; signed query strings and proxy credentials are excluded from new diagnostics. Explicit proxies are respected without an automatic direct retry. Updates still use shipped trust roots. Model download settings now show translated failures and offer browser download/manual import. Chosen files use unique temporary copies and checksum verification before installation; failed or cancelled imports preserve the original and any partial download. Automatic browser downloads prefer the official source over the unpublished release mirror. |
 | `83a237e8` | Adapted and extended: per-call SVG temporary files avoid concurrent decoder races; relative images resolve beside the SVG. Cache identity also includes linked-image metadata, including missing images that subsequently appear, with namespace-aware SVG/SVGZ parsing. Concurrent-render and linked-bitmap-update regressions pass. |
-| `268cd601` | Adapted across text, title caches, render planning and export. Expanded canvases preserve overflow; caption reveal coordinates, bounded shadow rendering, transformed colour glyphs and byte-limited live-title caching are retained. The title cache version is bumped so old clipped pictures are not reused. Does not import the deferred per-word rich-text model. |
+| `268cd601` | Adapted across text, title caches, render planning and export. Expanded canvases preserve overflow; caption reveal coordinates, bounded shadow rendering, transformed colour glyphs and byte-limited live-title caching are retained. The title cache version is bumped so old clipped pictures are not reused. The independent per-word rich-text model is adapted in the later follow-up above. |
 | `a6e5ab77` | Adapted for macOS: save/stop-export handling precedes leaving past whisper/Metal static destructors. Native macOS runtime verification remains required; Linux engine tests cannot validate that quit path. |
 | `23897dd8`, `3564d450` | Adapted: Up/Down navigate previous/next cuts across all tracks through the shared menu handler and customizable shortcut profiles. Uses the actual fractional project rate, rather than upstream's rounded rate. Added 4:5/3:4 presets to project creation, settings and monitor without changing existing preset indices. |
 | `9e20c562` | Adapted to typed tracks: first opening centers the actual main video row, including audio below it. Explicit vertical scroll is retained per timeline during the session; resizing clamps it to the available stack. The expanded ruler/scrub band remains intact. Compatible tray tooltips are shortened in all 25 locales. |
@@ -133,7 +161,7 @@ and preservation through Clovercut's typed clipboard.
 | `b5042b5c` | Seek trimmed audio backwards on its own stream | Our existing one-second preroll already passes all four new MPEG-PS/TS regression cases, both in preview and saved M4A: tone onset 0.000125 seconds after the cut. Keep the current solution for now. Stream-specific seeking may still improve robustness/performance in other containers, but these fixtures do not demonstrate a remaining Clovercut bug. |
 | `24f05885` | Bottom-aligned waveform bars | Adapted: bottom-aligned waveform bars and one upper hot-level band across the shared Wave component. Keeps existing peak caches, zoom/trim sampling, gain-only layout updates, compact track sizes and the existing bottom baseline. |
 | `20dcd9aa`, `bc05ea3c`, `758da5a8` | Typography case, decoration and hover labels | Adapted only missing case and strikethrough controls. Reuses Clovercut’s accessible B/I/U controls and translated hover labels; preserves vertical text, caption-group/batch targeting and existing underline rendering. Case changes are display-only and reversible. The five new labels are translated in all 25 locales; no upstream inspector replacement. |
-| `64b25e90` | Per-word rich text | Potentially useful, but changes text model, rendering, editing, caches and MCP. Requires deliberate compatibility and copy/paste/caption tests; not a small inspector patch. |
+| `64b25e90` | Per-word rich text | Adapted in the unreleased per-word text follow-up above, preserving vertical text, caption scopes, typed copying and bounded overflow rendering. |
 | `643bbe1f` | Project-wide frame background colour | Adapted in the unreleased canvas/alpha follow-up above; independent of existing main-lane and per-clip backdrops. |
 | `4e207179` | Put wheels/curves after scalar adjustments | Conflicts with our deliberately compact Color/Curves/Wheels navigation and collapsible groups. Preserve our layout. |
 | `b44bbf5e` | Remove the one-card Titles shelf | Library redesign, not a correctness fix. Review against our own text categories and quick title insertion before considering it. |

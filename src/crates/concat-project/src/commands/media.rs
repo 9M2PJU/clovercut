@@ -93,6 +93,7 @@ pub(super) fn apply(
                 .filter(|cue| !cue.text.trim().is_empty())
                 .map(|cue| {
                     let mut style = source.style.clone();
+                    style.runs.clear();
                     style.content = cue.text;
                     style.caption_group = Some(group.clone());
                     Command::AddTextClip {

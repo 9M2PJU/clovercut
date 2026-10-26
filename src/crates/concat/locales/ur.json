@@ -1090,5 +1090,9 @@
   "export.noTransparency": "یہ فارمیٹ شفافیت نہیں رکھتا: شفاف حصے سیاہ آتے ہیں۔ ProRes 4444 یا VP9 alpha اسے رکھتے ہیں۔",
   "start.background": "پس منظر",
   "start.transparent": "شفاف",
-  "start.transparentHint": "جہاں کچھ نہ ڈھکا ہو وہاں شفاف۔ اسے برقرار رکھنے کے لیے ProRes 4444 (‎.mov) یا WebM میں ایکسپورٹ کریں؛ دوسرے فارمیٹ وہاں سیاہ دکھاتے ہیں۔"
+  "start.transparentHint": "جہاں کچھ نہ ڈھکا ہو وہاں شفاف۔ اسے برقرار رکھنے کے لیے ProRes 4444 (‎.mov) یا WebM میں ایکسپورٹ کریں؛ دوسرے فارمیٹ وہاں سیاہ دکھاتے ہیں۔",
+  "textPanel.resetWords": "ری سیٹ",
+  "textPanel.stylingTitle": "پورے عنوان کا انداز بدلا جا رہا ہے۔ صرف کچھ الفاظ کے لیے اوپر انہیں منتخب کریں۔",
+  "textPanel.stylingWords": "منتخب الفاظ کا انداز بدلا جا رہا ہے",
+  "textPanel.wholeTitle": "پورا عنوان"
 }

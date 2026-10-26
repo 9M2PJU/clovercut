@@ -1090,5 +1090,9 @@
   "export.noTransparency": "이 형식은 투명도를 유지하지 않습니다. 투명한 부분은 검게 나옵니다. ProRes 4444 또는 VP9 alpha는 유지합니다.",
   "start.background": "배경",
   "start.transparent": "투명",
-  "start.transparentHint": "아무것도 덮지 않은 곳은 투명합니다. 유지하려면 ProRes 4444(.mov) 또는 WebM으로 내보내세요. 다른 형식은 그 부분이 검게 보입니다."
+  "start.transparentHint": "아무것도 덮지 않은 곳은 투명합니다. 유지하려면 ProRes 4444(.mov) 또는 WebM으로 내보내세요. 다른 형식은 그 부분이 검게 보입니다.",
+  "textPanel.resetWords": "초기화",
+  "textPanel.stylingTitle": "제목 전체에 스타일 적용 중. 위에서 단어를 선택하면 그 단어에만 적용됩니다.",
+  "textPanel.stylingWords": "선택한 단어에 스타일 적용 중",
+  "textPanel.wholeTitle": "제목 전체"
 }

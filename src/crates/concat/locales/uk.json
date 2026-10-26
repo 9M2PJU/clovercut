@@ -1090,5 +1090,9 @@
   "export.noTransparency": "Цей формат не зберігає прозорість: прозорі місця будуть чорними. ProRes 4444 або VP9 alpha її зберігають.",
   "start.background": "Тло",
   "start.transparent": "Прозорий",
-  "start.transparentHint": "Прозоро там, де нічого немає. Щоб зберегти прозорість, експортуйте в ProRes 4444 (.mov) або WebM; в інших форматах там буде чорний."
+  "start.transparentHint": "Прозоро там, де нічого немає. Щоб зберегти прозорість, експортуйте в ProRes 4444 (.mov) або WebM; в інших форматах там буде чорний.",
+  "textPanel.resetWords": "Скинути",
+  "textPanel.stylingTitle": "Оформлюється весь заголовок. Виділіть слова вище, щоб оформити лише їх.",
+  "textPanel.stylingWords": "Оформлюються виділені слова",
+  "textPanel.wholeTitle": "Увесь заголовок"
 }

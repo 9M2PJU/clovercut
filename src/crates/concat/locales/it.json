@@ -1090,5 +1090,9 @@
   "export.noTransparency": "Questo formato non mantiene la trasparenza: le parti trasparenti escono nere. ProRes 4444 o VP9 alpha la mantengono.",
   "start.background": "Sfondo",
   "start.transparent": "Trasparente",
-  "start.transparentHint": "Trasparente dove nulla lo copre. Esporta in ProRes 4444 (.mov) o WebM per mantenerlo; gli altri formati lì mostrano nero."
+  "start.transparentHint": "Trasparente dove nulla lo copre. Esporta in ProRes 4444 (.mov) o WebM per mantenerlo; gli altri formati lì mostrano nero.",
+  "textPanel.resetWords": "Ripristina",
+  "textPanel.stylingTitle": "Stile di tutto il titolo. Seleziona delle parole qui sopra per dare stile solo a quelle.",
+  "textPanel.stylingWords": "Stile delle parole selezionate",
+  "textPanel.wholeTitle": "Tutto il titolo"
 }

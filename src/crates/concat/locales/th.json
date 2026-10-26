@@ -1090,5 +1090,9 @@
   "export.noTransparency": "รูปแบบนี้ไม่เก็บความโปร่งใส ส่วนที่โปร่งใสจะเป็นสีดำ ProRes 4444 หรือ VP9 alpha เก็บไว้ได้",
   "start.background": "พื้นหลัง",
   "start.transparent": "โปร่งใส",
-  "start.transparentHint": "โปร่งใสในส่วนที่ไม่มีอะไรทับ ส่งออกเป็น ProRes 4444 (.mov) หรือ WebM เพื่อคงไว้ รูปแบบอื่นจะแสดงเป็นสีดำตรงนั้น"
+  "start.transparentHint": "โปร่งใสในส่วนที่ไม่มีอะไรทับ ส่งออกเป็น ProRes 4444 (.mov) หรือ WebM เพื่อคงไว้ รูปแบบอื่นจะแสดงเป็นสีดำตรงนั้น",
+  "textPanel.resetWords": "รีเซ็ต",
+  "textPanel.stylingTitle": "กำลังจัดรูปแบบทั้งชื่อเรื่อง เลือกคำด้านบนเพื่อจัดรูปแบบเฉพาะคำนั้น",
+  "textPanel.stylingWords": "กำลังจัดรูปแบบคำที่เลือก",
+  "textPanel.wholeTitle": "ทั้งชื่อเรื่อง"
 }

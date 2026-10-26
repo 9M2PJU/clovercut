@@ -1090,5 +1090,9 @@
   "export.noTransparency": "Format ini tidak menyimpan transparansi: bagian transparan jadi hitam. ProRes 4444 atau VP9 alpha menyimpannya.",
   "start.background": "Latar",
   "start.transparent": "Transparan",
-  "start.transparentHint": "Transparan di bagian yang tidak tertutup apa pun. Ekspor sebagai ProRes 4444 (.mov) atau WebM untuk mempertahankannya; format lain menampilkan hitam di sana."
+  "start.transparentHint": "Transparan di bagian yang tidak tertutup apa pun. Ekspor sebagai ProRes 4444 (.mov) atau WebM untuk mempertahankannya; format lain menampilkan hitam di sana.",
+  "textPanel.resetWords": "Atur ulang",
+  "textPanel.stylingTitle": "Menata seluruh judul. Pilih kata di atas untuk menata kata itu saja.",
+  "textPanel.stylingWords": "Menata kata yang dipilih",
+  "textPanel.wholeTitle": "Seluruh judul"
 }

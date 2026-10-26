@@ -1090,5 +1090,9 @@
   "export.noTransparency": "此格式不保留透明：透明部分会变成黑色。ProRes 4444 或 VP9 alpha 可以保留。",
   "start.background": "背景",
   "start.transparent": "透明",
-  "start.transparentHint": "没有画面覆盖的地方是透明的。导出为 ProRes 4444 (.mov) 或 WebM 可保留透明；其他格式在那里显示为黑色。"
+  "start.transparentHint": "没有画面覆盖的地方是透明的。导出为 ProRes 4444 (.mov) 或 WebM 可保留透明；其他格式在那里显示为黑色。",
+  "textPanel.resetWords": "重置",
+  "textPanel.stylingTitle": "正在设置整个标题的样式。在上方选中文字，即可只设置这些文字。",
+  "textPanel.stylingWords": "正在设置所选文字的样式",
+  "textPanel.wholeTitle": "整个标题"
 }
