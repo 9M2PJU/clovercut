@@ -130,6 +130,68 @@ fn empty_output_is_opaque_black() {
     assert_eq!(frame.pixel(3, 3), Some([0, 0, 0, 255]));
 }
 
+/// On a see-through canvas the frame comes back with straight alpha, as
+/// the CPU reference makes it: clear where nothing covers it, opaque under
+/// an opaque picture, and half covered under a half-faded one, in that
+/// picture's own colour rather than darkened towards the clear (#456).
+#[test]
+fn a_see_through_canvas_keeps_the_alpha_of_what_covers_it() {
+    let Some(mut gpu) = gpu() else { return };
+    let square = Arc::new(solid(4, 4, [200, 40, 40, 255]));
+    let plan = FramePlan {
+        canvas: [0, 0, 0, 0],
+        layers: vec![PlannedLayer::picture(detached_clip(), square.clone())],
+        ..FramePlan::empty(8, 4)
+    };
+    let frame = gpu.render(&plan);
+    assert_eq!(frame.pixel(0, 2).map(|p| p[3]), Some(0));
+    let pixel = frame.pixel(4, 2).expect("a pixel");
+    assert!(pixel[3] == 255 && pixel[0].abs_diff(200) <= 1, "{pixel:?}");
+
+    let mut faded = PlannedLayer::picture(detached_clip(), square);
+    faded.opacity = 0.5;
+    let frame = gpu.render(&FramePlan {
+        layers: vec![faded],
+        ..plan
+    });
+    let pixel = frame.pixel(4, 2).expect("a pixel");
+    assert!(pixel[3].abs_diff(128) <= 1, "{pixel:?}");
+    assert!(
+        pixel[0].abs_diff(200) <= 2 && pixel[1].abs_diff(40) <= 2,
+        "{pixel:?}"
+    );
+
+    // And an opaque canvas after it is opaque again.
+    let frame = gpu.render(&FramePlan::empty(4, 4));
+    assert_eq!(frame.pixel(1, 1), Some([0, 0, 0, 255]));
+}
+
+/// The canvas colour comes back out as it went in: cleared in linear
+/// light through the upload's gamma and resolved back, within a level.
+#[test]
+fn an_empty_frame_is_the_canvas_colour() {
+    let Some(mut gpu) = gpu() else { return };
+    for canvas in [
+        [0, 177, 64, 255],
+        [255, 255, 255, 255],
+        [0, 71, 187, 255],
+        [31, 31, 31, 255],
+    ] {
+        let frame = gpu.render(&FramePlan {
+            canvas,
+            ..FramePlan::empty(4, 4)
+        });
+        let pixel = frame.pixel(2, 2).expect("a pixel");
+        for channel in 0..3 {
+            assert!(
+                pixel[channel].abs_diff(canvas[channel]) <= 1,
+                "{canvas:?} came back {pixel:?}"
+            );
+        }
+        assert_eq!(pixel[3], 255);
+    }
+}
+
 #[test]
 fn plain_layers_match_the_cpu_reference_to_the_pixel() {
     let Some(mut gpu) = gpu() else { return };
@@ -925,6 +987,7 @@ fn a_transition_kept_on_the_device_matches_the_read_back_one() {
         time: concat_core::time::Rational::new(1, 2),
         width,
         height,
+        canvas: [0, 0, 0, 255],
         layers: vec![PlannedLayer::picture(
             detached_clip(),
             Arc::new(solid(width, height, colour)),
@@ -982,6 +1045,7 @@ fn a_frame_drawn_before_is_not_uploaded_again() {
             time: concat_core::time::Rational::new(0, 1),
             width: 64,
             height: 36,
+            canvas: [0, 0, 0, 255],
             layers: vec![PlannedLayer::picture(detached_clip(), Arc::clone(frame))],
             treatments: Vec::new(),
             output: concat_core::frame::Signal::Sdr,
@@ -1022,6 +1086,7 @@ fn the_pool_stays_within_its_limits() {
             time: concat_core::time::Rational::new(0, 1),
             width: 4,
             height: 4,
+            canvas: [0, 0, 0, 255],
             layers: vec![PlannedLayer::picture(detached_clip(), frame)],
             treatments: Vec::new(),
             output: concat_core::frame::Signal::Sdr,
@@ -2358,4 +2423,131 @@ fn a_background_is_wiped_with_its_picture() {
         Some([0, 0, 0, 255]),
         "the edge is the picture's"
     );
+}
+
+/// A filter interpolates a stack; it must not accumulate that stack's alpha
+/// again or paint the canvas behind it a second time.
+#[test]
+fn transparent_filter_stacks_do_not_accumulate_coverage() {
+    let Some(mut gpu) = gpu() else { return };
+    for canvas in [[0, 0, 0, 0], [0, 177, 64, 128]] {
+        for strength in [0.0, 0.5, 1.0] {
+            let mut ground = layer(solid(8, 8, [200, 40, 40, 128]));
+            ground.track = 0;
+            let mut source = plan(8, 8, vec![ground]);
+            source.canvas = canvas;
+            let before = gpu.render(&source);
+            // Identity at a fractional strength exercises the interpolation,
+            // while a second empty layer exercises the collapsed canvas path.
+            source.treatments = vec![
+                PlannedTreatment {
+                    track: 1,
+                    effects: vec![package(
+                        "test.alpha-identity",
+                        "fn effect(uv: vec2<f32>) -> vec4<f32> { return sample(uv); }",
+                        "",
+                        &[],
+                        1.0,
+                    )],
+                    strength,
+                },
+                PlannedTreatment {
+                    track: 2,
+                    effects: vec![],
+                    strength: 1.0,
+                },
+            ];
+            let after = gpu.render(&source);
+            for (a, b) in before.pixels().iter().zip(after.pixels()) {
+                assert!(
+                    a.abs_diff(*b) <= 2,
+                    "canvas={canvas:?} strength={strength}: {a} != {b}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn transparent_transition_kept_on_device_matches_readback_and_endpoints() {
+    let Some(mut gpu) = gpu() else { return };
+    let manifest = concat_effects::Manifest::parse(
+        "format = 2\n[effect]\nid = \"test.alpha-dissolve\"\nname = \"Dissolve\"\nkind = \"transition\"\n[transition]\nentry = \"effect.wgsl\"\n",
+    ).unwrap();
+    let shader = concat_effects::TransitionShader::compile(&manifest,
+        "fn transition(uv: vec2<f32>, progress: f32) -> vec4<f32> { return mix(from_at(uv), to_at(uv), progress); }"
+    ).unwrap();
+    let make = |colour| FramePlan {
+        canvas: [0, 0, 0, 0],
+        ..plan(8, 8, vec![layer(solid(8, 8, colour))])
+    };
+    let from = make([200, 40, 40, 128]);
+    let to = make([40, 40, 200, 128]);
+    let a = gpu.render(&from);
+    let b = gpu.render(&to);
+    for progress in [0.0, 0.5, 1.0] {
+        let pass = shader.pass(&Default::default(), &[], progress, None);
+        let read = gpu.combine(8, 8, 0.0, &a, &b, &pass).unwrap();
+        let texture = gpu.render_transition_texture(&from, &to, &pass).unwrap();
+        let kept = read_texture(&gpu, &texture);
+        for (x, y) in read.pixels().iter().zip(kept.pixels()) {
+            assert!(x.abs_diff(*y) <= 2, "progress={progress}: {x} != {y}");
+        }
+        assert!(kept.pixel(4, 4).unwrap()[3].abs_diff(128) <= 1);
+        let endpoint = if progress == 0.0 {
+            Some(&a)
+        } else if progress == 1.0 {
+            Some(&b)
+        } else {
+            None
+        };
+        if let Some(expected) = endpoint {
+            for (x, y) in kept.pixels().iter().zip(expected.pixels()) {
+                assert!(x.abs_diff(*y) <= 2, "endpoint={progress}: {x} != {y}");
+            }
+        }
+    }
+}
+
+#[test]
+fn preparing_a_transparent_picture_for_filters_preserves_its_colour() {
+    let Some(mut gpu) = gpu() else { return };
+    let mut picture = layer(solid(16, 16, [200, 40, 40, 128]));
+    picture.crop = Crop::of([0.1, 0.1, 0.1, 0.1]);
+    picture.flip_h = true;
+    picture.effects = vec![package(
+        "test.prepared-alpha-identity",
+        "fn effect(uv: vec2<f32>) -> vec4<f32> { return sample(uv); }",
+        "",
+        &[],
+        1.0,
+    )];
+    let frame = gpu.render(&FramePlan {
+        canvas: [0, 0, 0, 0],
+        ..plan(16, 16, vec![picture])
+    });
+    let pixel = frame.pixel(8, 8).unwrap();
+    for (got, expected) in pixel.into_iter().zip([200u8, 40, 40, 128]) {
+        assert!(got.abs_diff(expected) <= 2, "{pixel:?}");
+    }
+}
+
+#[test]
+fn a_filter_on_transparency_reads_straight_colour_and_keeps_coverage() {
+    let Some(mut gpu) = gpu() else { return };
+    let picture = layer(solid(8, 8, [200, 40, 40, 128]));
+    let source = FramePlan {
+        canvas: [0, 0, 0, 0],
+        treatments: vec![PlannedTreatment {
+            track: 1,
+            effects: vec![package("concat.invert", INVERT, "", &[], 1.0)],
+            strength: 1.0,
+        }],
+        ..plan(8, 8, vec![picture])
+    };
+    let frame = gpu.render(&source);
+    let pixel = frame.pixel(4, 4).unwrap();
+    for (got, expected) in pixel.into_iter().zip([55u8, 215, 215, 128]) {
+        assert!(got.abs_diff(expected) <= 2, "{pixel:?}");
+    }
 }

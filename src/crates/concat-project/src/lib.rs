@@ -154,6 +154,7 @@ mod tests {
             height: 1080,
             rate_num: 30,
             rate_den: 1,
+            canvas: [0, 0, 0, 255],
         }
     }
 

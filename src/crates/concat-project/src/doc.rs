@@ -298,6 +298,9 @@ pub struct DocumentSettings {
     pub rate_num: i64,
     /// Denominator of the output frame rate, e.g. 1001 for 29.97fps.
     pub rate_den: i64,
+    /// What shows where no picture covers the frame; see
+    /// `VideoSettings::canvas`.
+    pub canvas: [u8; 4],
 }
 
 impl DocumentSettings {
@@ -310,6 +313,7 @@ impl DocumentSettings {
             rate_num: self.rate_num,
             rate_den: self.rate_den,
             color_space: ColorSpace::Sdr,
+            canvas: self.canvas,
         }
     }
 }
@@ -326,12 +330,7 @@ pub fn to_document(settings: &DocumentSettings, project: &Project) -> Value {
     // reader.
     document.insert(
         "video".into(),
-        json!({
-            "width": active.video.width,
-            "height": active.video.height,
-            "rateNum": active.video.rate_num,
-            "rateDen": active.video.rate_den,
-        }),
+        serde_json::to_value(active.video).expect("serialises video settings"),
     );
     document.insert(
         "media".into(),

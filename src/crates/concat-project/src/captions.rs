@@ -59,6 +59,7 @@ mod tests {
     #[test]
     fn subtitle_library_survives_reopen_and_copies_have_independent_style_scopes() {
         let settings = DocumentSettings {
+            canvas: [0, 0, 0, 255],
             name: "Library".into(),
             width: 640,
             height: 360,
@@ -167,6 +168,7 @@ mod tests {
             vec!["a", "b"]
         );
         let settings = DocumentSettings {
+            canvas: [0, 0, 0, 255],
             name: "Caption keys".into(),
             width: 640,
             height: 360,
@@ -237,6 +239,7 @@ mod tests {
             project.active_mut().clips.push(clip.into());
         }
         let settings = DocumentSettings {
+            canvas: [0, 0, 0, 255],
             name: "captions".into(),
             width: 1920,
             height: 1080,

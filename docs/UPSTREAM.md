@@ -20,8 +20,36 @@ the published `v0.1.7` tag.
 The independent ColourField correction from `870290a0` is adapted: the alpha
 swatch alternates by row plus column, so transparency is shown over a checker
 rather than horizontal stripes. This does not introduce project transparency or
-change export formats. The wider canvas/alpha feature remains deferred together
-with preview/export compatibility work.
+change export formats by itself. The coordinated canvas/alpha adaptation below
+is a subsequent unreleased feature.
+
+The next adaptation combines `643bbe1f`, `870290a0`, `23bc6899` and `470391e7`:
+per-timeline RGBA canvas, shared background picker and checker previews, ProRes
+4444/MOV/AAC and VP9-alpha/WebM/Opus. Preserves typed main tracks, independent
+main-lane/clip backdrops, cancellable audio mixing, unique per-run scratch names
+and atomic output publication. The existing ProRes matrix fallback is retained
+once. The old six-argument project creation helper remains available alongside
+explicit canvas creation. Active-document mirrors also carry the canvas.
+
+Additional adaptation fixes premultiplied filter-stack reuse, fractional-strength
+interpolation and repeated canvas clearing. Prepared pictures and treatment
+kernels receive straight colour, then return to premultiplied composition.
+GPU-kept transitions use the same straight-colour contract as readback transitions.
+CPU-fallback preview upload uses a
+clear ground because its frame already contains the canvas. Uncovered coloured
+and transparent frames stay visible even without a clip under the playhead.
+
+Validation: 807 engine regressions passed across core, project, media, render,
+export, host and API, followed by all 61 GPU regressions with a real adapter
+required. The latter includes three further regressions (810 distinct passing
+tests overall): transparent transition endpoints/readback parity, prepared
+transparent pictures and straight-colour filter processing. The alpha export
+with sound also passed again after those changes. Engine Clippy runs with
+warnings denied. Slint code generation, the strict 1,089-message inventory in
+all 25 locales and nine locale-tool tests pass. Optional live-provider,
+model-download and foreign-platform tests retain their prerequisites.
+A full desktop Rust build and native Windows/macOS runtime validation have not
+been performed for this follow-up; these results do not produce a new executable.
 
 The inspector fixes `cdbdf074`/`b613ba62` were checked again against Clovercut's
 cached kind/batch selection properties. Clovercut's tab labels already depend
@@ -81,7 +109,7 @@ release remains unchanged.
 | `cdbdf074`, `b613ba62` | Stable inspector labels during playback | Clovercut already derives tab choice through cached kind/batch properties and has additional caption/animation tabs. Reproduce any remaining model churn before adapting a held label model; never copy upstream's smaller tab list. |
 | `aa38b9d5`, `84c0e625`, `94f4255f` | GPU Enhance and runtime engine selection | Adapted together: compact-network compute shaders, fixed-shape CoreML and runtime timing of both engines, including CPU on Linux/Windows. Every GPU candidate must execute successfully; initialization errors are captured, and a later GPU failure switches lazily to ONNX Runtime. GPU weights must match the pinned model digest. Keeps the span/cancellation/atomic-copy adaptations above. |
 | `fa2c5168`, `13e67ea2` | Import saved voices with metadata and automatic sample placement | Adapted into the existing saved-voice shelf: import audio/video recordings, retain a local sample with name/picture/description and suggest its start from streamed audio levels. Closing or replacing the recording cancels analysis; request identity prevents stale replies overwriting a reopened dialog. All eight new messages are translated in the 25 locales. Speech engine feature gates are unchanged. |
-| `870290a0`, `23bc6899`, `470391e7` | Transparent canvas and ProRes 4444/VP9 alpha export | Defer as a coordinated feature after the previously reviewed project canvas work. Requires schema compatibility, preview/export alpha parity, codec availability and audio/container tests. The independent ProRes decoder fix above is included. |
+| `870290a0`, `23bc6899`, `470391e7` | Transparent canvas and ProRes 4444/VP9 alpha export | Adapted together in the unreleased follow-up above, preserving Clovercut audio and atomic export behavior. |
 | `b237687c` | Concat application identifier migration | Not applicable: retain Clovercut's identifier, portable mode and storage paths. |
 
 A protected local GPU/ONNX comparison used a 272×64 source crossing two tiles,
@@ -106,10 +134,10 @@ and preservation through Clovercut's typed clipboard.
 | `24f05885` | Bottom-aligned waveform bars | Adapted: bottom-aligned waveform bars and one upper hot-level band across the shared Wave component. Keeps existing peak caches, zoom/trim sampling, gain-only layout updates, compact track sizes and the existing bottom baseline. |
 | `20dcd9aa`, `bc05ea3c`, `758da5a8` | Typography case, decoration and hover labels | Adapted only missing case and strikethrough controls. Reuses Clovercut’s accessible B/I/U controls and translated hover labels; preserves vertical text, caption-group/batch targeting and existing underline rendering. Case changes are display-only and reversible. The five new labels are translated in all 25 locales; no upstream inspector replacement. |
 | `64b25e90` | Per-word rich text | Potentially useful, but changes text model, rendering, editing, caches and MCP. Requires deliberate compatibility and copy/paste/caption tests; not a small inspector patch. |
-| `643bbe1f` | Project-wide frame background colour | Distinct from existing clip background controls. Useful future feature, but touches document schema, preview, export and new/project dialogs. Requires renderer/export parity coverage. |
+| `643bbe1f` | Project-wide frame background colour | Adapted in the unreleased canvas/alpha follow-up above; independent of existing main-lane and per-clip backdrops. |
 | `4e207179` | Put wheels/curves after scalar adjustments | Conflicts with our deliberately compact Color/Curves/Wheels navigation and collapsible groups. Preserve our layout. |
 | `b44bbf5e` | Remove the one-card Titles shelf | Library redesign, not a correctness fix. Review against our own text categories and quick title insertion before considering it. |
-| `2429c0ca` | Formatting and canvas callback wiring | Relevant wiring belongs to the new canvas feature above; Clovercut does not have that schema yet. No standalone change needed. |
+| `2429c0ca` | Formatting and canvas callback wiring | Relevant wiring belongs to the new canvas feature above; the unreleased canvas follow-up includes the needed desktop wiring. No standalone change needed. |
 
 ## Integration details
 

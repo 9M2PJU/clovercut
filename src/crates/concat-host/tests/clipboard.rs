@@ -243,6 +243,7 @@ fn identical_fonts_are_reused_and_conflicting_fonts_do_not_leave_files() {
     let staged = prepared.clipboard.fonts[0].path.clone();
     let mut editor = Editor::from_document(&concat_project::to_document(
         &concat_project::DocumentSettings {
+            canvas: [0, 0, 0, 255],
             name: "Target".into(),
             width: 640,
             height: 360,

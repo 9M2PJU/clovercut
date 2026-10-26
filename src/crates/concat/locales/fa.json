@@ -1084,5 +1084,11 @@
   "settings.downloadStatus": "سرورهای بارگیری با خطا پاسخ دادند (HTTP {0}).",
   "settings.notTheModelFile": "این فایل این مدل نیست. آن را دوباره از پیوند بارگیری کنید.",
   "shortcuts.prevEdit": "رفتن به برش قبلی",
-  "shortcuts.nextEdit": "رفتن به برش بعدی"
+  "shortcuts.nextEdit": "رفتن به برش بعدی",
+  "export.keepsTransparencyMov": "شفاف · برای نرم‌افزارهای تدوین، بزرگ",
+  "export.keepsTransparencyWebm": "شفاف · برای وب و OBS، کوچک",
+  "export.noTransparency": "این قالب شفافیت را نگه نمی‌دارد: بخش‌های شفاف سیاه می‌شوند. ProRes 4444 یا VP9 alpha آن را نگه می‌دارند.",
+  "start.background": "پس‌زمینه",
+  "start.transparent": "شفاف",
+  "start.transparentHint": "جایی که چیزی آن را نپوشانده شفاف است. برای حفظ آن با ProRes 4444 (‎.mov) یا WebM خروجی بگیرید؛ قالب‌های دیگر آنجا سیاه نشان می‌دهند."
 }

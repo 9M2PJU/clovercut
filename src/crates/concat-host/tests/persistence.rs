@@ -10,6 +10,7 @@ use serde_json::json;
 
 fn settings() -> DocumentSettings {
     DocumentSettings {
+        canvas: [0, 0, 0, 255],
         name: "Disposable stability fixture".to_owned(),
         width: 1280,
         height: 720,

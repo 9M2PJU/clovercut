@@ -69,6 +69,14 @@ pub struct ProjectInfo {
     pub rate_num: i64,
     /// Denominator of the frame rate.
     pub rate_den: i64,
+    /// What shows where no picture covers the frame, for a project's first
+    /// timeline; see `VideoSettings::canvas`. Opaque black for a recents
+    /// entry written before there was one.
+    #[serde(
+        default = "opaque_black",
+        deserialize_with = "concat_project::model::rgba_array"
+    )]
+    pub canvas: [u8; 4],
     /// Milliseconds since the epoch.
     pub opened_at: u64,
 }
@@ -96,6 +104,22 @@ struct Video {
     height: u32,
     rate_num: i64,
     rate_den: i64,
+    /// `#rrggbb` or `#rrggbbaa`, left out while opaque black; see
+    /// `VideoSettings::canvas`.
+    #[serde(
+        default = "opaque_black",
+        skip_serializing_if = "is_black",
+        with = "concat_project::model::hex_rgba"
+    )]
+    canvas: [u8; 4],
+}
+
+fn opaque_black() -> [u8; 4] {
+    concat_project::model::OPAQUE_BLACK
+}
+
+fn is_black(rgba: &[u8; 4]) -> bool {
+    *rgba == concat_project::model::OPAQUE_BLACK
 }
 
 fn now_millis() -> u64 {
@@ -109,6 +133,7 @@ fn now_millis() -> u64 {
 ///
 /// Refuses to touch a folder that already holds a manifest. Overwriting
 /// someone's edit because they reused a name is not a recoverable mistake.
+/// Uses the legacy opaque black canvas; see [`create_with_canvas`] to choose it.
 pub fn create(
     location: &str,
     name: &str,
@@ -116,6 +141,27 @@ pub fn create(
     height: u32,
     rate_num: i64,
     rate_den: i64,
+) -> Result<ProjectInfo, String> {
+    create_with_canvas(
+        location,
+        name,
+        width,
+        height,
+        rate_num,
+        rate_den,
+        concat_project::model::OPAQUE_BLACK,
+    )
+}
+
+/// Create a project with an explicit straight RGBA canvas.
+pub fn create_with_canvas(
+    location: &str,
+    name: &str,
+    width: u32,
+    height: u32,
+    rate_num: i64,
+    rate_den: i64,
+    canvas: [u8; 4],
 ) -> Result<ProjectInfo, String> {
     let root = Path::new(location).join(folder_name(name));
     let manifest = root.join(MANIFEST);
@@ -143,6 +189,7 @@ pub fn create(
             height,
             rate_num,
             rate_den,
+            canvas,
         },
         rest: serde_json::Map::new(),
     };
@@ -159,6 +206,7 @@ pub fn create(
         height,
         rate_num,
         rate_den,
+        canvas,
         opened_at: now_millis(),
     })
 }
@@ -530,6 +578,7 @@ pub fn open(path: &str) -> Result<ProjectInfo, String> {
         name: document.name,
         width: document.video.width,
         height: document.video.height,
+        canvas: document.video.canvas,
         rate_num: document.video.rate_num,
         rate_den: document.video.rate_den,
         opened_at: now_millis(),
@@ -712,6 +761,22 @@ fn count_files(dir: &Path) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A recents list written while the canvas was three channels still
+    /// reads, each entry opaque, and a four-channel one keeps its alpha
+    /// (#456): a list that failed to read would be an empty Start screen.
+    #[test]
+    fn recents_with_a_three_channel_canvas_still_read() {
+        let entry = |canvas: &str| {
+            format!(
+                r#"{{"path":"/p","name":"p","width":8,"height":8,"rateNum":30,"rateDen":1,"canvas":{canvas},"openedAt":1}}"#
+            )
+        };
+        let list = format!("[{},{}]", entry("[0,177,64]"), entry("[0,0,0,0]"));
+        let read: Vec<ProjectInfo> = serde_json::from_str(&list).expect("reads");
+        assert_eq!(read[0].canvas, [0, 177, 64, 255]);
+        assert_eq!(read[1].canvas, [0, 0, 0, 0]);
+    }
 
     #[test]
     fn sanitises_names_windows_would_reject() {

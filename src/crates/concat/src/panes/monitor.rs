@@ -248,6 +248,11 @@ impl MonitorPane {
                 && (studio.playing || studio.source.as_ref().is_some_and(|source| source.playing))
                 && quality > 0,
             color_space: studio.project().active().video.color_space,
+            canvas: if studio.source.is_some() {
+                [0, 0, 0, 255]
+            } else {
+                studio.timeline().video.canvas
+            },
         };
         if !spec.moving {
             self.cadence.report(studio.project().active().video.rate());

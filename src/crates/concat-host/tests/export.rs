@@ -470,13 +470,14 @@ struct Studio {
 
 impl Studio {
     fn new(root: &Path, name: &str, video: VideoSettings) -> Studio {
-        let info = projects::create(
+        let info = projects::create_with_canvas(
             root.to_str().expect("utf-8"),
             name,
             video.width,
             video.height,
             video.rate_num,
             video.rate_den,
+            [0, 0, 0, 255],
         )
         .expect("creates the project");
         let session = Session::open_info(&info).expect("opens the project");
@@ -653,6 +654,7 @@ fn effect(id: &str) -> AppliedFilter {
 
 fn video(width: u32, height: u32, rate_num: i64, rate_den: i64) -> VideoSettings {
     VideoSettings {
+        canvas: [0, 0, 0, 255],
         width,
         height,
         rate_num,
@@ -806,6 +808,7 @@ fn video_and_image_motion_compose_with_keys_in_preview_and_export() {
             let sources = concat_export::preview_sources(
                 &pool,
                 &concat_export::PreviewFrameRequest {
+                    canvas: [0, 0, 0, 255],
                     time,
                     width: WIDTH,
                     height: HEIGHT,
@@ -911,6 +914,7 @@ fn caption_motion_composes_with_keys_in_preview_and_export() {
         let sources = concat_export::preview_sources(
             &pool,
             &concat_export::PreviewFrameRequest {
+                canvas: [0, 0, 0, 255],
                 time,
                 width: WIDTH,
                 height: HEIGHT,
@@ -992,6 +996,7 @@ fn caption_paint_keyframes_reach_the_exported_video() {
         let sources = concat_export::preview_sources(
             &pool,
             &concat_export::PreviewFrameRequest {
+                canvas: [0, 0, 0, 255],
                 time,
                 width: WIDTH * 2,
                 height: HEIGHT * 2,
@@ -1275,6 +1280,7 @@ fn a_background_fills_the_bars_in_the_export_and_the_monitor() {
     ];
     let monitor = |studio: &Studio| {
         let request = concat_export::PreviewFrameRequest {
+            canvas: [0, 0, 0, 255],
             time: 1.0,
             width,
             height,

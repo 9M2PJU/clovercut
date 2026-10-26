@@ -170,6 +170,7 @@ export component App inherits Window {
     callback start-custom-width-edited(width: float);
     callback start-custom-height-edited(height: float);
     callback start-custom-fps-edited(fps: float);
+    callback start-canvas-changed(value: color);
     callback start-create();
     /// Open a project that already exists, picked from disk.
     callback start-open();
@@ -322,6 +323,7 @@ export component App inherits Window {
     callback project-custom-height-edited(height: float);
     callback project-custom-fps-edited(fps: float);
     callback project-color-space-changed(index: int);
+    callback project-canvas-changed(value: color);
     callback project-apply();
 
     /// The two speech sheets: captions from a clip's sound, and a title's
@@ -826,6 +828,7 @@ export component App inherits Window {
         rates: root.start-rates;
 
         closed => { root.start-dismiss(); }
+        canvas-changed(value) => { root.start-canvas-changed(value); }
         name-edited(name) => { root.start-name-edited(name); }
         location-edited(path) => { root.start-location-edited(path); }
         browse => { root.start-browse(); }
@@ -950,6 +953,7 @@ export component App inherits Window {
         data: root.project-sheet;
 
         closed => { root.project-closed(); }
+        canvas-changed(value) => { root.project-canvas-changed(value); }
         name-edited(name) => { root.project-name-edited(name); }
         size-changed(index) => { root.project-size-changed(index); }
         rate-changed(index) => { root.project-rate-changed(index); }

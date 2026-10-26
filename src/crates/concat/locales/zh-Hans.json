@@ -1084,5 +1084,11 @@
   "settings.downloadStatus": "下载服务器返回了错误（HTTP {0}）。",
   "settings.notTheModelFile": "该文件不是这个模型。请通过链接重新下载。",
   "shortcuts.prevEdit": "跳到上一个剪辑点",
-  "shortcuts.nextEdit": "跳到下一个剪辑点"
+  "shortcuts.nextEdit": "跳到下一个剪辑点",
+  "export.keepsTransparencyMov": "透明 · 用于剪辑软件，体积大",
+  "export.keepsTransparencyWebm": "透明 · 用于网页和 OBS，体积小",
+  "export.noTransparency": "此格式不保留透明：透明部分会变成黑色。ProRes 4444 或 VP9 alpha 可以保留。",
+  "start.background": "背景",
+  "start.transparent": "透明",
+  "start.transparentHint": "没有画面覆盖的地方是透明的。导出为 ProRes 4444 (.mov) 或 WebM 可保留透明；其他格式在那里显示为黑色。"
 }

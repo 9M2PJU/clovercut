@@ -813,6 +813,17 @@ impl Background {
     }
 }
 
+/// `#rrggbb` (opaque) or `#rrggbbaa` as four straight channels.
+fn rgba_of(hex: &str) -> Option<[u8; 4]> {
+    let [r, g, b] = rgb_of(hex)?;
+    let digits = hex.trim().strip_prefix('#')?;
+    let a = match digits.len() {
+        8 => u8::from_str_radix(&digits[6..8], 16).ok()?,
+        _ => 255,
+    };
+    Some([r, g, b, a])
+}
+
 /// `#rrggbb` (or `#rrggbbaa`, its alpha ignored) as three channels.
 fn rgb_of(hex: &str) -> Option<[u8; 3]> {
     let digits = hex.trim().strip_prefix('#')?;
@@ -2691,9 +2702,9 @@ pub struct Timeline {
     pub video: VideoSettings,
     /// What fills the frame behind the pictures on the lowest picture lane,
     /// where they do not reach it; see [`Timeline::background_of`]. The
-    /// timeline's rather than [`VideoSettings`]' because that is the four
-    /// numbers a frame is, copied and compared everywhere, and this names
-    /// media. Black, and left out of the document, until one is chosen.
+    /// timeline's rather than [`VideoSettings`]' because this can name media
+    /// and only fills behind clips on the main picture lane. The frame canvas
+    /// also covers gaps; this backdrop does not. Left out until chosen.
     #[serde(default, skip_serializing_if = "Background::is_none")]
     #[serde(deserialize_with = "wire::background")]
     pub background: Background,
@@ -2785,6 +2796,78 @@ pub struct VideoSettings {
     #[serde(default, skip_serializing_if = "ColorSpace::is_sdr")]
     #[serde(deserialize_with = "wire::color_space")]
     pub color_space: ColorSpace,
+    /// What shows where no picture covers the frame - a gap, the space
+    /// around a title, a clip fading in - as straight `[r, g, b, a]`,
+    /// written `#rrggbb` in the document, or `#rrggbbaa` when it lets
+    /// something show through: opaque black unless the project was given
+    /// another (#456). Alpha zero is a transparent frame, for an overlay
+    /// exported in a format that keeps alpha; a format that does not
+    /// gets black there. Left out of the document while it is opaque
+    /// black, so those documents stay as they were.
+    #[serde(
+        default = "opaque_black",
+        skip_serializing_if = "is_black",
+        with = "hex_rgba"
+    )]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
+    pub canvas: [u8; 4],
+}
+
+/// The canvas every project had before it could be given one.
+pub const OPAQUE_BLACK: [u8; 4] = [0, 0, 0, 255];
+
+/// A canvas written as a bare array of channels, as the recents list and
+/// the export and preview requests carry it: `[r, g, b, a]`, or `[r, g, b]`
+/// as it was written before the canvas had an alpha, which is opaque. Any
+/// other shape is opaque black, so one odd entry does not lose the rest of
+/// what it is read with.
+pub fn rgba_array<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<[u8; 4], D::Error> {
+    let value = serde_json::Value::deserialize(deserializer)?;
+    let channels: Option<Vec<u8>> = value.as_array().and_then(|items| {
+        items
+            .iter()
+            .map(|item| item.as_u64().and_then(|n| u8::try_from(n).ok()))
+            .collect()
+    });
+    Ok(match channels.as_deref() {
+        Some(&[r, g, b]) => [r, g, b, 255],
+        Some(&[r, g, b, a]) => [r, g, b, a],
+        _ => OPAQUE_BLACK,
+    })
+}
+
+fn opaque_black() -> [u8; 4] {
+    OPAQUE_BLACK
+}
+
+fn is_black(rgba: &[u8; 4]) -> bool {
+    *rgba == OPAQUE_BLACK
+}
+
+/// A colour kept as four straight channels and written the way the
+/// document writes every colour: `#rrggbb` while it is opaque,
+/// `#rrggbbaa` when it is not. One that does not read is opaque black.
+pub mod hex_rgba {
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    /// `#rrggbb`, or `#rrggbbaa` short of opaque; lower case.
+    pub fn serialize<S: Serializer>(rgba: &[u8; 4], serializer: S) -> Result<S::Ok, S::Error> {
+        let [r, g, b, a] = *rgba;
+        serializer.serialize_str(&if a == 255 {
+            format!("#{r:02x}{g:02x}{b:02x}")
+        } else {
+            format!("#{r:02x}{g:02x}{b:02x}{a:02x}")
+        })
+    }
+
+    /// `#rrggbb` (opaque) or `#rrggbbaa`; opaque black for anything else.
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<[u8; 4], D::Error> {
+        let value = serde_json::Value::deserialize(deserializer)?;
+        Ok(value
+            .as_str()
+            .and_then(super::rgba_of)
+            .unwrap_or(super::OPAQUE_BLACK))
+    }
 }
 
 impl Default for VideoSettings {
@@ -2797,6 +2880,7 @@ impl Default for VideoSettings {
             rate_num: 30,
             rate_den: 1,
             color_space: ColorSpace::Sdr,
+            canvas: OPAQUE_BLACK,
         }
     }
 }
@@ -2848,6 +2932,7 @@ impl VideoSettings {
                 fallback.rate_den
             },
             color_space: self.color_space,
+            canvas: self.canvas,
         }
     }
 

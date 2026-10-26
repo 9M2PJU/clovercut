@@ -336,6 +336,7 @@ fn phase6_performance_and_memory_suite() {
             let t0 = Instant::now();
             let (clips, settings) = studio.preview_clips(960, 540, t_sec).unwrap();
             let spec = concat_host::preview::FrameSpec {
+                canvas: [0, 0, 0, 255],
                 time: t_sec,
                 width: 960,
                 height: 540,
@@ -356,6 +357,7 @@ fn phase6_performance_and_memory_suite() {
             let t0 = Instant::now();
             let (clips, settings) = studio.preview_clips(960, 540, t_sec).unwrap();
             let spec = concat_host::preview::FrameSpec {
+                canvas: [0, 0, 0, 255],
                 time: t_sec,
                 width: 960,
                 height: 540,
@@ -395,6 +397,7 @@ fn phase6_performance_and_memory_suite() {
             let t0 = Instant::now();
             let (clips, settings) = studio.preview_clips(960, 540, t_sec).unwrap();
             let spec = concat_host::preview::FrameSpec {
+                canvas: [0, 0, 0, 255],
                 time: t_sec,
                 width: 960,
                 height: 540,
@@ -803,6 +806,7 @@ fn phase6_performance_and_memory_suite() {
             let t_sec = f as f64 / 30.0;
             let (clips, settings) = studio.preview_clips(3840, 2160, t_sec).unwrap();
             let spec = concat_host::preview::FrameSpec {
+                canvas: [0, 0, 0, 255],
                 time: t_sec,
                 width: 3840,
                 height: 2160,

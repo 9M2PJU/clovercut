@@ -757,6 +757,14 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     app.on_start_browse(on_window!(|state| {
         state.handle(Msg::Start(StartMsg::Browse));
     }));
+    app.on_start_canvas_changed(on_window!(|state, colour: slint::Color| {
+        state.handle(Msg::Start(StartMsg::CanvasChanged([
+            colour.red(),
+            colour.green(),
+            colour.blue(),
+            colour.alpha(),
+        ])));
+    }));
     app.on_start_create(on_window!(|state| {
         state.handle(Msg::Start(StartMsg::Create));
     }));
@@ -2030,6 +2038,14 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     app.on_project_color_space_changed(on_window!(|state, index: i32| {
         state.handle(Msg::Project(ProjectMsg::ColorSpaceChanged(index)));
     }));
+    app.on_project_canvas_changed(on_window!(|state, colour: slint::Color| {
+        state.handle(Msg::Project(ProjectMsg::CanvasChanged([
+            colour.red(),
+            colour.green(),
+            colour.blue(),
+            colour.alpha(),
+        ])));
+    }));
     app.on_project_custom_width_edited(on_window!(|state, width: f32| {
         state.handle(Msg::Project(ProjectMsg::CustomWidth(width)));
     }));
@@ -3211,8 +3227,16 @@ mod tests {
     #[test]
     fn a_failed_save_keeps_the_real_session_and_its_edit() {
         let scratch = Scratch::new("session");
-        let info = projects::create(&scratch.location(), "Closing", 1920, 1080, 30, 1)
-            .expect("creates the project");
+        let info = projects::create_with_canvas(
+            &scratch.location(),
+            "Closing",
+            1920,
+            1080,
+            30,
+            1,
+            [0, 0, 0, 255],
+        )
+        .expect("creates the project");
         let manifest = projects::manifest_path(Path::new(&info.path));
 
         // A real session, saved once; then an edit that lives in memory
@@ -3293,8 +3317,16 @@ mod tests {
     #[test]
     fn a_delayed_autosave_cannot_replace_the_close_snapshot() {
         let scratch = Scratch::new("ordered-close");
-        let info = projects::create(&scratch.location(), "Ordered", 1920, 1080, 30, 1)
-            .expect("creates the project");
+        let info = projects::create_with_canvas(
+            &scratch.location(),
+            "Ordered",
+            1920,
+            1080,
+            30,
+            1,
+            [0, 0, 0, 255],
+        )
+        .expect("creates the project");
         let mut session = Session::open_info(&info).expect("opens the session");
         let (old_path, old_document) = session.prepare_save(None);
         let old_ticket = projects::ticket();

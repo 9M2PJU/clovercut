@@ -1084,5 +1084,11 @@
   "settings.downloadStatus": "ডাউনলোড সার্ভার একটি ত্রুটি দিয়ে সাড়া দিয়েছে (HTTP {0})।",
   "settings.notTheModelFile": "ওই ফাইলটি এই মডেল নয়। লিংক থেকে আবার ডাউনলোড করুন।",
   "shortcuts.prevEdit": "আগের কাটে যান",
-  "shortcuts.nextEdit": "পরের কাটে যান"
+  "shortcuts.nextEdit": "পরের কাটে যান",
+  "export.keepsTransparencyMov": "স্বচ্ছ · এডিটরের জন্য, বড়",
+  "export.keepsTransparencyWebm": "স্বচ্ছ · ওয়েব ও OBS-এর জন্য, ছোট",
+  "export.noTransparency": "এই ফরম্যাট স্বচ্ছতা রাখে না: স্বচ্ছ অংশ কালো হয়ে যায়। ProRes 4444 বা VP9 alpha তা রাখে।",
+  "start.background": "পটভূমি",
+  "start.transparent": "স্বচ্ছ",
+  "start.transparentHint": "যেখানে কিছু ঢেকে নেই সেখানে স্বচ্ছ। এটি রাখতে ProRes 4444 (.mov) বা WebM হিসেবে এক্সপোর্ট করুন; অন্য ফরম্যাটে সেখানে কালো দেখায়।"
 }

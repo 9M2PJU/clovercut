@@ -1084,5 +1084,11 @@
   "settings.downloadStatus": "Máy chủ tải xuống trả về lỗi (HTTP {0}).",
   "settings.notTheModelFile": "Tệp đó không phải mô hình này. Hãy tải lại bằng liên kết.",
   "shortcuts.prevEdit": "Đến điểm cắt trước",
-  "shortcuts.nextEdit": "Đến điểm cắt tiếp theo"
+  "shortcuts.nextEdit": "Đến điểm cắt tiếp theo",
+  "export.keepsTransparencyMov": "Trong suốt · cho phần mềm dựng, lớn",
+  "export.keepsTransparencyWebm": "Trong suốt · cho web và OBS, nhỏ",
+  "export.noTransparency": "Định dạng này không giữ độ trong suốt: phần trong suốt sẽ thành màu đen. ProRes 4444 hoặc VP9 alpha giữ được.",
+  "start.background": "Nền",
+  "start.transparent": "Trong suốt",
+  "start.transparentHint": "Trong suốt ở chỗ không có gì che. Xuất dưới dạng ProRes 4444 (.mov) hoặc WebM để giữ lại; các định dạng khác hiển thị màu đen ở đó."
 }

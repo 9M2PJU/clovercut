@@ -9270,6 +9270,7 @@ impl Studio {
             moving: false,
             proxy: false,
             color_space: self.project().active().video.color_space,
+            canvas: self.project().active().video.canvas,
         };
         let monitor = self.host.monitor.clone();
         let out_dir = project_dir.join("frames");
@@ -10827,7 +10828,11 @@ impl Studio {
                 .as_ref()
                 .map(|source| (source.name.as_str(), source.kind)),
         );
-        editor.set_has_picture(showing.is_some());
+        editor.set_has_picture(
+            showing.is_some()
+                || (self.source.is_none() && timeline.video.canvas != model::OPAQUE_BLACK),
+        );
+        editor.set_see_through(self.source.is_none() && timeline.video.canvas[3] < 255);
         editor.set_preview_clip_name(showing.unwrap_or_default().into());
         editor.set_preview_duration(self.duration() as f32);
         editor.set_playhead_free(!self.prefs.playhead_stops_at_end);
@@ -14923,6 +14928,7 @@ mod tests {
         project.active_mut().clips.push(clip.into());
         let mut editor = Editor::from_document(&to_document(
             &DocumentSettings {
+                canvas: [0, 0, 0, 255],
                 name: "position".into(),
                 width: 1920,
                 height: 1080,

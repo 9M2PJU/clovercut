@@ -235,6 +235,12 @@ fn shade(in: VsOut) -> vec4<f32> {
     return vec4<f32>(shaded, alpha);
 }
 
+// Collapsed stacks already contain premultiplied colour, unlike uploads.
+@fragment
+fn fs_pooled(in: VsOut) -> @location(0) vec4<f32> {
+    return textureSample(layer_texture, layer_sampler, in.uv) * in.opacity;
+}
+
 @fragment
 fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     let s = shade(in);
@@ -383,6 +389,43 @@ fn fs_resolve_pq(@builtin(position) at: vec4<f32>) -> @location(0) vec4<u32> {
 @fragment
 fn fs_resolve_tone_mapped(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
     let colour = textureLoad(picture, vec2<i32>(at.xy), 0);
+    let light = to_sdr(colour.rgb * 203.0) / 203.0;
+    let clipped = clamp(light, vec3<f32>(0.0), vec3<f32>(1.0));
+    return vec4<f32>(pow(clipped, vec3<f32>(1.0 / 2.4)), colour.a);
+}
+
+// A frame on a canvas that lets something show through (#456): the working
+// space holds it premultiplied, and a file that keeps alpha takes it
+// straight, so the light is divided out of its coverage before the gamma.
+// Nothing covers a texel of alpha zero, which comes out clear black.
+fn unpremultiplied(colour: vec4<f32>) -> vec4<f32> {
+    if (colour.a <= 0.0) {
+        return vec4<f32>(0.0);
+    }
+    return vec4<f32>(colour.rgb / colour.a, min(colour.a, 1.0));
+}
+
+@fragment
+fn fs_unpremultiply(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
+    return unpremultiplied(textureLoad(picture, vec2<i32>(at.xy), 0));
+}
+
+@fragment
+fn fs_premultiply(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
+    let c = textureLoad(picture, vec2<i32>(at.xy), 0);
+    return vec4<f32>(c.rgb * c.a, c.a);
+}
+
+@fragment
+fn fs_resolve_straight(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
+    let colour = unpremultiplied(textureLoad(picture, vec2<i32>(at.xy), 0));
+    let clipped = clamp(colour.rgb, vec3<f32>(0.0), vec3<f32>(1.0));
+    return vec4<f32>(pow(clipped, vec3<f32>(1.0 / 2.4)), colour.a);
+}
+
+@fragment
+fn fs_resolve_tone_mapped_straight(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
+    let colour = unpremultiplied(textureLoad(picture, vec2<i32>(at.xy), 0));
     let light = to_sdr(colour.rgb * 203.0) / 203.0;
     let clipped = clamp(light, vec3<f32>(0.0), vec3<f32>(1.0));
     return vec4<f32>(pow(clipped, vec3<f32>(1.0 / 2.4)), colour.a);
@@ -564,6 +607,10 @@ struct Draw {
     size: (u32, u32),
     texture: usize,
     blend: Blend,
+    /// Interpolate two complete premultiplied stacks, including coverage.
+    mix: Option<f32>,
+    /// A collapsed stack is already premultiplied.
+    pooled: bool,
     mask: (u32, u32, usize),
     /// For a Lighten or Darken layer: the pooled texture, at the output
     /// size, that the ground is copied into just before the draw, for its
@@ -691,6 +738,17 @@ pub struct WgpuCompositor {
     /// screen.
     resolve_pipeline: wgpu::RenderPipeline,
     tone_mapped_pipeline: wgpu::RenderPipeline,
+    /// The same two for a see-through canvas: the frame handed back with
+    /// straight alpha rather than opaque.
+    straight_pipelines: [wgpu::RenderPipeline; 2],
+    /// Convert a collapsed stack for ordinary straight-colour filter kernels.
+    coverage_pipelines: [wgpu::RenderPipeline; 2],
+    /// Whether the plan being drawn has a canvas that lets something show
+    /// through (`FramePlan::canvas`), so its frame keeps its alpha: taken
+    /// up by `prepare`, as `output` is.
+    see_through: bool,
+    /// Transition kernels return straight colour; composites return premultiplied.
+    straight_output: bool,
     /// What the plan being drawn is output in (`FramePlan::output`): taken
     /// up by `prepare`, and read by the uploads and the resolve after it.
     output: concat_core::frame::Signal,
@@ -1116,39 +1174,56 @@ impl WgpuCompositor {
         };
         let pipelines: Vec<wgpu::RenderPipeline> = Blend::ALL
             .into_iter()
-            .map(|mode| {
+            .map(Some)
+            .chain([None, None])
+            .enumerate()
+            .map(|(index, mode)| {
                 use wgpu::{BlendFactor, BlendOperation};
+                let interpolate = wgpu::BlendComponent {
+                    src_factor: BlendFactor::Constant,
+                    dst_factor: BlendFactor::OneMinusConstant,
+                    operation: BlendOperation::Add,
+                };
+                let interpolating = index == Blend::ALL.len() + 1;
+                let alpha = if interpolating { interpolate } else { alpha };
                 let color = match mode {
-                    Blend::Normal => wgpu::BlendComponent {
+                    Some(Blend::Normal) => wgpu::BlendComponent {
                         src_factor: BlendFactor::One,
                         dst_factor: BlendFactor::OneMinusSrcAlpha,
                         operation: BlendOperation::Add,
                     },
-                    Blend::Multiply => wgpu::BlendComponent {
+                    Some(Blend::Multiply) => wgpu::BlendComponent {
                         src_factor: BlendFactor::Dst,
                         dst_factor: BlendFactor::OneMinusSrcAlpha,
                         operation: BlendOperation::Add,
                     },
-                    Blend::Screen => wgpu::BlendComponent {
+                    Some(Blend::Screen) => wgpu::BlendComponent {
                         src_factor: BlendFactor::OneMinusDst,
                         dst_factor: BlendFactor::One,
                         operation: BlendOperation::Add,
                     },
-                    Blend::Add => wgpu::BlendComponent {
+                    Some(Blend::Add) => wgpu::BlendComponent {
                         src_factor: BlendFactor::One,
                         dst_factor: BlendFactor::One,
                         operation: BlendOperation::Add,
                     },
-                    Blend::Lighten => wgpu::BlendComponent {
+                    Some(Blend::Lighten) => wgpu::BlendComponent {
                         src_factor: BlendFactor::One,
                         dst_factor: BlendFactor::One,
                         operation: BlendOperation::Max,
                     },
-                    Blend::Darken => wgpu::BlendComponent {
+                    Some(Blend::Darken) => wgpu::BlendComponent {
                         src_factor: BlendFactor::One,
                         dst_factor: BlendFactor::One,
                         operation: BlendOperation::Min,
                     },
+                    None => {
+                        if interpolating {
+                            interpolate
+                        } else {
+                            alpha
+                        }
+                    }
                 };
                 device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                     label: Some("concat compositor"),
@@ -1161,7 +1236,11 @@ impl WgpuCompositor {
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
-                        entry_point: Some("fs_main"),
+                        entry_point: Some(if mode.is_none() {
+                            "fs_pooled"
+                        } else {
+                            "fs_main"
+                        }),
                         compilation_options: Default::default(),
                         targets: &[Some(wgpu::ColorTargetState {
                             format: work,
@@ -1262,6 +1341,10 @@ impl WgpuCompositor {
         let resolve_pipeline = copy_into(wgpu::TextureFormat::Rgba8Unorm, "fs_resolve");
         let tone_mapped_pipeline =
             copy_into(wgpu::TextureFormat::Rgba8Unorm, "fs_resolve_tone_mapped");
+        let straight_pipelines = ["fs_resolve_straight", "fs_resolve_tone_mapped_straight"]
+            .map(|entry| copy_into(wgpu::TextureFormat::Rgba8Unorm, entry));
+        let coverage_pipelines =
+            ["fs_unpremultiply", "fs_premultiply"].map(|entry| copy_into(work, entry));
         let hdr_pipelines = ["fs_resolve_hlg", "fs_resolve_pq"]
             .map(|entry| copy_into(wgpu::TextureFormat::Rgba16Uint, entry));
 
@@ -1365,6 +1448,10 @@ impl WgpuCompositor {
             upload_pipeline,
             resolve_pipeline,
             tone_mapped_pipeline,
+            straight_pipelines,
+            coverage_pipelines,
+            see_through: false,
+            straight_output: false,
             output: concat_core::frame::Signal::Sdr,
             hdr_pipelines,
             deliver_hdr: false,
@@ -1493,6 +1580,8 @@ impl WgpuCompositor {
     /// final render, into whichever target the caller wants.
     fn prepare(&mut self, plan: &FramePlan) -> (Vec<Draw>, Vec<Vertex>) {
         self.output = plan.output;
+        self.see_through = plan.see_through();
+        self.straight_output = false;
         self.used.values_mut().for_each(|used| *used = 0);
         self.composites += 1;
         let (width, height) = (plan.width, plan.height);
@@ -1511,7 +1600,12 @@ impl WgpuCompositor {
                 self.push_layer(&mut draws, &mut vertices, plan, &plan.layers[next]);
                 next += 1;
             }
-            let below = self.render_pooled(width, height, &draws, &vertices, wgpu::Color::BLACK);
+            let clear = if ground.is_some() {
+                wgpu::Color::TRANSPARENT
+            } else {
+                clear_of(plan.canvas)
+            };
+            let below = self.render_pooled(width, height, &draws, &vertices, clear);
             let strength = treatment.strength.clamp(0.0, 1.0);
             if strength <= 0.0 || treatment.effects.is_empty() {
                 ground = Some(below);
@@ -1521,15 +1615,26 @@ impl WgpuCompositor {
             // whatever stack sits beneath it - so `clip_time` falls back
             // to the timeline's own clock, exactly what a package read
             // before this existed.
-            let treated = self.run_passes(width, height, below, &treatment.effects, seconds, 0.0);
+            let source = if plan.see_through() {
+                self.convert_coverage(width, height, below, false)
+            } else {
+                below
+            };
+            let treated = self.run_passes(width, height, source, &treatment.effects, seconds, 0.0);
+            let treated = if plan.see_through() {
+                self.convert_coverage(width, height, treated, true)
+            } else {
+                treated
+            };
             ground = Some(if strength >= 1.0 {
                 treated
             } else {
                 let mut draws = Vec::new();
                 let mut vertices = Vec::new();
                 self.push_pooled(&mut draws, &mut vertices, width, height, below, 1.0);
-                self.push_pooled(&mut draws, &mut vertices, width, height, treated, strength);
-                self.render_pooled(width, height, &draws, &vertices, wgpu::Color::BLACK)
+                self.push_pooled(&mut draws, &mut vertices, width, height, treated, 1.0);
+                draws.last_mut().expect("treated draw").mix = Some(strength);
+                self.render_pooled(width, height, &draws, &vertices, wgpu::Color::TRANSPARENT)
             });
         }
         let mut draws = Vec::new();
@@ -1615,6 +1720,8 @@ impl WgpuCompositor {
             size,
             texture,
             blend: layer.blend,
+            mix: None,
+            pooled: false,
             mask,
             ground,
         });
@@ -1660,6 +1767,8 @@ impl WgpuCompositor {
             size: source_size,
             texture: source,
             blend: Blend::Normal,
+            mix: None,
+            pooled: false,
             ground: None,
             mask,
         }];
@@ -1686,7 +1795,9 @@ impl WgpuCompositor {
             corner(1.0, -1.0, 1.0, 1.0),
             corner(-1.0, -1.0, 0.0, 1.0),
         ];
-        self.render_pooled(width, height, &draws, &vertices, wgpu::Color::TRANSPARENT)
+        let made = self.render_pooled(width, height, &draws, &vertices, wgpu::Color::TRANSPARENT);
+        // Filters and placement consume straight source colour.
+        self.convert_coverage(width, height, made, false)
     }
 
     /// A draw of a pooled texture the size of the output, over the whole
@@ -1705,6 +1816,8 @@ impl WgpuCompositor {
             size: (width, height),
             texture: index,
             blend: Blend::Normal,
+            mix: None,
+            pooled: true,
             ground: None,
             mask,
         });
@@ -1784,7 +1897,12 @@ impl WgpuCompositor {
         let (canvas, canvas_texture, canvas_view) = self.canvas(plan.width, plan.height);
         let texture = self.presentable(plan.width, plan.height);
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = self.encode(&canvas_view, &canvas_texture, &draws, wgpu::Color::BLACK);
+        let mut encoder = self.encode(
+            &canvas_view,
+            &canvas_texture,
+            &draws,
+            prepared_clear_of(plan),
+        );
         self.resolve(&mut encoder, (plan.width, plan.height), canvas, &view);
         self.queue.submit([encoder.finish()]);
         self.retire();
@@ -2101,18 +2219,33 @@ impl WgpuCompositor {
         });
         pass.set_vertex_buffer(0, self.vertices.slice(..));
         for &(index, draw) in draws {
-            match draw.ground {
-                Some(ground) => {
-                    let which = usize::from(draw.blend == Blend::Darken);
-                    pass.set_pipeline(&self.ground_pipelines[which]);
-                    pass.set_bind_group(2, &self.pool[&size][ground].bind_group, &[]);
+            if draw.pooled {
+                pass.set_pipeline(
+                    &self.pipelines[Blend::ALL.len() + usize::from(draw.mix.is_some())],
+                );
+                if let Some(strength) = draw.mix {
+                    let amount = f64::from(strength);
+                    pass.set_blend_constant(wgpu::Color {
+                        r: amount,
+                        g: amount,
+                        b: amount,
+                        a: amount,
+                    });
                 }
-                None => {
-                    let which = Blend::ALL
-                        .iter()
-                        .position(|mode| *mode == draw.blend)
-                        .unwrap_or(0);
-                    pass.set_pipeline(&self.pipelines[which]);
+            } else {
+                match draw.ground {
+                    Some(ground) => {
+                        let which = usize::from(draw.blend == Blend::Darken);
+                        pass.set_pipeline(&self.ground_pipelines[which]);
+                        pass.set_bind_group(2, &self.pool[&size][ground].bind_group, &[]);
+                    }
+                    None => {
+                        let which = Blend::ALL
+                            .iter()
+                            .position(|mode| *mode == draw.blend)
+                            .unwrap_or(0);
+                        pass.set_pipeline(&self.pipelines[which]);
+                    }
                 }
             }
             pass.set_bind_group(0, &self.pool[&draw.size][draw.texture].bind_group, &[]);
@@ -2420,10 +2553,14 @@ impl WgpuCompositor {
     ) {
         let pipeline = if self.delivering_hdr() {
             &self.hdr_pipelines[usize::from(self.output == concat_core::frame::Signal::Pq)]
-        } else if self.output == concat_core::frame::Signal::Sdr {
-            &self.resolve_pipeline
         } else {
-            &self.tone_mapped_pipeline
+            let sdr = self.output == concat_core::frame::Signal::Sdr;
+            match (self.see_through && !self.straight_output, sdr) {
+                (false, true) => &self.resolve_pipeline,
+                (false, false) => &self.tone_mapped_pipeline,
+                (true, true) => &self.straight_pipelines[0],
+                (true, false) => &self.straight_pipelines[1],
+            }
         };
         Self::copy(
             encoder,
@@ -2510,6 +2647,34 @@ impl WgpuCompositor {
                 },
             ],
         })
+    }
+
+    /// Preserve working light while converting only alpha association.
+    fn convert_coverage(
+        &mut self,
+        width: u32,
+        height: u32,
+        source: usize,
+        premultiply: bool,
+    ) -> usize {
+        let target = self.claim(width, height);
+        let pool = &self.pool[&(width, height)];
+        let view = pool[target]
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("concat stack coverage"),
+            });
+        Self::copy(
+            &mut encoder,
+            &self.coverage_pipelines[usize::from(premultiply)],
+            &pool[source].bind_group,
+            &view,
+        );
+        self.queue.submit([encoder.finish()]);
+        target
     }
 
     /// Records a texel-for-texel copy of the picture bound by `from` into
@@ -2966,7 +3131,20 @@ impl WgpuCompositor {
             let (draws, vertices) = self.prepare(plan);
             self.write_vertices(&vertices);
             let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-            let encoder = self.encode(&view, texture, &draws, wgpu::Color::BLACK);
+            let encoder = if plan.see_through() {
+                let (index, working, working_view) = self.canvas(width, height);
+                let mut encoder =
+                    self.encode(&working_view, &working, &draws, prepared_clear_of(plan));
+                Self::copy(
+                    &mut encoder,
+                    &self.coverage_pipelines[0],
+                    &self.pool[&(width, height)][index].bind_group,
+                    &view,
+                );
+                encoder
+            } else {
+                self.encode(&view, texture, &draws, prepared_clear_of(plan))
+            };
             self.queue.submit([encoder.finish()]);
         }
         let from_view = from_texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -2983,6 +3161,8 @@ impl WgpuCompositor {
             pass,
             &canvas_view,
         )?;
+        self.see_through = from.see_through() || to.see_through();
+        self.straight_output = true;
         self.resolve(&mut encoder, (width, height), canvas, &out_view);
         self.queue.submit([encoder.finish()]);
         self.retire();
@@ -3522,14 +3702,42 @@ impl WgpuCompositor {
                 let from = &data[row * padded_row..row * padded_row + row_bytes];
                 pixels[row * row_bytes..(row + 1) * row_bytes].copy_from_slice(from);
             }
-            // The output goes to a screen or an encoder; neither has anything
-            // to show through, and blending may have left alpha short of one.
-            for pixel in pixels.chunks_exact_mut(4) {
-                pixel[3] = 255;
+            // The output goes to a screen or an encoder, which have nothing
+            // to show through, and blending may have left alpha short of
+            // one - unless the canvas is see-through, when the alpha is
+            // the point (#456).
+            if !self.see_through {
+                for pixel in pixels.chunks_exact_mut(4) {
+                    pixel[3] = 255;
+                }
             }
         }
         target.staging.unmap();
         Some(frame)
+    }
+}
+
+/// Treatments collapse the canvas into their ground; never add it again.
+fn prepared_clear_of(plan: &FramePlan) -> wgpu::Color {
+    if plan.treatments.is_empty() {
+        clear_of(plan.canvas)
+    } else {
+        wgpu::Color::TRANSPARENT
+    }
+}
+
+/// A plan's canvas colour as the working space holds it: each eight-bit
+/// level through the 2.4 gamma every picture is uploaded through, so the
+/// canvas and a still of the same colour come out the same, 1.0 SDR white;
+/// premultiplied by its alpha, as everything drawn over it is.
+fn clear_of([r, g, b, a]: [u8; 4]) -> wgpu::Color {
+    let alpha = f64::from(a) / 255.0;
+    let light = |level: u8| (f64::from(level) / 255.0).powf(2.4) * alpha;
+    wgpu::Color {
+        r: light(r),
+        g: light(g),
+        b: light(b),
+        a: alpha,
     }
 }
 
@@ -3555,7 +3763,7 @@ impl Compositor for WgpuCompositor {
         let validation = self.device.push_error_scope(wgpu::ErrorFilter::Validation);
         let (draws, vertices) = self.prepare(plan);
         self.write_vertices(&vertices);
-        let frame = self.render_and_read(plan.width, plan.height, &draws);
+        let frame = self.render_and_read(plan.width, plan.height, &draws, prepared_clear_of(plan));
         let refused = pollster::block_on(validation.pop());
         let exhausted = pollster::block_on(memory.pop());
         let errors = [exhausted, refused].into_iter().flatten();
@@ -3603,6 +3811,11 @@ impl Compositor for WgpuCompositor {
         if self.dead {
             return None;
         }
+        self.straight_output = true;
+        self.see_through = [from, to].into_iter().any(|frame| {
+            frame.depth() == concat_core::frame::Depth::Eight
+                && frame.pixels().chunks_exact(4).any(|pixel| pixel[3] < 255)
+        });
         // The two pictures, uploaded into the working space as any frame
         // is, so the shader reads what the device-kept path hands it.
         self.used.values_mut().for_each(|used| *used = 0);
@@ -3665,14 +3878,20 @@ impl Compositor for WgpuCompositor {
 impl WgpuCompositor {
     /// Draws into the readback target and copies it out: one submit, one
     /// wait. `None` when the device did not deliver the pixels.
-    fn render_and_read(&mut self, width: u32, height: u32, draws: &[Draw]) -> Option<Frame> {
+    fn render_and_read(
+        &mut self,
+        width: u32,
+        height: u32,
+        draws: &[Draw],
+        clear: wgpu::Color,
+    ) -> Option<Frame> {
         let (canvas, canvas_texture, canvas_view) = self.canvas(width, height);
         self.target(width, height);
         let target = self.current_target();
         let view = target
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = self.encode(&canvas_view, &canvas_texture, draws, wgpu::Color::BLACK);
+        let mut encoder = self.encode(&canvas_view, &canvas_texture, draws, clear);
         self.resolve(&mut encoder, (width, height), canvas, &view);
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {
