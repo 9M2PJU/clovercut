@@ -512,10 +512,13 @@ pub fn mix_to_file_cancelling(
         // Warm compressed codecs before the in-point (MP3 needs its bit
         // reservoir). The graph cuts the lead measured from the first frame.
         if clip.source_start > 0.0 {
-            let target = (((clip.source_start - crate::samples::SEEK_PREROLL).max(0.0) + start)
-                * f64::from(ffmpeg::sys::AV_TIME_BASE)) as i64;
-            let _ = input.seek(target, ..=target);
+            let _ = ffi::seek_audio(
+                &mut input,
+                stream_index,
+                (clip.source_start - crate::samples::SEEK_PREROLL).max(0.0) + start,
+            );
         }
+        ffi::read_only(&mut input, stream_index);
         let label = format!("{index}:a");
         let mut mix_input = MixInput {
             path: path.to_path_buf(),
