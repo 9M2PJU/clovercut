@@ -11,23 +11,31 @@ Reviewed through `9e20c562` (26 October 2026). The latest comparison adds eleven
 commits after `94f4255f`; the earlier adaptation batch starts at `2429c0ca`. Adaptations below are newer than the source used by the published
 0.1.6 release and require a newer app build.
 
-### New commits reviewed, pending adaptation
+### Latest adaptations and pending work
 
-These eleven commits have been read and compared with Clovercut; they have not
-been merged by this review. Existing desktop/audio work is independent.
+The eleven commits below were compared with Clovercut. Status is explicit: the
+first batch adapts independent correctness fixes; the timeline redesigns remain
+separate. None of these changes is in the published 0.1.6 executable.
 
 | Commit | Assessment |
 |---|---|
-| `153cce29` | High priority: Kokoro archive sizes/digests changed upstream at 09:08 UTC on 26 October. Clovercut still has both old digests. The replacement sizes/digests were independently checked against the official sherpa-onnx GitHub release metadata. Update the manifest and compiled speech table together; retain already installed voices and stable speaker IDs. |
-| `e0111c01` | High priority: reuse a compatible mapped PCM span immediately after a cut, then copy plain spans instead of decoding them again. Also seeks on the audio stream and discards other streams after seeking. Useful beyond earlier A/V alignment work. Preserve Clovercut's cancellation, disk-backed PCM, sound-layer mixing and cache identity; test effects, speed, selected streams, undo and rapid consecutive cuts. |
-| `c2847c16` | Worth adapting: environment/system proxy routing, clearer failure classification and installing a manually downloaded model only after digest verification. Keep strict trust for release manifests, bypass all loopback Audio API traffic, adapt Freesound header authentication and redact signed YouTube query strings from logs. Upstream's automatic direct fallback should not silently bypass an explicitly required proxy. This is a network/model-download fix, not evidence that all stock-audio failures have the same cause. |
-| `83a237e8` | Worth adapting: per-call SVG temporary files avoid concurrent decoder races; relative image resources resolve beside the SVG. Add cache invalidation for changed linked images, not only the SVG's own modification time; retain atomic publication and cross-platform race handling. |
-| `268cd601` | Worth adapting as one coordinated text/render/export change: expanded title canvases preserve ink outside the original frame, with overscan carried through the render plan and export. Preserve caption styles, reveal maps and preview/export geometry. Its 8192-pixel bound can still allocate a large RGBA canvas; keep memory/cache limits in view. |
-| `a6e5ab77` | Worth adapting for macOS: exits past whisper/Metal static destructors after saving and stopping exports. Preserve Clovercut's own close/cancellation path; do not bypass active save/export cleanup. Native macOS validation is required. |
+| `153cce29` | Adapted: both Kokoro archive sizes and digests updated in the manifest and compiled speech table, independently checked against the official sherpa-onnx release metadata. Existing installed models and speaker IDs are retained. |
+| `e0111c01` | Adapted to Clovercut: compatible PCM spans play immediately after a cut and plain spans copy from the mapped recording. Preserves project-change cache isolation, disk-backed PCM, gain curves, stream selection and the existing continuous-speed-ramp engine; nonlinear retimes are deliberately excluded from linear source reuse. Audio-stream seeks and post-seek stream discard include MPG, TS and Matroska regression fixtures. Deferred upstream sound-layer features are not imported incidentally. |
+| `c2847c16` | Partially adapted: environment/SOCKS routing, Windows per-user proxy/PAC and fixed macOS proxy settings; useful failure classification; resumable downloads retain range headers; Freesound retains header authentication; all loopback Audio API traffic bypasses proxies; signed query strings and proxy credentials are excluded from new diagnostics. Explicit proxies are respected without an automatic direct retry. Updates still use shipped trust roots. The model-import buttons and unified model-download settings flow remain separate work. |
+| `83a237e8` | Adapted and extended: per-call SVG temporary files avoid concurrent decoder races; relative images resolve beside the SVG. Cache identity also includes linked-image metadata, including missing images that subsequently appear, with namespace-aware SVG/SVGZ parsing. Concurrent-render and linked-bitmap-update regressions pass. |
+| `268cd601` | Adapted across text, title caches, render planning and export. Expanded canvases preserve overflow; caption reveal coordinates, bounded shadow rendering, transformed colour glyphs and byte-limited live-title caching are retained. The title cache version is bumped so old clipped pictures are not reused. Does not import the deferred per-word rich-text model. |
+| `a6e5ab77` | Adapted for macOS: save/stop-export handling precedes leaving past whisper/Metal static destructors. Native macOS runtime verification remains required; Linux engine tests cannot validate that quit path. |
 | `23897dd8`, `3564d450` | Useful optional desktop features: previous/next edit shortcuts and 4:5/3:4 project presets, with matching shortcut documentation. Adapt existing Clovercut shortcut profiles and exact frame-rate handling; upstream rounds the frame rate in edit-point calculation. |
 | `9e20c562` | Adapt the intent, not its bottom-of-stack scroll formula. Clovercut has audio below its fixed main video track, so bottom anchoring can open on audio instead. Locate the actual main-track row, respect restored scroll position, and keep the expanded ruler/scrub band. Shorter tray tooltips are compatible. |
 | `1385c36b` | Needs redesign before adoption: optional linkage should respect the fixed typed main track, grouped captions, multi-lane operations, locks and undo. Upstream defaults linkage on and identifies the main lane dynamically. A mechanical reproduction using its exact `close_gaps`, `removed_before` and `follow_main` helpers confirms a double ripple when both main/text lanes lose the same two-second interval: remaining text at 5 s lands at 1 s instead of 3 s. Do not import this implementation unchanged. |
 | `1e683882` | Phone-specific interface: do not bring into the desktop-focused editor. Ordered multi-selection may be considered separately if a desktop use case is missing; preserve typed placement and existing multi-file import. |
+
+Validation of this adaptation batch: 493 ordinary engine regressions across
+text, export, host, media and render; 65 core and 15 speech tests; and two opt-in
+live-provider tests covering OpenGameArt, YouTube and Freesound search, downloads,
+media probing and cache reuse. The model manifest matches all 23 compiled models.
+Native macOS quit behavior and Windows/macOS proxy integration require their own
+platform validation. This batch does not produce a new desktop executable.
 
 ### Previously adapted/reviewed batch
 
