@@ -1109,9 +1109,9 @@ component CatalogueCard inherits Rectangle {
     }
 }
 
-// The text page: the one title style that exists, as a card. Clicking adds a
-// title at the playhead. Sized like one grid cell so the card matches its
-// neighbours on the other pages.
+// Quick insertion above the style presets. This keeps the saved default
+// title style distinct from fixed presets, with both click and drag support.
+// Sized like one grid cell so the card matches the presets below.
 component TextPage inherits Rectangle {
     callback add-text();
 
@@ -1946,7 +1946,7 @@ export component MediaPane inherits Rectangle {
     property <bool> categories-open: true;
     property <bool> generated-open: true;
     property <bool> text-open: true;
-    /// 0 = Titles, 1 = Styles, 2 = Languages
+    /// 0 = Styles (including the saved default title), 1 = Languages
     property <int> text-category;
     property <bool> captions-open: true;
     /// 0 = Auto captions, 1 = Manual captions, 2 = Subtitle library
@@ -2418,22 +2418,16 @@ export component MediaPane inherits Rectangle {
                             }
                             if root.text-open: CategoryRow {
                                 height: 24px;
-                                label: I18n.t("mediaPane.titles");
+                                label: I18n.t("mediaPane.styles");
                                 current: root.text-category == 0;
                                 clicked => { root.text-category = 0; }
-                            }
-                            if root.text-open: CategoryRow {
-                                height: 24px;
-                                label: I18n.t("mediaPane.styles");
-                                current: root.text-category == 1;
-                                clicked => { root.text-category = 1; }
                             }
                             // Beside Styles: the looks for other writing.
                             if root.text-open: CategoryRow {
                                 height: 24px;
                                 label: I18n.t("mediaPane.languages");
-                                current: root.text-category == 2;
-                                clicked => { root.text-category = 2; }
+                                current: root.text-category == 1;
+                                clicked => { root.text-category = 1; }
                             }
                         }
 
@@ -2898,24 +2892,21 @@ export component MediaPane inherits Rectangle {
                     text: I18n.t("sounds.noSoundsYet");
                 }
 
-                if root.tab == 1 && root.text-category == 0: HorizontalLayout {
+                // The saved default remains a quick click/drag insertion above
+                // Styles; fixed presets must not replace the user's default.
+                if root.tab == 1: VerticalLayout {
                     padding: 8px;
+                    spacing: 12px;
 
-                    TextPage {
+                    if root.text-category == 0: TextPage {
                         horizontal-stretch: 1;
                         add-text => { root.add-text("default"); }
                     }
-                }
 
-                // The looks. Each card is a title in that look, placed at
-                // the playhead on a click or dragged onto a lane; a preset
-                // that brings a font installs it on the way.
-                if root.tab == 1 && root.text-category >= 1: HorizontalLayout {
-                    padding: 8px;
-
+                    // Each preset adds its own look, on click or drag.
                     PresetGrid {
                         horizontal-stretch: 1;
-                        items: root.text-category == 2 ? root.language-presets : root.presets;
+                        items: root.text-category == 1 ? root.language-presets : root.presets;
                         applied(id) => { root.add-text(id); }
                     }
                 }

@@ -219,7 +219,7 @@ and preservation through Clovercut's typed clipboard.
 | `64b25e90` | Per-word rich text | Adapted in the unreleased per-word text follow-up above, preserving vertical text, caption scopes, typed copying and bounded overflow rendering. |
 | `643bbe1f` | Project-wide frame background colour | Adapted in the unreleased canvas/alpha follow-up above; independent of existing main-lane and per-clip backdrops. |
 | `4e207179` | Put wheels/curves after scalar adjustments | Conflicts with our deliberately compact Color/Curves/Wheels navigation and collapsible groups. Preserve our layout. |
-| `b44bbf5e` | Remove the one-card Titles shelf | Library redesign, not a correctness fix. Review against our own text categories and quick title insertion before considering it. |
+| `b44bbf5e` | Remove the one-card Titles shelf | Adapted selectively: Styles opens first and includes the existing default-title click/drag card above its presets; Languages remains separate. Removed the redundant Titles category. Unlike the fixed Clean preset, default insertion retains the saved title style and localized content. |
 | `2429c0ca` | Formatting and canvas callback wiring | Relevant wiring belongs to the new canvas feature above; the unreleased canvas follow-up includes the needed desktop wiring. No standalone change needed. |
 
 ## Integration details
