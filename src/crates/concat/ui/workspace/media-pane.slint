@@ -2973,7 +2973,7 @@ export component MediaPane inherits Rectangle {
                     }
                     ShelfGrid {
                         entries: root.audio-shelf ? root.catalogue-audio : root.catalogue-effects;
-                        payload-kind: root.audio-shelf ? "audio-effect" : (root.effect-layer ? "effect-layer" : "effect");
+                        payload-kind: root.audio-shelf ? "audio-filter" : (root.effect-layer ? "effect-layer" : "effect");
                         glyph: root.audio-shelf ? Glyph.waveform : Glyph.sparkle;
                         // A sound has no picture: its cards are the compact kind.
                         compact: root.audio-shelf;

@@ -1096,5 +1096,6 @@
   "textPanel.stylingWords": "Gestaltet die markierten Wörter",
   "textPanel.wholeTitle": "Ganzer Titel",
   "common.linkage": "Verknüpfung",
-  "tray.linkage": "Verknüpfung: Untertitel, Titel, Overlays und Töne bewegen sich mit der Hauptspur"
+  "tray.linkage": "Verknüpfung: Untertitel, Titel, Overlays und Töne bewegen sich mit der Hauptspur",
+  "clipInspector.soundLayerTreatsTheMix": "Eine Tonebene bearbeitet alles, was zu hören ist, solange sie läuft. Kürze sie auf der Zeitleiste, um zu ändern, was sie abdeckt."
 }

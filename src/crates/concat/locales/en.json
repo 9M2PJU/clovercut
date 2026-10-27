@@ -1096,5 +1096,6 @@
   "textPanel.stylingWords": "Styling the selected words",
   "textPanel.wholeTitle": "Whole title",
   "common.linkage": "Linkage",
-  "tray.linkage": "Linkage: captions, titles, overlays and sounds move with the main track"
+  "tray.linkage": "Linkage: captions, titles, overlays and sounds move with the main track",
+  "clipInspector.soundLayerTreatsTheMix": "A sound layer treats everything you hear for as long as it runs. Trim it on the timeline to change what it covers."
 }

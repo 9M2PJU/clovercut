@@ -1096,5 +1096,6 @@
   "textPanel.stylingWords": "正在设置所选文字的样式",
   "textPanel.wholeTitle": "整个标题",
   "common.linkage": "联动",
-  "tray.linkage": "联动：字幕、文字、画中画和音频随主轨道一起移动"
+  "tray.linkage": "联动：字幕、文字、画中画和音频随主轨道一起移动",
+  "clipInspector.soundLayerTreatsTheMix": "声音图层在播放期间会处理听到的所有声音。在时间线上修剪它即可改变覆盖范围。"
 }

@@ -1096,5 +1096,6 @@
   "textPanel.stylingWords": "Đang tạo kiểu cho các từ đã chọn",
   "textPanel.wholeTitle": "Cả tiêu đề",
   "common.linkage": "Liên kết",
-  "tray.linkage": "Liên kết: phụ đề, tiêu đề, lớp phủ và âm thanh di chuyển cùng track chính"
+  "tray.linkage": "Liên kết: phụ đề, tiêu đề, lớp phủ và âm thanh di chuyển cùng track chính",
+  "clipInspector.soundLayerTreatsTheMix": "Lớp âm thanh xử lý mọi thứ nghe được trong suốt thời gian nó chạy. Cắt nó trên dòng thời gian để thay đổi phần nó bao phủ."
 }

@@ -1096,5 +1096,6 @@
   "textPanel.stylingWords": "Seçili sözcüklere stil veriliyor",
   "textPanel.wholeTitle": "Tüm başlık",
   "common.linkage": "Bağlantı",
-  "tray.linkage": "Bağlantı: altyazılar, başlıklar, katmanlar ve sesler ana parçayla birlikte kayar"
+  "tray.linkage": "Bağlantı: altyazılar, başlıklar, katmanlar ve sesler ana parçayla birlikte kayar",
+  "clipInspector.soundLayerTreatsTheMix": "Ses katmanı sürdüğü boyunca duyulan her şeyi işler. Kapsadığı yeri değiştirmek için zaman çizelgesinde kırpın."
 }

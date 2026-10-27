@@ -1096,5 +1096,6 @@
   "textPanel.stylingWords": "Styl zaznaczonych słów",
   "textPanel.wholeTitle": "Cały tytuł",
   "common.linkage": "Powiązanie",
-  "tray.linkage": "Powiązanie: napisy, tytuły, nakładki i dźwięki przesuwają się z główną ścieżką"
+  "tray.linkage": "Powiązanie: napisy, tytuły, nakładki i dźwięki przesuwają się z główną ścieżką",
+  "clipInspector.soundLayerTreatsTheMix": "Warstwa dźwięku przetwarza wszystko, co słychać, dopóki trwa. Przytnij ją na osi czasu, aby zmienić, co obejmuje."
 }

@@ -4122,6 +4122,7 @@ mod tests {
             .expect("adds");
         let layer_id = editor
             .apply(Command::AddLayerClip {
+                sound: false,
                 track_id: None,
                 start: 1.0,
                 duration: Some(3.0),
@@ -5340,6 +5341,7 @@ mod tests {
         for (index, name) in ["Backwards", "Bouncy", "Plain"].into_iter().enumerate() {
             editor
                 .apply(Command::AddLayerClip {
+                    sound: false,
                     track_id: None,
                     start: index as f64 * 2.0,
                     duration: Some(1.0),

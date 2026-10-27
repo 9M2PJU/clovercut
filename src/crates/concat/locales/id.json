@@ -1096,5 +1096,6 @@
   "textPanel.stylingWords": "Menata kata yang dipilih",
   "textPanel.wholeTitle": "Seluruh judul",
   "common.linkage": "Tautan",
-  "tray.linkage": "Tautan: teks, judul, overlay, dan suara ikut bergeser bersama trek utama"
+  "tray.linkage": "Tautan: teks, judul, overlay, dan suara ikut bergeser bersama trek utama",
+  "clipInspector.soundLayerTreatsTheMix": "Lapisan suara mengolah semua yang terdengar selama ia berjalan. Pangkas di linimasa untuk mengubah bagian yang dicakupnya."
 }

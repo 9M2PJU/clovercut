@@ -1096,5 +1096,6 @@
   "textPanel.stylingWords": "Estilo para las palabras seleccionadas",
   "textPanel.wholeTitle": "Todo el título",
   "common.linkage": "Vinculación",
-  "tray.linkage": "Vinculación: subtítulos, títulos, superposiciones y sonidos se mueven con la pista principal"
+  "tray.linkage": "Vinculación: subtítulos, títulos, superposiciones y sonidos se mueven con la pista principal",
+  "clipInspector.soundLayerTreatsTheMix": "Una capa de sonido trata todo lo que se oye mientras dura. Recórtala en la línea de tiempo para cambiar lo que abarca."
 }

@@ -99,3 +99,30 @@ a ripple edit is removed with it; undo restores both. Clips crossing a cut, such
 as a music bed, keep their start and duration. A following clip on that same
 track stops at the bed's end rather than overlapping it. Multi-track removals,
 trims and speed changes count shared removed/inserted time once.
+
+### Global audio effects
+
+Drag an effect from the audio-effects library onto the timeline to create a
+sound layer. It uses an adjustment track above the main video track; ordinary
+audio tracks remain below video. Clicking a library effect still applies it to
+the selected clip.
+
+A sound layer treats the sum of all audible clips during its interval. This is
+useful for one limiter, compressor, room or telephone treatment over the mix.
+Select the layer and use **Audio → Layer** for strength and fades, or
+**Audio effects** for its chain. Its stored opacity keyframes also control mix
+strength, including easing. Source clips keep their independent gain, fades,
+filters and speed ramps.
+
+Overlapping sound layers run in track order from bottom to top, then start time.
+Their order matters: a limiter after a gain boost differs from a limiter before
+it. Muting the layer's track bypasses its effect while keeping the source audio.
+The layer can be moved, trimmed backwards, copied between projects, saved and
+undone like other generated clips, and follows main-track ripple edits when
+Linkage is enabled. Locked tracks retain their existing protection.
+
+Preview prepares the mixed interval in the background. Until it is ready, the
+source clips remain audible untreated; once ready, that mixed interval replaces
+them, avoiding doubled audio. Editing the treatment or changing projects cancels
+obsolete work. Exports use the same mixer and retain cancellation and atomic
+output publication.

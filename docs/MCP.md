@@ -62,6 +62,7 @@ Tools are named for what they do, and their argument schemas are generated from 
 | Picture | `clip_mask`, `clip_stabilize`, `timeline_background` |
 | Titles and captions | `title_add`, `title_style_words` (some words in another colour, weight, size...), `title_clear_word_styles`, `captions_add` |
 | Keyframes and effects | `keyframe_set`, `keyframe_clear`, `effects_list`, `effect_layer_add`, `effect_key_set` |
+| Global audio | `effect_layer_add` with `sound: true` and an audio package; update its `filters` chain, `opacity` strength and fades through `clip_update`. Existing opacity keys control its strength. |
 | Anything else | `edit_apply` (any edit command, or a batch of them as one undo step), `edit_undo`, `edit_redo` |
 | Templates | `template_list`, `template_instantiate` |
 | Export | `export_start`, `export_status`, `export_wait` (with progress), `export_cancel` |

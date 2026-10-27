@@ -25,7 +25,8 @@ fn add(editor: &mut Editor, kind: ClipKind, track: &str, start: f64) -> String {
             duration: Some(4.0),
             name: "Sticker".into(),
         },
-        ClipKind::Layer => Command::AddLayerClip {
+        ClipKind::Layer | ClipKind::SoundLayer => Command::AddLayerClip {
+            sound: kind == ClipKind::SoundLayer,
             track_id: Some(track.into()),
             start,
             duration: Some(4.0),
@@ -87,7 +88,7 @@ fn fixture(kind: ClipKind) -> (Editor, String, String) {
     let track_kind = match kind {
         ClipKind::Text => TrackKind::Text,
         ClipKind::Shape | ClipKind::Image => TrackKind::Sticker,
-        ClipKind::Layer => TrackKind::Filter,
+        ClipKind::Layer | ClipKind::SoundLayer => TrackKind::Filter,
         ClipKind::Audio => TrackKind::Audio,
         _ => TrackKind::Video,
     };
@@ -110,6 +111,7 @@ fn still_and_generated_heads_extend_left_keep_existing_animation_and_undo() {
         ClipKind::Text,
         ClipKind::Shape,
         ClipKind::Layer,
+        ClipKind::SoundLayer,
     ] {
         let (mut editor, _, id) = fixture(kind);
         editor

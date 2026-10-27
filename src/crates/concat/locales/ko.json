@@ -1096,5 +1096,6 @@
   "textPanel.stylingWords": "선택한 단어에 스타일 적용 중",
   "textPanel.wholeTitle": "제목 전체",
   "common.linkage": "연결",
-  "tray.linkage": "연결: 자막, 제목, 오버레이, 소리가 메인 트랙과 함께 움직입니다"
+  "tray.linkage": "연결: 자막, 제목, 오버레이, 소리가 메인 트랙과 함께 움직입니다",
+  "clipInspector.soundLayerTreatsTheMix": "사운드 레이어는 재생되는 동안 들리는 모든 소리를 처리합니다. 적용 범위를 바꾸려면 타임라인에서 잘라 주세요."
 }

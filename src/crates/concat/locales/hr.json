@@ -1096,5 +1096,6 @@
   "textPanel.stylingWords": "Uređuje se izgled odabranih riječi",
   "textPanel.wholeTitle": "Cijeli naslov",
   "common.linkage": "Povezivanje",
-  "tray.linkage": "Povezivanje: titlovi, naslovi, slojevi i zvukovi kreću se s glavnom stazom"
+  "tray.linkage": "Povezivanje: titlovi, naslovi, slojevi i zvukovi kreću se s glavnom stazom",
+  "clipInspector.soundLayerTreatsTheMix": "Zvučni sloj obrađuje sve što se čuje dok traje. Skrati ga na vremenskoj crti da promijeniš što pokriva."
 }

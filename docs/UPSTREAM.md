@@ -104,11 +104,41 @@ Strict engine Clippy, Slint code generation, all 1,095 messages in 25 locales
 and nine locale-tool regressions pass. No new full desktop executable or native
 Windows/macOS runtime verification was produced in this follow-up.
 
-Global SoundLayer/audio-bus support remains a separate feature. It processes the
-sum of audible clips (useful for a master limiter or room), rather than adding
-missing per-clip effects. Its upstream mixer/preview replacement cannot be copied
-as-is: Clovercut retains cancellation-aware, atomic mixing and continuous speed
-ramps. No global bus schema or incomplete exporter-only implementation is enabled.
+### Global audio-bus follow-up
+
+Adapted `2606aff1` to Clovercut's typed adjustment tracks, retaining audio below
+the fixed main track and the existing click-to-apply behavior. Dragging an audio
+effect creates a generated `soundLayer`; visual effect/category behavior and
+compact track heights stay intact. Existing typed clipboard copying handles the
+complete sound-layer state instead of importing upstream's partial reconstruction.
+Old commands omit `sound` and retain visual-layer behavior.
+
+The bus treats the summed soundtrack for its span, with dry/wet strength, fades,
+ordered overlap and opacity-keyframe curves. Curves use one sample clock on both
+wet and dry branches so filter frame sizes cannot misalign their gain. Preview
+and export share the same mixer. Window cuts happen after source retiming,
+effects, gain and fades, retaining continuous Rubber Band ramps and their
+original clock; bus windows retain filter and fade history from their start.
+Clovercut's stream-specific preroll, sample-accurate delay, PCM WAV and Opus/AAC
+encoder policy, cancellation and atomic export publication are preserved.
+
+Preview jobs carry cancellation tokens across edits and project changes; an old
+job cannot remove a newer job's token for the same content key. Bus cache identity
+includes the underlying gain/fades/tempo and layer chain/strength/keys/order.
+Unfinished mixes leave ordinary clips audible and only replace them when ready.
+Generated bus spans cannot borrow or copy plain clip samples. Unique scratch
+files, checked flushes and atomic cache publication protect concurrent windows.
+
+Validation: 671 distinct passing regressions across project, media, export,
+host and MCP cover whole-mix treatment, ordered buses, source gain/tempo/fades,
+preview/export windows, keyed mix strength, cancellation, stale jobs and
+concurrent cache publication. Ten optional provider/model/platform tests retain
+their prerequisites. After stereo normalization, 26 audio-mixer regressions,
+the sound-layer export integration and 18 playback regressions pass again,
+including mono sources and effects. Strict engine Clippy, Slint code generation,
+all 1,096 messages in 25 locales and nine locale-tool regressions pass.
+The native packaging smoke check now verifies the required global-mix filters.
+No new desktop executable or native Windows/macOS runtime validation was produced.
 
 ### Latest adaptations and pending work
 
@@ -238,8 +268,8 @@ Other selectively adapted changes include unnamed WAV channel layouts
 feature-gated Chatterbox configuration (`e854f821`), font-picker Escape handling
 (`3e651f4f`) and the visual-layer copying correction from `2606aff1`.
 Cross-project paste adapts `1d04d147` through Clovercut's own typed-track and
-project-owned resource implementation. Global SoundLayer/audio-bus schema and
-Android renderer changes were not imported.
+project-owned resource implementation. The SoundLayer/audio-bus schema is adapted in the current global audio follow-up above.
+Android renderer changes remain excluded.
 
 Detailed investigation logs and superseded audit reports remain available in
 Git history; they are not current setup or release instructions.

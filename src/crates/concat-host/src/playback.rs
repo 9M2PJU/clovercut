@@ -24,6 +24,11 @@
 //!   are exactly the decode's - no speed change, no filter - the decode is
 //!   a copy of them; otherwise FFmpeg decodes it, and the stand-in plays
 //!   until it lands.
+//! - Where a sound layer runs, the clips cannot each carry it: its chain is
+//!   over their sum. The stretch is mixed once instead, through the
+//!   exporter's own mix with the layer over it, and plays as one span in
+//!   their place - see [`with_sound_layers`]. Until it lands the clips
+//!   under it play as they are, so an edit there is never silence.
 //!
 //! - One cpal output stream mixes the mapped clips sample by sample, with
 //!   volume and fades applied at mix time. Gain-only edits therefore never
@@ -150,6 +155,213 @@ pub struct ClipSpec {
     /// FFmpeg audio filter chain, or empty.
     #[serde(default)]
     pub chain: String,
+    /// When set, this span is not a file but the mix of these clips under
+    /// sound layers, over `start` to `start + duration` of the timeline,
+    /// and it plays in their place there; see [`with_sound_layers`]. The
+    /// fields above that describe a file are then unused.
+    #[serde(default)]
+    pub bus: Option<BusMix>,
+}
+
+/// The clips a stretch under sound layers mixes, and the layers.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BusMix {
+    /// Every audible clip with something inside the stretch, whole: the
+    /// mix cuts each at the stretch's edges on its own clock.
+    pub clips: Vec<ClipSpec>,
+    /// The sound layers over the stretch, in the order they are heard.
+    pub layers: Vec<BusSpec>,
+}
+
+/// One sound layer, as a spec carries it; see `concat_media::audio::AudioBus`.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BusSpec {
+    /// Timeline seconds.
+    pub start: f64,
+    /// Timeline seconds it runs.
+    pub duration: f64,
+    /// The FFmpeg audio filters it runs over the mix.
+    pub chain: String,
+    /// How much of the treated sound replaces the untreated, `0..=1`.
+    pub strength: f64,
+    /// Optional keyframed mix strength, on the layer's own clock.
+    #[serde(default)]
+    pub strength_curve: Vec<GainKey>,
+    /// Ramp in, seconds.
+    pub fade_in: f64,
+    /// Ramp out, seconds.
+    pub fade_out: f64,
+}
+
+impl BusSpec {
+    fn engine(&self) -> concat_media::audio::AudioBus {
+        concat_media::audio::AudioBus {
+            start: self.start,
+            duration: self.duration,
+            filter_chain: self.chain.clone(),
+            strength: self.strength,
+            strength_curve: track_of(&self.strength_curve),
+            fade_in: self.fade_in,
+            fade_out: self.fade_out,
+        }
+    }
+}
+
+impl ClipSpec {
+    /// The engine's view of this clip, for a mix.
+    fn engine(&self) -> concat_media::audio::AudioClip {
+        concat_media::audio::AudioClip {
+            path: PathBuf::from(&self.path),
+            stream: self.audio_stream.map(|index| index as usize),
+            start: self.start,
+            duration: self.duration,
+            source_start: self.source_start,
+            speed: self.speed,
+            preserve_pitch: self.preserve_pitch,
+            retime: self.retime.clone(),
+            volume: f64::from(self.volume),
+            volume_curve: track_of(&self.volume_curve),
+            fade_in: self.fade_in,
+            fade_out: self.fade_out,
+            filter_chain: self.chain.clone(),
+        }
+    }
+}
+
+/// What a flattened edit makes audible, as playback takes it: every clip
+/// with sound through the exporter's own cut into pieces, so a curve or a
+/// reverse sounds in the window as it will in the file, and the stretches
+/// under sound layers mixed as the file mixes them. One definition for
+/// every shell - the desktop window and the phone's alike.
+pub fn audible(clips: &[concat_export::ExportClip]) -> Vec<ClipSpec> {
+    let specs = clips
+        .iter()
+        .filter(|clip| {
+            !clip.muted
+                && (clip.kind == concat_export::ClipKind::Audio
+                    || (clip.kind == concat_export::ClipKind::Video
+                        && clip.has_audio.unwrap_or(true)))
+        })
+        .flat_map(concat_export::audio_pieces)
+        .map(|piece| ClipSpec {
+            path: piece.path.to_string_lossy().into_owned(),
+            audio_stream: piece.stream.map(|index| index as u32),
+            start: piece.start,
+            duration: piece.duration,
+            source_start: piece.source_start,
+            volume: piece.volume as f32,
+            volume_curve: piece
+                .volume_curve
+                .keys()
+                .iter()
+                .map(|key| GainKey {
+                    at: key.at,
+                    gain: key.value,
+                    ease: [key.ease.x1, key.ease.y1, key.ease.x2, key.ease.y2],
+                })
+                .collect(),
+            fade_in: piece.fade_in,
+            fade_out: piece.fade_out,
+            speed: piece.speed,
+            preserve_pitch: piece.preserve_pitch,
+            retime: piece.retime,
+            chain: piece.filter_chain,
+            bus: None,
+        })
+        .collect();
+    with_sound_layers(specs, &concat_export::audio_buses(clips))
+}
+
+/// `specs` with the stretches under sound layers mixed apart: one span per
+/// run of layers that touch or overlap, carrying every clip with something
+/// inside it and the layers over it. The clips themselves stay in the set,
+/// whole - the player silences them under a span once that span is
+/// decoded, and until then they are what is heard.
+///
+/// Layers are grouped so a span is the whole of what they cover together:
+/// two that overlap are one sum treated twice, not two sums.
+pub fn with_sound_layers(
+    mut specs: Vec<ClipSpec>,
+    layers: &[concat_media::audio::AudioBus],
+) -> Vec<ClipSpec> {
+    let layers: Vec<&concat_media::audio::AudioBus> =
+        layers.iter().filter(|layer| layer.audible()).collect();
+    if layers.is_empty() {
+        return specs;
+    }
+    // In the order given, which is the order they are heard; grouped by
+    // where they reach.
+    let mut order: Vec<usize> = (0..layers.len()).collect();
+    order.sort_by(|&a, &b| layers[a].start.total_cmp(&layers[b].start));
+    let mut groups: Vec<(f64, f64, Vec<usize>)> = Vec::new();
+    for index in order {
+        let layer = layers[index];
+        match groups.last_mut() {
+            Some((_, end, members)) if layer.start <= *end => {
+                *end = end.max(layer.end());
+                members.push(index);
+            }
+            _ => groups.push((layer.start, layer.end(), vec![index])),
+        }
+    }
+    let spans: Vec<ClipSpec> = groups
+        .into_iter()
+        .map(|(start, end, mut members)| {
+            members.sort_unstable();
+            let clips = specs
+                .iter()
+                .filter(|spec| spec.start < end && spec.start + spec.duration > start)
+                .cloned()
+                .collect();
+            let over = members
+                .into_iter()
+                .map(|index| {
+                    let layer = layers[index];
+                    BusSpec {
+                        start: layer.start,
+                        duration: layer.duration,
+                        chain: layer.filter_chain.clone(),
+                        strength: layer.strength,
+                        strength_curve: layer
+                            .strength_curve
+                            .keys()
+                            .iter()
+                            .map(|key| GainKey {
+                                at: key.at,
+                                gain: key.value,
+                                ease: [key.ease.x1, key.ease.y1, key.ease.x2, key.ease.y2],
+                            })
+                            .collect(),
+                        fade_in: layer.fade_in,
+                        fade_out: layer.fade_out,
+                    }
+                })
+                .collect();
+            ClipSpec {
+                retime: None,
+                path: String::new(),
+                audio_stream: None,
+                start,
+                duration: end - start,
+                source_start: 0.0,
+                volume: 1.0,
+                volume_curve: Vec::new(),
+                fade_in: 0.0,
+                fade_out: 0.0,
+                speed: 1.0,
+                preserve_pitch: true,
+                chain: String::new(),
+                bus: Some(BusMix {
+                    clips,
+                    layers: over,
+                }),
+            }
+        })
+        .collect();
+    specs.extend(spans);
+    specs
 }
 
 /// Where playback tells the window what it cannot ask: the clock, and the
@@ -270,6 +482,10 @@ struct ActiveClip {
     /// own decode, and where the clip falls inside a span that stands in
     /// for it - negative where the clip begins before that span does.
     lead: i64,
+    /// Timeline stretches where a mixed span under sound layers plays in
+    /// this clip's place, so it is silent there; empty for that span
+    /// itself and wherever no layer is.
+    covered: Arc<[(f64, f64)]>,
 }
 
 /// A spec's gain keys as the engine's track.
@@ -291,6 +507,10 @@ fn track_of(keys: &[GainKey]) -> Track {
 /// The one definition of a clip's gain envelope.
 fn gain_at(clip: &ActiveClip, local: f64) -> f32 {
     if local < 0.0 || local > clip.duration {
+        return 0.0;
+    }
+    let at = clip.start + local;
+    if clip.covered.iter().any(|&(from, to)| at >= from && at < to) {
         return 0.0;
     }
     // The ride, where there is one, replaces the constant - the same
@@ -415,6 +635,7 @@ struct DecodeJob {
     spec: ClipSpec,
     project: PathBuf,
     key: String,
+    cancel: Arc<AtomicBool>,
 }
 
 /// The decode queue: newest job first, because a scrub over a trim handle
@@ -457,7 +678,7 @@ struct Reach {
 impl Reach {
     /// The reach of the span `spec` decodes to, or none when a speed ramp makes its clock nonlinear.
     fn of(spec: &ClipSpec) -> Option<Reach> {
-        if spec.retime.is_some() {
+        if spec.retime.is_some() || spec.bus.is_some() {
             return None;
         }
         let speed = concat_media::audio::clamp_speed(spec.speed);
@@ -543,7 +764,7 @@ pub struct Playback {
     cache: Mutex<HashMap<String, CacheEntry>>,
     /// Monotonic use counter feeding `CacheEntry::last_used`.
     tick: AtomicU64,
-    decoding: Mutex<HashSet<String>>,
+    decoding: Mutex<HashMap<String, Arc<AtomicBool>>>,
     /// What the timeline currently wants audible.
     specs: Mutex<Vec<ClipSpec>>,
     /// The project whose cache the disk GC sweeps; set by `set_clips`.
@@ -643,7 +864,7 @@ impl Playback {
             events,
             cache: Mutex::new(HashMap::new()),
             tick: AtomicU64::new(0),
-            decoding: Mutex::new(HashSet::new()),
+            decoding: Mutex::new(HashMap::new()),
             specs: Mutex::new(Vec::new()),
             project: Mutex::new(None),
             sweeping: AtomicBool::new(false),
@@ -785,6 +1006,19 @@ impl Playback {
             locked(&self.queue.jobs).clear();
             locked(&self.cache).clear();
         }
+        let wanted: HashSet<String> = specs.iter().map(decode_key).collect();
+        {
+            let mut decoding = locked(&self.decoding);
+            decoding.retain(|key, cancel| {
+                let keep =
+                    !project_changed && !project.as_os_str().is_empty() && wanted.contains(key);
+                if !keep {
+                    cancel.store(true, Ordering::Relaxed);
+                }
+                keep
+            });
+        }
+        locked(&self.queue.jobs).retain(|job| !job.cancel.load(Ordering::Relaxed));
         *locked(&self.specs) = specs.clone();
 
         for spec in specs {
@@ -792,14 +1026,20 @@ impl Playback {
             if locked(&self.cache).contains_key(&key) {
                 continue;
             }
-            if !locked(&self.decoding).insert(key.clone()) {
-                continue;
+            let cancel = Arc::new(AtomicBool::new(false));
+            {
+                let mut decoding = locked(&self.decoding);
+                if decoding.contains_key(&key) {
+                    continue;
+                }
+                decoding.insert(key.clone(), Arc::clone(&cancel));
             }
             let mut jobs = locked(&self.queue.jobs);
             jobs.push_back(DecodeJob {
                 spec,
                 project: project.clone(),
                 key,
+                cancel,
             });
             self.queue.available.notify_one();
         }
@@ -815,6 +1055,14 @@ impl Playback {
         let specs = locked(&self.specs);
         let now = self.tick.fetch_add(1, Ordering::Relaxed) + 1;
         let mut cache = locked(&self.cache);
+        // The stretches a mixed span under sound layers already covers:
+        // the clips there fall silent only once it is ready to take over.
+        let covered: Arc<[(f64, f64)]> = specs
+            .iter()
+            .filter(|spec| spec.bus.is_some() && cache.contains_key(&decode_key(spec)))
+            .map(|spec| (spec.start, spec.start + spec.duration))
+            .collect();
+        let none: Arc<[(f64, f64)]> = Arc::from(Vec::new());
         let active: Vec<ActiveClip> = specs
             .iter()
             .filter_map(|spec| {
@@ -838,6 +1086,11 @@ impl Playback {
                     fade_out: spec.fade_out,
                     pcm: Arc::clone(&entry.pcm),
                     lead,
+                    covered: if spec.bus.is_some() {
+                        Arc::clone(&none)
+                    } else {
+                        Arc::clone(&covered)
+                    },
                 })
             })
             .collect();
@@ -934,17 +1187,17 @@ fn decode_worker(playback: &Arc<Playback>) {
             .unwrap()
             .iter()
             .any(|spec| decode_key(spec) == job.key);
-        if !wanted {
-            locked(&playback.decoding).remove(&job.key);
+        if !wanted || job.cancel.load(Ordering::Relaxed) {
+            finish_decode(playback, &job);
             continue;
         }
 
         let within = copy_source(&locked(&playback.cache), &job.spec);
-        match decode(&job.spec, &job.project, &job.key, within) {
+        match decode_cancelling(&job.spec, &job.project, &job.key, within, Some(&job.cancel)) {
             Ok(pcm) => {
                 let same_project = !job.project.as_os_str().is_empty()
                     && locked(&playback.project).as_ref() == Some(&job.project);
-                if same_project {
+                if same_project && !job.cancel.load(Ordering::Relaxed) {
                     let now = playback.tick.fetch_add(1, Ordering::Relaxed) + 1;
                     locked(&playback.cache).insert(
                         job.key.clone(),
@@ -956,13 +1209,30 @@ fn decode_worker(playback: &Arc<Playback>) {
                     );
                 }
             }
+            Err(_) if job.cancel.load(Ordering::Relaxed) => {}
             Err(error) => report(
                 playback.events.as_ref(),
-                format!("audio decode failed for {}: {error}", job.spec.path),
+                if job.spec.bus.is_some() {
+                    format!("audio mix failed: {error}")
+                } else {
+                    format!("audio decode failed for {}: {error}", job.spec.path)
+                },
             ),
         }
-        locked(&playback.decoding).remove(&job.key);
+        finish_decode(playback, &job);
         playback.resync();
+    }
+}
+
+// An obsolete job must never clear a newer job with the same key after a
+// project switch; compare its token as well as its content key.
+fn finish_decode(playback: &Playback, job: &DecodeJob) {
+    let mut decoding = locked(&playback.decoding);
+    if decoding
+        .get(&job.key)
+        .is_some_and(|token| Arc::ptr_eq(token, &job.cancel))
+    {
+        decoding.remove(&job.key);
     }
 }
 
@@ -1037,6 +1307,48 @@ fn decode_key(spec: &ClipSpec) -> String {
             hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
         }
     };
+    // A mixed span is everything its mix is made of, gain and fades
+    // included: they are baked into it, where a clip's are applied live.
+    if let Some(bus) = &spec.bus {
+        eat(b"bus");
+        eat(&spec.start.to_bits().to_le_bytes());
+        eat(&spec.duration.to_bits().to_le_bytes());
+        for clip in &bus.clips {
+            eat(decode_key(clip).as_bytes());
+            for number in [
+                clip.start,
+                clip.fade_in,
+                clip.fade_out,
+                f64::from(clip.volume),
+            ] {
+                eat(&number.to_bits().to_le_bytes());
+            }
+            for key in &clip.volume_curve {
+                for number in [key.at, key.gain].iter().chain(key.ease.iter()) {
+                    eat(&number.to_bits().to_le_bytes());
+                }
+            }
+        }
+        for layer in &bus.layers {
+            eat(b"layer");
+            for number in [
+                layer.start,
+                layer.duration,
+                layer.strength,
+                layer.fade_in,
+                layer.fade_out,
+            ] {
+                eat(&number.to_bits().to_le_bytes());
+            }
+            for key in &layer.strength_curve {
+                for number in [key.at, key.gain].iter().chain(key.ease.iter()) {
+                    eat(&number.to_bits().to_le_bytes());
+                }
+            }
+            eat(layer.chain.as_bytes());
+        }
+        return format!("{hash:016x}");
+    }
     eat(spec.path.as_bytes());
     eat(&spec.source_start.to_bits().to_le_bytes());
     eat(&spec.duration.to_bits().to_le_bytes());
@@ -1082,13 +1394,32 @@ fn decode_key(spec: &ClipSpec) -> String {
 /// [`copy_source`]): they are copied, which for the rest of a long
 /// recording after a cut is a fraction of a second where the decode is
 /// many.
+#[cfg(test)]
 fn decode(
     spec: &ClipSpec,
     project: &Path,
     key: &str,
     within: Option<(Arc<Pcm>, u64)>,
 ) -> Result<Pcm, String> {
+    decode_cancelling(spec, project, key, within, None)
+}
+
+fn decode_cancelling(
+    spec: &ClipSpec,
+    project: &Path,
+    key: &str,
+    within: Option<(Arc<Pcm>, u64)>,
+    cancel: Option<&AtomicBool>,
+) -> Result<Pcm, String> {
     use concat_media::{AudioDecoder, AudioOptions, SampleFormat};
+    let check_cancel = || {
+        if cancel.is_some_and(|flag| flag.load(Ordering::Relaxed)) {
+            Err("audio decode cancelled".to_owned())
+        } else {
+            Ok(())
+        }
+    };
+    check_cancel()?;
 
     concat_media::audio::validate_chain(&spec.chain).map_err(|error| error.to_string())?;
 
@@ -1100,6 +1431,9 @@ fn decode(
     std::fs::create_dir_all(&directory)
         .map_err(|error| format!("could not create {}: {error}", directory.display()))?;
 
+    if let Some(bus) = &spec.bus {
+        return mix_span(spec, bus, &directory, key, &destination, cancel);
+    }
     if let Some((pcm, from)) = within {
         let frames = (spec.duration * f64::from(PCM_RATE)).round() as u64;
         return write_span(&directory, key, &destination, |file, writer| {
@@ -1107,6 +1441,7 @@ fn decode(
             let mut at = from;
             let end = from.saturating_add(frames).min(pcm.frames);
             while at < end {
+                check_cancel()?;
                 let count = (end - at).min(u64::from(PCM_RATE) * 10);
                 writer.write(file, pcm.frames_bytes(at, count))?;
                 at += count;
@@ -1149,6 +1484,7 @@ fn decode(
 
     write_span(&directory, key, &destination, |file, writer| {
         while let Some(frame) = decoder.next_frame().map_err(|error| error.to_string())? {
+            check_cancel()?;
             writer.write(file, &decoder.bytes_of(&frame))?;
         }
         Ok(())
@@ -1164,7 +1500,7 @@ fn write_span(
     destination: &Path,
     fill: impl FnOnce(&mut std::io::BufWriter<std::fs::File>, &mut WavWriter) -> Result<(), String>,
 ) -> Result<Pcm, String> {
-    let temporary = directory.join(format!("{key}.wav.decoding"));
+    let temporary = scratch_path(directory, key);
     let result = (|| -> Result<(), String> {
         let mut file = std::io::BufWriter::new(
             std::fs::File::create(&temporary)
@@ -1172,16 +1508,94 @@ fn write_span(
         );
         let mut writer = WavWriter::start(&mut file)?;
         fill(&mut file, &mut writer)?;
-        writer.finish(&mut file)
+        writer.finish(&mut file)?;
+        std::io::Write::flush(&mut file)
+            .map_err(|error| format!("could not flush audio cache: {error}"))
     })();
     if let Err(error) = result {
         let _ = std::fs::remove_file(&temporary);
         return Err(error);
     }
 
-    std::fs::rename(&temporary, destination)
-        .map_err(|error| format!("could not commit {}: {error}", destination.display()))?;
+    commit_span(&temporary, destination)
+}
+
+/// Mixes a stretch under sound layers to the cache and maps it: the
+/// exporter's own mix of the clips with the layers over the sum, so what
+/// plays here is what the file will hold.
+fn mix_span(
+    spec: &ClipSpec,
+    bus: &BusMix,
+    directory: &Path,
+    key: &str,
+    destination: &Path,
+    cancel: Option<&AtomicBool>,
+) -> Result<Pcm, String> {
+    let clips: Vec<concat_media::audio::AudioClip> =
+        bus.clips.iter().map(ClipSpec::engine).collect();
+    let layers: Vec<concat_media::audio::AudioBus> =
+        bus.layers.iter().map(BusSpec::engine).collect();
+    let temporary = scratch_path(directory, key);
+    let result = (|| -> Result<(), String> {
+        let mut file = std::io::BufWriter::new(
+            std::fs::File::create(&temporary)
+                .map_err(|error| format!("could not create {}: {error}", temporary.display()))?,
+        );
+        let mut writer = WavWriter::start(&mut file)?;
+        concat_media::audio::mix_pcm_cancelling(
+            &clips,
+            &layers,
+            spec.start,
+            spec.start + spec.duration,
+            cancel,
+            |bytes| {
+                writer
+                    .write(&mut file, bytes)
+                    .map_err(|detail| concat_media::Error::Ffi {
+                        operation: "write audio cache",
+                        path: temporary.clone(),
+                        detail,
+                    })
+            },
+        )
+        .map_err(|error| error.to_string())?;
+        writer.finish(&mut file)?;
+        std::io::Write::flush(&mut file)
+            .map_err(|error| format!("could not flush audio cache: {error}"))
+    })();
+    if let Err(error) = result {
+        let _ = std::fs::remove_file(&temporary);
+        return Err(error);
+    }
+    commit_span(&temporary, destination)
+}
+
+// Two windows may finish the same content key together. A completed cache
+// entry is reusable, never something to overwrite while Windows maps it.
+fn commit_span(temporary: &Path, destination: &Path) -> Result<Pcm, String> {
+    if destination.is_file() {
+        let _ = std::fs::remove_file(temporary);
+        return Pcm::open(destination);
+    }
+    if let Err(error) = std::fs::rename(temporary, destination) {
+        let _ = std::fs::remove_file(temporary);
+        if !destination.is_file() {
+            return Err(format!(
+                "could not commit {}: {error}",
+                destination.display()
+            ));
+        }
+    }
     Pcm::open(destination)
+}
+
+fn scratch_path(directory: &Path, key: &str) -> PathBuf {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    directory.join(format!(
+        "{key}.{}-{}.wav.decoding",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    ))
 }
 
 /// Writes the RIFF/WAVE framing around 16-bit stereo samples at
@@ -1618,6 +2032,7 @@ mod tests {
         std::fs::write(&path, include_bytes!("../tests/data/speed-ramp-tone.mp3")).unwrap();
         let reference = decode(
             &ClipSpec {
+                bus: None,
                 path: path.to_string_lossy().into_owned(),
                 audio_stream: None,
                 start: 0.0,
@@ -1663,6 +2078,7 @@ mod tests {
             let mut played = vec![0.0; (clip.duration * f64::from(PCM_RATE)) as usize];
             for piece in pieces {
                 let spec = ClipSpec {
+                    bus: None,
                     path: clip.path.clone(),
                     audio_stream: None,
                     start: piece.start,
@@ -1716,6 +2132,7 @@ mod tests {
             clip.speed_slopes = vec![0.0; 3];
             let piece = audio_pieces(&clip).remove(0);
             let spec = ClipSpec {
+                bus: None,
                 path: clip.path.clone(),
                 audio_stream: None,
                 start: 0.0,
@@ -1783,6 +2200,7 @@ mod tests {
         clip.speed_slopes = vec![0.0; 2];
         let piece = audio_pieces(&clip).remove(0);
         let mut spec = ClipSpec {
+            bus: None,
             path: clip.path,
             audio_stream: None,
             start: 0.0,
@@ -1894,6 +2312,18 @@ mod tests {
         bytes
     }
 
+    fn layer(start: f64, duration: f64) -> concat_media::audio::AudioBus {
+        concat_media::audio::AudioBus {
+            start,
+            duration,
+            filter_chain: "lowpass=f=60,lowpass=f=60".to_owned(),
+            strength: 1.0,
+            strength_curve: super::Track::default(),
+            fade_in: 0.0,
+            fade_out: 0.0,
+        }
+    }
+
     fn tone_spec(path: &std::path::Path, start: f64, duration: f64) -> super::ClipSpec {
         super::ClipSpec {
             path: path.to_string_lossy().into_owned(),
@@ -1907,6 +2337,7 @@ mod tests {
             fade_out: 0.0,
             speed: 1.0,
             retime: None,
+            bus: None,
             preserve_pitch: true,
             chain: String::new(),
         }
@@ -2013,7 +2444,7 @@ mod tests {
             events: std::sync::Arc::new(Quiet),
             cache: std::sync::Mutex::new(cache),
             tick: std::sync::atomic::AtomicU64::new(0),
-            decoding: std::sync::Mutex::new(std::collections::HashSet::new()),
+            decoding: std::sync::Mutex::new(std::collections::HashMap::new()),
             specs: std::sync::Mutex::new(Vec::new()),
             project: std::sync::Mutex::new(None),
             sweeping: std::sync::atomic::AtomicBool::new(true),
@@ -2127,6 +2558,76 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    #[test]
+    fn edited_bus_jobs_are_cancelled_and_old_completion_cannot_clear_a_new_project_job() {
+        let dir = std::env::temp_dir().join(format!("clovercut-bus-jobs-{}", std::process::id()));
+        let player = std::sync::Arc::new(idle(Default::default()));
+        let specs = super::with_sound_layers(
+            vec![tone_spec(std::path::Path::new("tone.wav"), 0.0, 3.0)],
+            &[layer(1.0, 1.0)],
+        );
+        player.set_clips(dir.clone(), specs.clone());
+        let old = super::locked(&player.queue.jobs).pop_back().unwrap();
+        player.set_clips(dir.join("another-project"), specs);
+        assert!(old.cancel.load(std::sync::atomic::Ordering::Relaxed));
+        let current = super::locked(&player.decoding)
+            .get(&old.key)
+            .cloned()
+            .unwrap();
+        assert!(!std::sync::Arc::ptr_eq(&current, &old.cancel));
+        super::finish_decode(&player, &old);
+        assert!(super::locked(&player.decoding).contains_key(&old.key));
+        player.set_clips(dir, vec![]);
+        assert!(current.load(std::sync::atomic::Ordering::Relaxed));
+        assert!(super::locked(&player.queue.jobs).is_empty());
+    }
+
+    #[test]
+    fn bus_cache_keys_include_underlying_mix_and_do_not_reuse_plain_clip_spans() {
+        let mut specs = super::with_sound_layers(
+            vec![tone_spec(std::path::Path::new("tone.wav"), 0.0, 3.0)],
+            &[layer(1.0, 1.0)],
+        );
+        let span = specs.iter_mut().find(|spec| spec.bus.is_some()).unwrap();
+        assert!(super::Reach::of(span).is_none());
+        let key = super::decode_key(span);
+        span.bus.as_mut().unwrap().clips[0].volume = 0.2;
+        assert_ne!(key, super::decode_key(span));
+        let key = super::decode_key(span);
+        span.bus.as_mut().unwrap().layers[0].strength = 0.2;
+        assert_ne!(key, super::decode_key(span));
+        assert_ne!(
+            super::scratch_path(std::path::Path::new("cache"), &key),
+            super::scratch_path(std::path::Path::new("cache"), &key)
+        );
+    }
+
+    #[test]
+    fn simultaneous_cache_writers_keep_a_complete_file_and_leave_no_scratch_files() {
+        let dir =
+            std::env::temp_dir().join(format!("clovercut-bus-writers-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let threads = (0..2)
+            .map(|_| {
+                let dir = dir.clone();
+                let barrier = std::sync::Arc::clone(&barrier);
+                std::thread::spawn(move || {
+                    super::write_span(&dir, "shared", &dir.join("shared.wav"), |file, writer| {
+                        barrier.wait();
+                        writer.write(file, &[0; 480 * 4])
+                    })
+                    .map(|pcm| pcm.frames)
+                })
+            })
+            .collect::<Vec<_>>();
+        for worker in threads {
+            assert_eq!(worker.join().unwrap().unwrap(), 480);
+        }
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     /// Times what a cut costs the half after it before it sounds, by hand:
     /// its own decode as before, against the copy and the stand-in now.
     /// `CONCAT_SPLIT_PROBE` names a long recording; `CONCAT_SPLIT_AT` the
@@ -2178,6 +2679,103 @@ mod tests {
         super::decode(&after, &dir, &key, super::copy_source(&cache, &after)).expect("copies");
         eprintln!("  its copy now: {:?}", started.elapsed());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Layers that touch or overlap are mixed as one stretch, apart from
+    /// one further on; each stretch takes the clips with something inside
+    /// it, and the clips stay in the set.
+    #[test]
+    fn sound_layers_are_mixed_in_stretches_of_the_clips_beneath_them() {
+        let path = std::path::Path::new("a.wav");
+        let specs = vec![tone_spec(path, 0.0, 2.0), tone_spec(path, 5.0, 3.0)];
+        let mixed =
+            super::with_sound_layers(specs, &[layer(1.0, 1.0), layer(6.0, 1.0), layer(1.5, 1.0)]);
+        assert_eq!(mixed.len(), 4, "two clips and two stretches");
+        let stretches: Vec<&super::ClipSpec> =
+            mixed.iter().filter(|spec| spec.bus.is_some()).collect();
+        assert_eq!(
+            (stretches[0].start, stretches[0].duration),
+            (1.0, 1.5),
+            "the first two layers are one stretch"
+        );
+        let first = stretches[0].bus.as_ref().expect("a mix");
+        assert_eq!(first.layers.len(), 2);
+        assert_eq!(
+            first
+                .layers
+                .iter()
+                .map(|layer| layer.start)
+                .collect::<Vec<_>>(),
+            vec![1.0, 1.5],
+            "heard in the order given"
+        );
+        assert_eq!(first.clips.len(), 1, "only the clip under it");
+        assert_eq!((stretches[1].start, stretches[1].duration), (6.0, 1.0));
+        assert_eq!(
+            stretches[1].bus.as_ref().expect("a mix").clips[0].start,
+            5.0
+        );
+        // No layer that does anything, nothing added.
+        let mut idle = layer(0.0, 1.0);
+        idle.strength = 0.0;
+        assert_eq!(
+            super::with_sound_layers(vec![tone_spec(path, 0.0, 2.0)], &[idle]).len(),
+            1
+        );
+    }
+
+    /// A stretch under a sound layer decodes to the mix with the layer
+    /// over it - the tone taken away by the low-pass - for exactly its
+    /// length, and silences a clip under it only where it covers.
+    #[test]
+    fn a_stretch_under_a_sound_layer_decodes_to_the_treated_mix() {
+        let dir = std::env::temp_dir().join(format!("concat-stretch-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("a folder");
+        let rate = super::PCM_RATE;
+        let mut data = Vec::new();
+        for index in 0..rate * 3 {
+            let t = f64::from(index) / f64::from(rate);
+            let value = (0.5 * (2.0 * std::f64::consts::PI * 440.0 * t).sin() * 32767.0) as i16;
+            data.extend_from_slice(&value.to_le_bytes());
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        let source = dir.join("tone.wav");
+        {
+            let mut file = std::fs::File::create(&source).expect("creates");
+            let mut writer = super::WavWriter::start(&mut file).expect("starts");
+            writer.write(&mut file, &data).expect("writes");
+            writer.finish(&mut file).expect("finishes");
+        }
+        let specs =
+            super::with_sound_layers(vec![tone_spec(&source, 0.0, 3.0)], &[layer(1.0, 1.0)]);
+        let stretch = specs
+            .iter()
+            .find(|spec| spec.bus.is_some())
+            .expect("a stretch");
+        let key = super::decode_key(stretch);
+        let pcm = super::decode(stretch, &dir, &key, None).expect("mixes");
+        let peak = (rate / 10..rate * 9 / 10)
+            .map(|frame| pcm.sample(u64::from(frame), 0).abs())
+            .fold(0.0_f32, f32::max);
+        let frames = pcm.frames;
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(frames, u64::from(rate), "a second, the stretch's length");
+        assert!(peak < 0.05, "the tone came through at {peak}");
+
+        let clip = super::ActiveClip {
+            start: 0.0,
+            duration: 3.0,
+            volume: 1.0,
+            volume_curve: super::Track::default(),
+            fade_in: 0.0,
+            fade_out: 0.0,
+            pcm: std::sync::Arc::new(pcm),
+            lead: 0,
+            covered: std::sync::Arc::from(vec![(1.0, 2.0)]),
+        };
+        assert_eq!(super::gain_at(&clip, 0.5), 1.0);
+        assert_eq!(super::gain_at(&clip, 1.5), 0.0, "the stretch plays here");
+        assert_eq!(super::gain_at(&clip, 2.0), 1.0);
     }
 
     #[test]

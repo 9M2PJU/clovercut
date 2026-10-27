@@ -1096,5 +1096,6 @@
   "textPanel.stylingWords": "Stijl voor de geselecteerde woorden",
   "textPanel.wholeTitle": "Hele titel",
   "common.linkage": "Koppeling",
-  "tray.linkage": "Koppeling: ondertitels, titels, overlays en geluiden bewegen mee met het hoofdspoor"
+  "tray.linkage": "Koppeling: ondertitels, titels, overlays en geluiden bewegen mee met het hoofdspoor",
+  "clipInspector.soundLayerTreatsTheMix": "Een geluidslaag bewerkt alles wat je hoort zolang hij loopt. Trim hem op de tijdlijn om te veranderen wat hij beslaat."
 }

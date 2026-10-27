@@ -2819,6 +2819,10 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
                     ClipKind::Text => (theme.get_kind_text(), theme.get_kind_text_well()),
                     ClipKind::Filter => (theme.get_kind_filter(), theme.get_kind_filter_well()),
                     ClipKind::Shape => (theme.get_kind_shape(), theme.get_kind_shape_well()),
+                    ClipKind::SoundLayer => (
+                        theme.get_kind_sound_layer(),
+                        theme.get_kind_sound_layer_well(),
+                    ),
                 };
                 let wave = studio
                     .peaks
@@ -2886,7 +2890,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     // loop's end takes below, for the same reason - the engine's threads
     // are not waited on.
     if smoke {
-        if let Err(error) = concat_media::audio::require_tempo_filters() {
+        if let Err(error) = concat_media::audio::require_audio_filters() {
             log::error!("smoke: {error}");
             leave(1);
         }
