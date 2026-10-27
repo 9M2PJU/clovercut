@@ -7,7 +7,7 @@ media ownership, cancellation, atomic exports and Clovercut's existing UI.
 
 ## Current review
 
-Reviewed through `9e20c562` (26 October 2026). The latest comparison adds eleven
+Reviewed through `3d549940` (27 October 2026). The six commits after `9e20c562` change only the upstream README and donation/support presentation; no additional application code is present. The latest comparison adds eleven
 commits after `94f4255f`; the earlier adaptation batch starts at `2429c0ca`. Adaptations below are newer than the source used by the published
 0.1.6 release and are included in desktop release 0.1.7.
 
@@ -79,11 +79,36 @@ engine Clippy, Slint code generation, all 1,093 messages in 25 locales and nine
 locale-tool tests pass. No new full desktop executable or native Windows/macOS
 runtime validation was produced by this follow-up.
 
-Optional track linkage (`1385c36b`) remains deferred because of the confirmed
-double-ripple defect and its interaction with typed tracks and caption groups.
-The global SoundLayer/audio-bus redesign is also deferred; the current mixer
-already covers the editor's gain, fades, keys, retiming and cancellation needs.
-Neither is a missing independent correctness fix.
+### Track-linkage follow-up
+
+Adapted `1385c36b` to the fixed typed main video track, with opt-in timeline
+state rather than silently enabling it in existing projects. The desktop chain
+button, View menu, API and MCP use the same undoable command. New timelines
+inherit the active timeline's choice. The MCP summary explicitly reports it.
+
+Removed spans from selected tracks and the main track are unioned in original
+coordinates. Linked trim/speed batches resolve once, independently of selection
+order; groups of ripple-delete commands coalesce before applying. This corrects
+the upstream double-ripple defect. Transient window locks reach the project
+engine through scoped edit methods and do not enter project serialization.
+Locked followers are neither shifted nor deleted. The fixed main remains the
+anchor even when empty or when audio lies below it. Crossing beds remain intact;
+following clips cannot be pulled over their tail on the same typed lane.
+Linked trim previews run the same command engine from the saved gesture state.
+
+Validation: 462 passing regressions across project, host and MCP include 14
+new linked-edit scenarios: multi-track removals, trim/speed batches, insertion,
+freeze frames, speed curves, crossing beds, locks, undo/reopen and preview/commit
+parity. 8 optional provider/model/platform tests retain their prerequisites.
+Strict engine Clippy, Slint code generation, all 1,095 messages in 25 locales
+and nine locale-tool regressions pass. No new full desktop executable or native
+Windows/macOS runtime verification was produced in this follow-up.
+
+Global SoundLayer/audio-bus support remains a separate feature. It processes the
+sum of audible clips (useful for a master limiter or room), rather than adding
+missing per-clip effects. Its upstream mixer/preview replacement cannot be copied
+as-is: Clovercut retains cancellation-aware, atomic mixing and continuous speed
+ramps. No global bus schema or incomplete exporter-only implementation is enabled.
 
 ### Latest adaptations and pending work
 
@@ -101,7 +126,7 @@ separate. These selected adaptations are included in release 0.1.7; they are abs
 | `a6e5ab77` | Adapted for macOS: save/stop-export handling precedes leaving past whisper/Metal static destructors. Native macOS runtime verification remains required; Linux engine tests cannot validate that quit path. |
 | `23897dd8`, `3564d450` | Adapted: Up/Down navigate previous/next cuts across all tracks through the shared menu handler and customizable shortcut profiles. Uses the actual fractional project rate, rather than upstream's rounded rate. Added 4:5/3:4 presets to project creation, settings and monitor without changing existing preset indices. |
 | `9e20c562` | Adapted to typed tracks: first opening centers the actual main video row, including audio below it. Explicit vertical scroll is retained per timeline during the session; resizing clamps it to the available stack. The expanded ruler/scrub band remains intact. Compatible tray tooltips are shortened in all 25 locales. |
-| `1385c36b` | Needs redesign before adoption: optional linkage should respect the fixed typed main track, grouped captions, multi-lane operations, locks and undo. Upstream defaults linkage on and identifies the main lane dynamically. A mechanical reproduction using its exact `close_gaps`, `removed_before` and `follow_main` helpers confirms a double ripple when both main/text lanes lose the same two-second interval: remaining text at 5 s lands at 1 s instead of 3 s. Do not import this implementation unchanged. |
+| `1385c36b` | Adapted in the track-linkage follow-up above. Original upstream review: optional linkage should respect the fixed typed main track, grouped captions, multi-lane operations, locks and undo. Upstream defaults linkage on and identifies the main lane dynamically. A mechanical reproduction using its exact `close_gaps`, `removed_before` and `follow_main` helpers confirms a double ripple when both main/text lanes lose the same two-second interval: remaining text at 5 s lands at 1 s instead of 3 s. Do not import this implementation unchanged. |
 | `1e683882` | Phone-specific interface: do not bring into the desktop-focused editor. Ordered multi-selection may be considered separately if a desktop use case is missing; preserve typed placement and existing multi-file import. |
 
 Validation of this adaptation batch: 493 ordinary engine regressions across

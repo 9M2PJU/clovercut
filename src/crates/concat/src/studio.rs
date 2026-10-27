@@ -3143,10 +3143,17 @@ impl Studio {
             }
             _ => {}
         }
+        let locked = self
+            .lanes
+            .lane_view
+            .iter()
+            .filter(|(_, view)| view.locked)
+            .map(|(id, _)| id.clone())
+            .collect::<Vec<_>>();
         let session = self.session.as_mut()?;
         let chosen = matches!(command, Command::SetTimelineVideo { .. });
         let before = session.video().color_space;
-        match session.apply(command) {
+        match session.apply_within_locked(None, command, &locked) {
             Ok(view) => {
                 let after = session.video().color_space;
                 self.after_change();
@@ -3174,9 +3181,16 @@ impl Studio {
         // dial turned is many of these.
         log::debug!("edit: {} ({gesture})", command_name(&command));
         self.echo = None;
+        let locked = self
+            .lanes
+            .lane_view
+            .iter()
+            .filter(|(_, view)| view.locked)
+            .map(|(id, _)| id.clone())
+            .collect::<Vec<_>>();
         let session = self.session.as_mut()?;
         let before = session.video().color_space;
-        match session.apply_within(Some(gesture), command) {
+        match session.apply_within_locked(Some(gesture), command, &locked) {
             Ok(view) => {
                 let after = session.video().color_space;
                 self.after_change();
@@ -5950,6 +5964,43 @@ impl Studio {
         };
     }
 
+    /// The linked trim preview uses the exact edit engine from the gesture's
+    /// saved project, so repeated pointer moves never compound the ripple.
+    fn preview_linked_trim(&mut self, id: &str, edge: TrimEdge, delta: f64) -> bool {
+        if !self.timeline().linkage || !self.trim_ripple(id) {
+            return false;
+        }
+        let Some(session) = self.session.as_ref() else {
+            return false;
+        };
+        let mut project = session.project().clone();
+        let locked = self
+            .lanes
+            .lane_view
+            .iter()
+            .filter(|(_, view)| view.locked)
+            .map(|(id, _)| id.clone())
+            .collect::<Vec<_>>();
+        let mut mint = concat_project::commands::IdMint::default();
+        if concat_project::commands::apply_with_locks(
+            &mut project,
+            &mut mint,
+            Command::TrimClip {
+                clip_id: id.to_owned(),
+                edge,
+                delta,
+                ripple: true,
+            },
+            &locked,
+        )
+        .is_err()
+        {
+            return false;
+        }
+        self.echo = Some(project);
+        true
+    }
+
     /// The pointer moved: the echo follows it.
     pub fn clip_dragged(&mut self, seconds: f32, pixels: f32) {
         let seconds = f64::from(seconds);
@@ -6106,9 +6157,12 @@ impl Studio {
                 let (id, edge) = (clip.clone(), *edge);
                 let (start, duration, source_start) = (*start, *duration, *source_start);
                 let threshold = 8.0 * f64::from(self.lanes.seconds_per_pixel);
-                let speed = self.clip(&id).map_or(1.0, |clip| clip.speed);
-                let source_floor = self
-                    .clip(&id)
+                let original = self
+                    .session
+                    .as_ref()
+                    .and_then(|session| session.project().active().clip(&id));
+                let speed = original.map_or(1.0, |clip| clip.speed);
+                let source_floor = original
                     .filter(|clip| clip.kind.has_source_head_limit())
                     .map(|clip| {
                         let lead = clip
@@ -6135,19 +6189,27 @@ impl Studio {
                     let at =
                         wanted.clamp(source_floor.unwrap_or(floor).max(floor).min(limit), limit);
                     let delta = at - start;
-                    if let Some(clip) = self.echo_clip_mut(&id) {
+                    let linked_preview = self.preview_linked_trim(&id, TrimEdge::Start, delta);
+                    if !linked_preview && let Some(clip) = self.echo_clip_mut(&id) {
                         clip.start = at;
                         clip.duration = duration - delta;
                         clip.source_start = (source_start + delta * speed).max(0.0);
                     }
                     // Trim follow: the playhead on the new first frame.
                     if self.prefs.trim_follow {
+                        let at = if linked_preview {
+                            self.clip(&id).map_or(at, |clip| clip.start)
+                        } else {
+                            at
+                        };
                         self.seek(at);
                     }
                 } else {
                     let wanted = self.snapped(start + duration + seconds, threshold, &id);
                     let at = wanted.min(ceiling).max(start + f64::from(MIN_DURATION));
-                    if let Some(clip) = self.echo_clip_mut(&id) {
+                    if !self.preview_linked_trim(&id, TrimEdge::End, at - start - duration)
+                        && let Some(clip) = self.echo_clip_mut(&id)
+                    {
                         clip.duration = at - start;
                     }
                     // Trim follow: the playhead on the new last frame, one
@@ -6314,7 +6376,6 @@ impl Studio {
             Gesture::Trim {
                 clip,
                 edge,
-                start,
                 duration,
                 ..
             } => {
@@ -6322,7 +6383,7 @@ impl Studio {
                 self.echo = None;
                 let Some(after) = after else { return };
                 let delta = match edge {
-                    Edge::Start => after.start - start,
+                    Edge::Start => duration - after.duration,
                     Edge::End => after.duration - duration,
                 };
                 if delta.abs() > 1e-6 {
@@ -11145,6 +11206,7 @@ impl Studio {
         editor.set_snap(self.lanes.snap);
         editor.set_magnetic(self.prefs.magnetic);
         editor.set_timeline_grid(self.prefs.timeline_grid);
+        editor.set_linkage(self.timeline().linkage);
         editor.set_trim_follow(self.prefs.trim_follow);
         editor.set_meters_shown(self.prefs.meters_shown());
         editor.set_preview_axis(self.prefs.preview_axis);
@@ -14129,6 +14191,17 @@ impl Studio {
                     danger: false,
                     checkable: true,
                     checked: self.prefs.magnetic,
+                },
+                MenuItemData {
+                    id: "linkage".into(),
+                    label: t("common.linkage").into(),
+                    kind: MenuRow::Action,
+                    glyph: Glyph::None,
+                    shortcut: "".into(),
+                    enabled: true,
+                    danger: false,
+                    checkable: true,
+                    checked: self.timeline().linkage,
                 },
             ],
             2 => vec![

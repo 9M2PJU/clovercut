@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "Atur ulang",
   "textPanel.stylingTitle": "Menata seluruh judul. Pilih kata di atas untuk menata kata itu saja.",
   "textPanel.stylingWords": "Menata kata yang dipilih",
-  "textPanel.wholeTitle": "Seluruh judul"
+  "textPanel.wholeTitle": "Seluruh judul",
+  "common.linkage": "Tautan",
+  "tray.linkage": "Tautan: teks, judul, overlay, dan suara ikut bergeser bersama trek utama"
 }

@@ -56,6 +56,7 @@ pub fn view(view: &Value) -> Value {
         "timeline": {
             "id": timeline["id"],
             "name": timeline["name"],
+            "linkage": timeline["linkage"].as_bool().unwrap_or(false),
             "duration": round(length, 3),
             "tracks": timeline["tracks"]
                 .as_array()
@@ -237,6 +238,7 @@ mod tests {
         assert_eq!(summary["project"]["fps"], 29.97);
         assert_eq!(summary["timeline"]["id"], "tl2");
         assert_eq!(summary["timeline"]["duration"], 6.0);
+        assert_eq!(summary["timeline"]["linkage"], false);
         assert_eq!(summary["createdId"], "c2");
         assert_eq!(summary["timelines"].as_array().map(Vec::len), Some(2));
         let clips = summary["timeline"]["clips"].as_array().expect("clips");

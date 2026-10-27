@@ -58,6 +58,7 @@ Tools are named for what they do, and their argument schemas are generated from 
 | Reading | `timeline_read` (compact: lanes, clips in time order, media, ids), `project_get` (everything), `concat_version` |
 | Media | `media_probe`, `media_import` |
 | Editing | `clip_add`, `clips_add_sequence`, `clip_trim`, `clips_split`, `clips_move`, `clips_remove`, `clip_update`, `clip_transform`, `clip_speed`, `clip_frame`, `track_add` |
+| Timeline linkage | `timeline_linkage` (`timelineId`, `on`); `timeline_read` reports the saved state. Off by default; linked ripple edits follow the fixed main video track. |
 | Picture | `clip_mask`, `clip_stabilize`, `timeline_background` |
 | Titles and captions | `title_add`, `title_style_words` (some words in another colour, weight, size...), `title_clear_word_styles`, `captions_add` |
 | Keyframes and effects | `keyframe_set`, `keyframe_clear`, `effects_list`, `effect_layer_add`, `effect_key_set` |

@@ -81,3 +81,21 @@ and removed characters and survives undo, save/reopen and copying between
 projects. Changing display casing keeps the original editable words. New titles
 and generated captions use the default whole-title style without carrying over
 formatting ranges from another title's words.
+
+### Linking tracks during ripple edits
+
+The chain button beside Magnetic enables **Linkage** for the active timeline.
+It starts off so existing projects keep their previous behavior. The choice is
+saved with the timeline and participates in undo/redo; new timelines inherit it.
+
+When enabled, a ripple edit on Clovercut's fixed main video track moves the
+following captions, titles, video overlays, audio, stickers and adjustment layers.
+It covers magnetic trims, ripple delete, insertions that make room, freeze frames
+and ripple speed changes. An edit on another track only ripples that track.
+Linkage does not turn an ordinary move or non-ripple delete into a ripple edit.
+
+Locked tracks remain unchanged. Text completely contained in footage removed by
+a ripple edit is removed with it; undo restores both. Clips crossing a cut, such
+as a music bed, keep their start and duration. A following clip on that same
+track stops at the bed's end rather than overlapping it. Multi-track removals,
+trims and speed changes count shared removed/inserted time once.

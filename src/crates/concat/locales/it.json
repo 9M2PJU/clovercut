@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "Ripristina",
   "textPanel.stylingTitle": "Stile di tutto il titolo. Seleziona delle parole qui sopra per dare stile solo a quelle.",
   "textPanel.stylingWords": "Stile delle parole selezionate",
-  "textPanel.wholeTitle": "Tutto il titolo"
+  "textPanel.wholeTitle": "Tutto il titolo",
+  "common.linkage": "Collegamento",
+  "tray.linkage": "Collegamento: sottotitoli, titoli, sovrapposizioni e suoni si muovono con la traccia principale"
 }

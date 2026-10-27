@@ -25,7 +25,7 @@ use std::collections::VecDeque;
 
 use serde_json::Value;
 
-use crate::commands::{Command, CommandError, IdMint, Outcome, apply};
+use crate::commands::{Command, CommandError, IdMint, Outcome};
 use crate::doc::{DocumentSettings, from_document, to_document};
 use crate::model::{Clip, Project};
 
@@ -265,11 +265,27 @@ impl Editor {
         gesture: Option<&str>,
         command: Command,
     ) -> Result<Outcome, CommandError> {
+        self.apply_within_locked(gesture, command, &[])
+    }
+
+    /// Applies one gesture move with transient locked-track protection.
+    pub fn apply_within_locked(
+        &mut self,
+        gesture: Option<&str>,
+        command: Command,
+        locked: &[String],
+    ) -> Result<Outcome, CommandError> {
         if command.is_view_state() {
-            return apply(&mut self.project, &mut self.mint, command);
+            return crate::commands::apply_with_locks(
+                &mut self.project,
+                &mut self.mint,
+                command,
+                locked,
+            );
         }
         let before = self.project.clone();
-        let outcome = apply(&mut self.project, &mut self.mint, command)?;
+        let outcome =
+            crate::commands::apply_with_locks(&mut self.project, &mut self.mint, command, locked)?;
         if !outcome.applied {
             return Ok(outcome);
         }

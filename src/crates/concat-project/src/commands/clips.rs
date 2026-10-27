@@ -13,7 +13,20 @@ pub(super) fn apply(
     project: &mut Project,
     mint: &mut IdMint,
     command: Command,
+    locked: &[String],
 ) -> Result<Outcome, CommandError> {
+    let target = match &command {
+        Command::TrimClip { clip_id, .. } | Command::FreezeFrame { clip_id, .. } => project
+            .active()
+            .clip(clip_id)
+            .map(|clip| clip.track_id.as_str()),
+        Command::AddClip { track_id, .. } => Some(track_id.as_str()),
+        Command::AddClipsInSequence { track_id, .. } => track_id.as_deref(),
+        _ => None,
+    };
+    if target.is_some_and(|track| locked.iter().any(|id| id == track)) {
+        return Ok(Outcome::default());
+    }
     match command {
         Command::AddClip {
             media_id,
@@ -32,7 +45,7 @@ pub(super) fn apply(
             // Magnetic, the lane makes room; otherwise the clip takes the
             // nearest gap it fits, never the top of another clip.
             let start = if ripple {
-                ripple_room_for(timeline, &track_id, start, &media)
+                ripple_room_for(timeline, &track_id, start, &media, locked)
             } else {
                 timeline.nearest_free_start(&track_id, start, clip_length(&media), &[])
             };
@@ -99,7 +112,7 @@ pub(super) fn apply(
             let mut first = None;
             for media in &items {
                 let place = if ripple {
-                    ripple_room_for(timeline, &track_id, at, media)
+                    ripple_room_for(timeline, &track_id, at, media, locked)
                 } else {
                     timeline.nearest_free_start(&track_id, at, clip_length(media), &[])
                 };
@@ -265,6 +278,7 @@ pub(super) fn apply(
             ripple,
         } => {
             let timeline = project.active_mut();
+            let main = timeline.main_track().map(|track| track.id.clone());
             let Some(clip) = timeline.clip_mut(&clip_id) else {
                 return Ok(Outcome::default());
             };
@@ -359,6 +373,23 @@ pub(super) fn apply(
                 }) {
                     other.start = (other.start + by).max(0.0);
                 }
+                // In the lane's old time the edit is at the tail's old end
+                // or the clip's start, whichever edge moved: what came off
+                // went from there, what was restored went in there.
+                let at = match edge {
+                    TrimEdge::End => old_end,
+                    TrimEdge::Start => anchor,
+                };
+                let ripple = if by < 0.0 {
+                    let from = match edge {
+                        TrimEdge::End => old_end + by,
+                        TrimEdge::Start => anchor,
+                    };
+                    Ripple::Removed(vec![(from, from - by)])
+                } else {
+                    Ripple::Inserted { at, length: by }
+                };
+                follow_main(timeline, main.as_deref(), &track_id, ripple, locked);
             }
             Ok(Outcome {
                 created_id: None,
@@ -593,6 +624,7 @@ pub(super) fn apply(
             };
 
             let timeline = project.active_mut();
+            let main = timeline.main_track().map(|track| track.id.clone());
             let Some(index) = timeline.clips.iter().position(|clip| clip.id == clip_id) else {
                 return Ok(Outcome::default());
             };
@@ -629,6 +661,16 @@ pub(super) fn apply(
             {
                 clip.start += hold;
             }
+            follow_main(
+                timeline,
+                main.as_deref(),
+                &track_id,
+                Ripple::Inserted {
+                    at: time,
+                    length: hold,
+                },
+                locked,
+            );
 
             // The still is the source clip turned into a picture: cloning it
             // first carries every look field - transform, effects, crop,
@@ -738,7 +780,15 @@ pub(super) fn apply(
 
         Command::RemoveClips { clip_ids, ripple } => {
             let timeline = project.active_mut();
-            let doomed: HashSet<&str> = clip_ids.iter().map(String::as_str).collect();
+            let doomed: HashSet<&str> = clip_ids
+                .iter()
+                .filter(|id| {
+                    timeline
+                        .clip(id)
+                        .is_some_and(|clip| !locked.contains(&clip.track_id))
+                })
+                .map(String::as_str)
+                .collect();
             // The spans going, per track, taken before they are gone: the
             // ripple closes exactly these.
             let removed: Vec<(String, f64, f64)> = timeline
@@ -753,13 +803,20 @@ pub(super) fn apply(
                     )
                 })
                 .collect();
+            // The main lane before it loses anything: deleting its last
+            // picture is still an edit of it.
+            let main = timeline.main_track().map(|track| track.id.clone());
             let clip_count = timeline.clips.len();
             timeline
                 .clips
                 .retain(|clip| !doomed.contains(clip.id.as_str()));
             let applied = timeline.clips.len() != clip_count;
             if ripple && applied {
-                close_gaps(timeline, &removed);
+                let changes = removed
+                    .iter()
+                    .map(|(lane, start, end)| (lane.clone(), Ripple::Removed(vec![(*start, *end)])))
+                    .collect::<Vec<_>>();
+                retime(timeline, main.as_deref(), &changes, &[], locked);
             }
             Ok(Outcome {
                 created_id: None,
@@ -782,36 +839,275 @@ const JOIN_EPSILON: f64 = 1e-6;
 /// the clip's start counts only up to it, and nothing is pulled before
 /// zero.
 /// https://github.com/jub0t/Concat/issues/106
-fn close_gaps(timeline: &mut Timeline, removed: &[(String, f64, f64)]) {
-    let behind_a_span = |clip: &Clip| {
-        removed
+/// How much of `spans` lies before `at`, counting what they share once: a
+/// span reaching past `at` counts only up to it.
+fn removed_before(spans: &[(f64, f64)], at: f64) -> f64 {
+    let mut before: Vec<(f64, f64)> = spans
+        .iter()
+        .filter(|(start, _)| *start < at)
+        .map(|&(start, end)| (start, end.min(at)))
+        .collect();
+    if before.is_empty() {
+        return 0.0;
+    }
+    before.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let mut gap = 0.0;
+    let (mut from, mut to) = before[0];
+    for (start, end) in before.into_iter().skip(1) {
+        if start <= to {
+            to = to.max(end);
+        } else {
+            gap += to - from;
+            from = start;
+            to = end;
+        }
+    }
+    gap + (to - from)
+}
+
+/// What an edit did to the main lane's time, counted in the lane as it was
+/// before: spans taken out of it, or a length put in at a time.
+pub(crate) enum Ripple {
+    Removed(Vec<(f64, f64)>),
+    Inserted { at: f64, length: f64 },
+}
+
+/// Linkage: the rest of the timeline follows a ripple on its main lane, so
+/// what was placed against the footage stays on the frames it was placed
+/// against. A clip on another lane that starts at or after an insertion
+/// moves along by its length, and one after a removal moves back by what
+/// was taken out before it - landing where the cut is when it started
+/// inside what went. A clip that runs across the edit stays: a music bed
+/// is not cut up or dragged. Words wholly inside footage that went - a
+/// caption, a title - go with it, as they would have been spoken over
+/// nothing. `main` is the timeline's main lane as it stood before the
+/// edit; a ripple on any other lane, or with linkage off, moves only its
+/// own lane, as it always did.
+pub(crate) fn follow_main(
+    timeline: &mut Timeline,
+    main: Option<&str>,
+    lane: &str,
+    ripple: Ripple,
+    locked: &[String],
+) {
+    if !timeline.linkage || main != Some(lane) {
+        return;
+    }
+    // The edited lane already received its local ripple. Only followers move.
+    let own = timeline
+        .clips
+        .iter()
+        .filter(|clip| clip.track_id == lane)
+        .map(|clip| clip.id.clone())
+        .collect::<Vec<_>>();
+    retime(timeline, main, &[(lane.to_owned(), ripple)], &own, locked);
+}
+
+/// Retimes every lane once from the same coordinate system. Own-lane removals
+/// and main-lane removals are unioned, so a multi-lane deletion never ripples
+/// the same time twice. Locked lanes and beds crossing the cut remain intact.
+fn retime(
+    timeline: &mut Timeline,
+    main: Option<&str>,
+    changes: &[(String, Ripple)],
+    skip_own: &[String],
+    locked: &[String],
+) {
+    let main = main.filter(|_| timeline.linkage);
+    let main_removed = merged(
+        changes
             .iter()
-            .any(|(track, start, _)| *track == clip.track_id && *start < clip.start)
-    };
-    for clip in timeline.clips_where(behind_a_span) {
-        let mut spans: Vec<(f64, f64)> = removed
-            .iter()
-            .filter(|(track, start, _)| *track == clip.track_id && *start < clip.start)
-            .map(|(_, start, end)| (*start, end.min(clip.start)))
-            .collect();
-        if spans.is_empty() {
+            .filter(|(lane, _)| Some(lane.as_str()) == main)
+            .flat_map(|(_, change)| match change {
+                Ripple::Removed(spans) => spans.clone(),
+                _ => vec![],
+            })
+            .collect(),
+    );
+    timeline.clips.retain(|clip| {
+        locked.contains(&clip.track_id)
+            || Some(clip.track_id.as_str()) == main
+            || skip_own.contains(&clip.id)
+            || clip.kind != ClipKind::Text
+            || !main_removed.iter().any(|&(start, end)| {
+                clip.start >= start - JOIN_EPSILON
+                    && clip.start + clip.duration <= end + JOIN_EPSILON
+            })
+    });
+    let mut order = (0..timeline.clips.len()).collect::<Vec<_>>();
+    order.sort_by(|&a, &b| {
+        let (a, b) = (&timeline.clips[a], &timeline.clips[b]);
+        a.track_id
+            .cmp(&b.track_id)
+            .then_with(|| a.start.total_cmp(&b.start))
+            .then_with(|| a.id.cmp(&b.id))
+    });
+    let mut previous: Option<(String, f64)> = None;
+    for index in order {
+        let clip = &timeline.clips[index];
+        if locked.contains(&clip.track_id) {
             continue;
         }
-        spans.sort_by(|a, b| a.0.total_cmp(&b.0));
-        let mut gap = 0.0;
-        let (mut from, mut to) = spans[0];
-        for (start, end) in spans.into_iter().skip(1) {
-            if start <= to {
-                to = to.max(end);
-            } else {
-                gap += to - from;
-                from = start;
-                to = end;
+        let relevant = changes.iter().filter(|(lane, _)| {
+            (*lane == clip.track_id && !skip_own.contains(&clip.id))
+                || (Some(lane.as_str()) == main && Some(clip.track_id.as_str()) != main)
+        });
+        let mut removed = Vec::new();
+        let mut inserted = Vec::new();
+        for (_, change) in relevant {
+            match change {
+                Ripple::Removed(spans) => removed.extend(spans),
+                Ripple::Inserted { at, length } if *length > 0.0 => inserted.push((*at, *length)),
+                _ => {}
             }
         }
-        gap += to - from;
-        clip.start = (clip.start - gap).max(0.0);
+        inserted.sort_by(|a, b| a.0.total_cmp(&b.0));
+        // The same insertion in two selected lanes is one shared edit.
+        let mut insertions: Vec<(f64, f64)> = Vec::new();
+        for (at, length) in inserted {
+            match insertions.last_mut() {
+                Some((last, held)) if (at - *last).abs() <= JOIN_EPSILON => {
+                    *held = held.max(length)
+                }
+                _ => insertions.push((at, length)),
+            }
+        }
+        let start = clip.start;
+        let mut wanted = (start - removed_before(&removed, start)
+            + insertions
+                .iter()
+                .filter(|(at, _)| start >= *at - JOIN_EPSILON)
+                .map(|(_, length)| *length)
+                .sum::<f64>())
+        .max(0.0);
+        // A crossing music bed keeps its full length. Do not pull a following
+        // clip over it on the same typed lane; preserve order at that boundary.
+        if let Some((lane, end)) = &previous
+            && lane == &clip.track_id
+            && wanted < *end
+            && start >= *end - JOIN_EPSILON
+        {
+            wanted = wanted.max(*end);
+        }
+        let duration = clip.duration;
+        let lane = clip.track_id.clone();
+        if (wanted - start).abs() > JOIN_EPSILON {
+            timeline.clip_at_mut(index).start = wanted;
+        }
+        previous = Some((lane, wanted + duration));
     }
+}
+
+fn merged(mut spans: Vec<(f64, f64)>) -> Vec<(f64, f64)> {
+    spans.retain(|(start, end)| end > start);
+    spans.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let mut result: Vec<(f64, f64)> = Vec::new();
+    for (start, end) in spans {
+        match result.last_mut() {
+            Some((_, last)) if start <= *last + JOIN_EPSILON => *last = last.max(end),
+            _ => result.push((start, end)),
+        }
+    }
+    result
+}
+
+/// Multi-selection trims and speed changes on separate lanes use their original
+/// coordinates, rather than a sequence of linked ripples on already moved clips.
+pub(super) fn is_linked_time_batch(project: &Project, commands: &[Command]) -> bool {
+    if !project.active().linkage || commands.len() < 2 {
+        return false;
+    }
+    let main = project.active().main_track().map(|track| track.id.as_str());
+    let mut lanes = HashSet::new();
+    for command in commands {
+        let clip_id = match command {
+            Command::TrimClip {
+                clip_id,
+                ripple: true,
+                ..
+            }
+            | Command::SetClipSpeed {
+                clip_id,
+                ripple: true,
+                ..
+            }
+            | Command::SetClipSpeedCurve {
+                clip_id,
+                ripple: true,
+                ..
+            } => clip_id,
+            _ => return false,
+        };
+        let Some(clip) = project.active().clip(clip_id) else {
+            return false;
+        };
+        if !lanes.insert(clip.track_id.as_str()) {
+            return false;
+        }
+    }
+    main.is_some_and(|main| lanes.contains(main))
+}
+
+pub(super) fn apply_linked_time_batch(
+    project: &mut Project,
+    mint: &mut IdMint,
+    commands: Vec<Command>,
+    locked: &[String],
+) -> Result<Outcome, CommandError> {
+    let before = project.active().clone();
+    let main = before.main_track().map(|track| track.id.clone());
+    let mut changes = Vec::new();
+    let mut targets = Vec::new();
+    let mut applied = false;
+    project.active_mut().linkage = false;
+    for command in commands {
+        let (id, edge) = match &command {
+            Command::TrimClip { clip_id, edge, .. } => (clip_id.clone(), *edge),
+            Command::SetClipSpeed { clip_id, .. } | Command::SetClipSpeedCurve { clip_id, .. } => {
+                (clip_id.clone(), TrimEdge::End)
+            }
+            _ => unreachable!(),
+        };
+        let outcome = if matches!(&command, Command::TrimClip { .. }) {
+            apply(project, mint, command, locked)?
+        } else {
+            super::properties::apply(project, mint, command, locked)?
+        };
+        if !outcome.applied {
+            continue;
+        }
+        applied = true;
+        targets.push(id.clone());
+        let old = before.clip(&id).expect("validated trim");
+        let new = project.active().clip(&id).expect("trim keeps its target");
+        let by = new.duration - old.duration;
+        let at = if edge == TrimEdge::Start {
+            old.start
+        } else {
+            old.start + old.duration
+        };
+        let change = if by < 0.0 {
+            let from = if edge == TrimEdge::Start { at } else { at + by };
+            Ripple::Removed(vec![(from, from - by)])
+        } else {
+            Ripple::Inserted { at, length: by }
+        };
+        changes.push((old.track_id.clone(), change));
+    }
+    let timeline = project.active_mut();
+    timeline.linkage = before.linkage;
+    for clip in &mut timeline.clips {
+        if let Some(old) = before.clip(&clip.id)
+            && clip.start != old.start
+        {
+            Arc::make_mut(clip).start = old.start;
+        }
+    }
+    retime(timeline, main.as_deref(), &changes, &targets, locked);
+    Ok(Outcome {
+        created_id: None,
+        applied,
+    })
 }
 
 fn default_clip(id: String, track_id: String, media: &MediaItem, start: f64) -> Clip {
@@ -837,7 +1133,13 @@ fn default_clip(id: String, track_id: String, media: &MediaItem, start: f64) -> 
 /// or after the place it lands moves right by the new clip's length, so
 /// the new clip slots in and nothing is covered (#129). Returns where the
 /// new clip lands. A drop with room to spare changes nothing.
-fn ripple_room_for(timeline: &mut Timeline, track_id: &str, start: f64, media: &MediaItem) -> f64 {
+fn ripple_room_for(
+    timeline: &mut Timeline,
+    track_id: &str,
+    start: f64,
+    media: &MediaItem,
+    locked: &[String],
+) -> f64 {
     let duration = clip_length(media);
     // Dropped onto a clip: after it, rather than over it or through it.
     let start = timeline
@@ -855,9 +1157,20 @@ fn ripple_room_for(timeline: &mut Timeline, track_id: &str, start: f64, media: &
     if !overlaps {
         return start;
     }
+    let main = timeline.main_track().map(|track| track.id.clone());
     for clip in timeline.clips_where(|clip| clip.track_id == track_id && clip.start >= start) {
         clip.start += duration;
     }
+    follow_main(
+        timeline,
+        main.as_deref(),
+        track_id,
+        Ripple::Inserted {
+            at: start,
+            length: duration,
+        },
+        locked,
+    );
     start
 }
 

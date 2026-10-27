@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "إعادة تعيين",
   "textPanel.stylingTitle": "تنسيق العنوان كله. حدّد كلمات أعلاه لتنسيقها وحدها.",
   "textPanel.stylingWords": "تنسيق الكلمات المحددة",
-  "textPanel.wholeTitle": "العنوان كله"
+  "textPanel.wholeTitle": "العنوان كله",
+  "common.linkage": "الربط",
+  "tray.linkage": "الربط: تتحرك الترجمات والعناوين والطبقات والأصوات مع المسار الرئيسي"
 }

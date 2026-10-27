@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "রিসেট",
   "textPanel.stylingTitle": "পুরো শিরোনামের স্টাইল দেওয়া হচ্ছে। শুধু কিছু শব্দের জন্য উপরে সেগুলো নির্বাচন করুন।",
   "textPanel.stylingWords": "নির্বাচিত শব্দগুলোর স্টাইল দেওয়া হচ্ছে",
-  "textPanel.wholeTitle": "পুরো শিরোনাম"
+  "textPanel.wholeTitle": "পুরো শিরোনাম",
+  "common.linkage": "লিংকেজ",
+  "tray.linkage": "লিংকেজ: ক্যাপশন, শিরোনাম, ওভারলে ও শব্দ মূল ট্র্যাকের সঙ্গে সরে"
 }

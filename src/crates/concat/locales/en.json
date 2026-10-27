@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "Reset",
   "textPanel.stylingTitle": "Styling the whole title. Select words above to style just those.",
   "textPanel.stylingWords": "Styling the selected words",
-  "textPanel.wholeTitle": "Whole title"
+  "textPanel.wholeTitle": "Whole title",
+  "common.linkage": "Linkage",
+  "tray.linkage": "Linkage: captions, titles, overlays and sounds move with the main track"
 }

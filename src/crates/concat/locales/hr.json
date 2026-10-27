@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "Vrati",
   "textPanel.stylingTitle": "Uređuje se izgled cijelog naslova. Odaberite riječi gore za uređivanje samo njih.",
   "textPanel.stylingWords": "Uređuje se izgled odabranih riječi",
-  "textPanel.wholeTitle": "Cijeli naslov"
+  "textPanel.wholeTitle": "Cijeli naslov",
+  "common.linkage": "Povezivanje",
+  "tray.linkage": "Povezivanje: titlovi, naslovi, slojevi i zvukovi kreću se s glavnom stazom"
 }

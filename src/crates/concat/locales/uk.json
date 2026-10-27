@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "Скинути",
   "textPanel.stylingTitle": "Оформлюється весь заголовок. Виділіть слова вище, щоб оформити лише їх.",
   "textPanel.stylingWords": "Оформлюються виділені слова",
-  "textPanel.wholeTitle": "Увесь заголовок"
+  "textPanel.wholeTitle": "Увесь заголовок",
+  "common.linkage": "Зв'язок",
+  "tray.linkage": "Зв'язок: субтитри, титри, накладання та звуки рухаються разом з основною доріжкою"
 }

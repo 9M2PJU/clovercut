@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "リセット",
   "textPanel.stylingTitle": "タイトル全体にスタイルを適用中。上で語を選ぶと、その語だけに適用できます。",
   "textPanel.stylingWords": "選択した語にスタイルを適用中",
-  "textPanel.wholeTitle": "タイトル全体"
+  "textPanel.wholeTitle": "タイトル全体",
+  "common.linkage": "リンク",
+  "tray.linkage": "リンク：字幕・テキスト・オーバーレイ・音声がメイントラックと一緒に動く"
 }

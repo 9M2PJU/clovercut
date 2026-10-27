@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "איפוס",
   "textPanel.stylingTitle": "מעצב את כל הכותרת. בחרו מילים למעלה כדי לעצב רק אותן.",
   "textPanel.stylingWords": "מעצב את המילים שנבחרו",
-  "textPanel.wholeTitle": "כל הכותרת"
+  "textPanel.wholeTitle": "כל הכותרת",
+  "common.linkage": "קישור",
+  "tray.linkage": "קישור: כתוביות, כותרות, שכבות וצלילים זזים עם הרצועה הראשית"
 }

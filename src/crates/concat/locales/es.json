@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "Restablecer",
   "textPanel.stylingTitle": "Estilo para todo el título. Selecciona palabras arriba para dar estilo solo a esas.",
   "textPanel.stylingWords": "Estilo para las palabras seleccionadas",
-  "textPanel.wholeTitle": "Todo el título"
+  "textPanel.wholeTitle": "Todo el título",
+  "common.linkage": "Vinculación",
+  "tray.linkage": "Vinculación: subtítulos, títulos, superposiciones y sonidos se mueven con la pista principal"
 }

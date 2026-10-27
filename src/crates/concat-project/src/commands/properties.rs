@@ -13,7 +13,20 @@ pub(super) fn apply(
     project: &mut Project,
     _mint: &mut IdMint,
     command: Command,
+    locked: &[String],
 ) -> Result<Outcome, CommandError> {
+    let target = match &command {
+        Command::SetClipSpeed { clip_id, .. } | Command::SetClipSpeedCurve { clip_id, .. } => {
+            project
+                .active()
+                .clip(clip_id)
+                .map(|clip| clip.track_id.as_str())
+        }
+        _ => None,
+    };
+    if target.is_some_and(|track| locked.iter().any(|id| id == track)) {
+        return Ok(Outcome::default());
+    }
     match command {
         Command::UpdateClip { clip_id, patch } => {
             let timeline = project.active_mut();
@@ -166,7 +179,7 @@ pub(super) fn apply(
                     (source_covered / next).max(MIN_CLIP_DURATION),
                 )
                 | assign(&mut clip.speed_curve, None);
-            make_room(timeline, &clip_id, old_end, ripple);
+            make_room(timeline, &clip_id, old_end, ripple, locked);
             Ok(Outcome {
                 created_id: None,
                 applied,
@@ -371,7 +384,7 @@ pub(super) fn apply(
                     &mut clip.duration,
                     (source_covered / mean).max(MIN_CLIP_DURATION),
                 );
-            make_room(timeline, &clip_id, old_end, ripple);
+            make_room(timeline, &clip_id, old_end, ripple, locked);
             Ok(Outcome {
                 created_id: None,
                 applied,
@@ -461,7 +474,13 @@ pub(super) fn apply(
 /// timeline (`ripple`) the lane follows the clip's end either way, so a
 /// clip sped up leaves no gap, as a magnetic trim leaves none. Shared by
 /// the constant rate and the curve, which both stretch a clip.
-fn make_room(timeline: &mut Timeline, clip_id: &str, old_end: f64, ripple: bool) {
+fn make_room(
+    timeline: &mut Timeline,
+    clip_id: &str,
+    old_end: f64,
+    ripple: bool,
+    locked: &[String],
+) {
     let Some(clip) = timeline.clip(clip_id) else {
         return;
     };
@@ -469,6 +488,7 @@ fn make_room(timeline: &mut Timeline, clip_id: &str, old_end: f64, ripple: bool)
     let moved = start + duration - old_end;
     let pushed = moved > 0.0 && !timeline.is_free(&track_id, start, duration, &[clip_id]);
     if (ripple && moved != 0.0) || pushed {
+        let main = timeline.main_track().map(|track| track.id.clone());
         for other in timeline.clips_where(|other| {
             other.id != clip_id
                 && other.track_id == track_id
@@ -476,5 +496,16 @@ fn make_room(timeline: &mut Timeline, clip_id: &str, old_end: f64, ripple: bool)
         }) {
             other.start = (other.start + moved).max(0.0);
         }
+        // Linkage: sped up, the clip gave back the end of its old span;
+        // slowed down, it put more in at its old end.
+        let ripple = if moved < 0.0 {
+            clips::Ripple::Removed(vec![(old_end + moved, old_end)])
+        } else {
+            clips::Ripple::Inserted {
+                at: old_end,
+                length: moved,
+            }
+        };
+        clips::follow_main(timeline, main.as_deref(), &track_id, ripple, locked);
     }
 }

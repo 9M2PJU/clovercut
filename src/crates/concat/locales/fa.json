@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "بازنشانی",
   "textPanel.stylingTitle": "سبک‌دهی به کل عنوان. برای سبک‌دهی فقط به چند واژه، آن‌ها را در بالا انتخاب کنید.",
   "textPanel.stylingWords": "سبک‌دهی به واژه‌های انتخاب‌شده",
-  "textPanel.wholeTitle": "کل عنوان"
+  "textPanel.wholeTitle": "کل عنوان",
+  "common.linkage": "پیوند",
+  "tray.linkage": "پیوند: زیرنویس‌ها، عنوان‌ها، لایه‌ها و صداها همراه ترک اصلی جابه‌جا می‌شوند"
 }

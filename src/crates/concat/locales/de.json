@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "Zurücksetzen",
   "textPanel.stylingTitle": "Gestaltet den ganzen Titel. Markiere oben Wörter, um nur diese zu gestalten.",
   "textPanel.stylingWords": "Gestaltet die markierten Wörter",
-  "textPanel.wholeTitle": "Ganzer Titel"
+  "textPanel.wholeTitle": "Ganzer Titel",
+  "common.linkage": "Verknüpfung",
+  "tray.linkage": "Verknüpfung: Untertitel, Titel, Overlays und Töne bewegen sich mit der Hauptspur"
 }

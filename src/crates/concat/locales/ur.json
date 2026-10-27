@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "ری سیٹ",
   "textPanel.stylingTitle": "پورے عنوان کا انداز بدلا جا رہا ہے۔ صرف کچھ الفاظ کے لیے اوپر انہیں منتخب کریں۔",
   "textPanel.stylingWords": "منتخب الفاظ کا انداز بدلا جا رہا ہے",
-  "textPanel.wholeTitle": "پورا عنوان"
+  "textPanel.wholeTitle": "پورا عنوان",
+  "common.linkage": "ربط",
+  "tray.linkage": "ربط: کیپشن، عنوان، اوورلے اور آوازیں مرکزی ٹریک کے ساتھ حرکت کرتی ہیں"
 }

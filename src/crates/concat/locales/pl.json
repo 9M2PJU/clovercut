@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "Resetuj",
   "textPanel.stylingTitle": "Styl całego tytułu. Zaznacz słowa powyżej, aby zmienić tylko je.",
   "textPanel.stylingWords": "Styl zaznaczonych słów",
-  "textPanel.wholeTitle": "Cały tytuł"
+  "textPanel.wholeTitle": "Cały tytuł",
+  "common.linkage": "Powiązanie",
+  "tray.linkage": "Powiązanie: napisy, tytuły, nakładki i dźwięki przesuwają się z główną ścieżką"
 }

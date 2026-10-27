@@ -2791,6 +2791,13 @@ pub struct Timeline {
     /// [`Timeline::clip_mut`]). Reading through the `Arc` is transparent.
     #[serde(deserialize_with = "wire::list")]
     pub clips: Vec<Arc<Clip>>,
+    /// Linkage: whether the other lanes follow an edit that closes up or
+    /// opens the main lane ([`Timeline::main_track`]), so a caption,
+    /// a title, an overlay or a sound placed against the footage stays on
+    /// the frames it was placed against. CapCut's Linkage, Final Cut's
+    /// connected clips. Opt-in, so existing projects keep their editing behavior.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub linkage: bool,
     /// Fields this build does not know, kept so they round-trip.
     #[serde(flatten, default, skip_serializing_if = "Map::is_empty")]
     pub extra: Map<String, Value>,
@@ -2805,6 +2812,7 @@ impl Default for Timeline {
             background: Background::None,
             tracks: Vec::new(),
             clips: Vec::new(),
+            linkage: false,
             extra: Map::new(),
         }
     }
@@ -3196,6 +3204,7 @@ impl Project {
                     extra: Map::new(),
                 }],
                 clips: Vec::new(),
+                linkage: false,
                 extra: Map::new(),
             })],
             active_timeline_id: "TL1".to_owned(),

@@ -257,9 +257,19 @@ impl Session {
         gesture: Option<&str>,
         command: Command,
     ) -> Result<EditorView, String> {
+        self.apply_within_locked(gesture, command, &[])
+    }
+
+    /// Applies an edit while protecting the window's locked tracks from linkage.
+    pub fn apply_within_locked(
+        &mut self,
+        gesture: Option<&str>,
+        command: Command,
+        locked: &[String],
+    ) -> Result<EditorView, String> {
         let outcome = self
             .editor
-            .apply_within(gesture, command)
+            .apply_within_locked(gesture, command, locked)
             .map_err(|error| error.to_string())?;
         Ok(self.view_with(outcome.created_id))
     }

@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "Réinitialiser",
   "textPanel.stylingTitle": "Mise en forme de tout le titre. Sélectionnez des mots ci-dessus pour ne mettre en forme qu’eux.",
   "textPanel.stylingWords": "Mise en forme des mots sélectionnés",
-  "textPanel.wholeTitle": "Tout le titre"
+  "textPanel.wholeTitle": "Tout le titre",
+  "common.linkage": "Liaison",
+  "tray.linkage": "Liaison : sous-titres, titres, incrustations et sons suivent la piste principale"
 }

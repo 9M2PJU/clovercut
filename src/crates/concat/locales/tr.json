@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "Sıfırla",
   "textPanel.stylingTitle": "Başlığın tamamına stil veriliyor. Yalnızca onlara stil vermek için yukarıda sözcük seçin.",
   "textPanel.stylingWords": "Seçili sözcüklere stil veriliyor",
-  "textPanel.wholeTitle": "Tüm başlık"
+  "textPanel.wholeTitle": "Tüm başlık",
+  "common.linkage": "Bağlantı",
+  "tray.linkage": "Bağlantı: altyazılar, başlıklar, katmanlar ve sesler ana parçayla birlikte kayar"
 }

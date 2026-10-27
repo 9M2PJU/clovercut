@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "रीसेट",
   "textPanel.stylingTitle": "पूरे शीर्षक को स्टाइल किया जा रहा है। सिर्फ़ कुछ शब्दों के लिए ऊपर उन्हें चुनें।",
   "textPanel.stylingWords": "चुने हुए शब्दों को स्टाइल किया जा रहा है",
-  "textPanel.wholeTitle": "पूरा शीर्षक"
+  "textPanel.wholeTitle": "पूरा शीर्षक",
+  "common.linkage": "लिंकेज",
+  "tray.linkage": "लिंकेज: कैप्शन, शीर्षक, ओवरले और ध्वनियाँ मुख्य ट्रैक के साथ चलती हैं"
 }

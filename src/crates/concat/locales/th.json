@@ -1094,5 +1094,7 @@
   "textPanel.resetWords": "รีเซ็ต",
   "textPanel.stylingTitle": "กำลังจัดรูปแบบทั้งชื่อเรื่อง เลือกคำด้านบนเพื่อจัดรูปแบบเฉพาะคำนั้น",
   "textPanel.stylingWords": "กำลังจัดรูปแบบคำที่เลือก",
-  "textPanel.wholeTitle": "ทั้งชื่อเรื่อง"
+  "textPanel.wholeTitle": "ทั้งชื่อเรื่อง",
+  "common.linkage": "การเชื่อมโยง",
+  "tray.linkage": "การเชื่อมโยง: คำบรรยาย ข้อความ ภาพซ้อน และเสียง เลื่อนตามแทร็กหลัก"
 }

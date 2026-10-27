@@ -864,6 +864,15 @@ pub enum Command {
         /// The background.
         background: Background,
     },
+    /// Turns a timeline's linkage on or off: whether its other lanes follow
+    /// an edit that closes up or opens its main lane. See
+    /// `Timeline::linkage`.
+    SetTimelineLinkage {
+        /// The timeline. An unknown id is a no-op.
+        timeline_id: String,
+        /// On: the other lanes follow the main one.
+        on: bool,
+    },
     /// Renames a timeline tab. Whitespace-only names are ignored so a tab
     /// can never end up blank; unknown ids are tolerated.
     RenameTimeline {
@@ -1285,6 +1294,17 @@ pub fn apply(
     mint: &mut IdMint,
     command: Command,
 ) -> Result<Outcome, CommandError> {
+    apply_with_locks(project, mint, command, &[])
+}
+
+/// Applies an edit with the window's current locked-track scope. Locks are
+/// transient and are also respected by linked followers and atomic batches.
+pub fn apply_with_locks(
+    project: &mut Project,
+    mint: &mut IdMint,
+    command: Command,
+    locked: &[String],
+) -> Result<Outcome, CommandError> {
     if command.has_non_finite() {
         return Err(CommandError::NotANumber);
     }
@@ -1300,10 +1320,40 @@ pub fn apply(
             // successful run, so one bad command cannot leave a half-applied
             // batch behind (and the editor records it as one undo step).
             let mut staged = project.clone();
+            if staged.active().linkage
+                && commands.len() > 1
+                && commands
+                    .iter()
+                    .all(|command| matches!(command, Command::RemoveClips { ripple: true, .. }))
+            {
+                let clip_ids = commands
+                    .into_iter()
+                    .flat_map(|command| match command {
+                        Command::RemoveClips { clip_ids, .. } => clip_ids,
+                        _ => unreachable!(),
+                    })
+                    .collect();
+                return apply_with_locks(
+                    project,
+                    mint,
+                    Command::RemoveClips {
+                        clip_ids,
+                        ripple: true,
+                    },
+                    locked,
+                );
+            }
+            if clips::is_linked_time_batch(&staged, &commands) {
+                let outcome = clips::apply_linked_time_batch(&mut staged, mint, commands, locked)?;
+                if outcome.applied {
+                    *project = staged;
+                }
+                return Ok(outcome);
+            }
             let mut created = None;
             let mut applied = false;
             for command in commands {
-                let outcome = apply(&mut staged, mint, command)?;
+                let outcome = apply_with_locks(&mut staged, mint, command, locked)?;
                 if outcome.created_id.is_some() {
                     created = outcome.created_id;
                 }
@@ -1341,7 +1391,7 @@ pub fn apply(
         | Command::SetClipEnhanced { .. }
         | Command::MergeClips { .. }
         | Command::ConsolidateClips { .. }
-        | Command::RemoveClips { .. }) => clips::apply(project, mint, command),
+        | Command::RemoveClips { .. }) => clips::apply(project, mint, command, locked),
         command @ (Command::UpdateClip { .. }
         | Command::StyleTextRange { .. }
         | Command::ClearTextStyles { .. }
@@ -1357,7 +1407,7 @@ pub fn apply(
         | Command::ClearEffectKeys { .. }
         | Command::SetClipSpeedCurve { .. }
         | Command::SetClipTransform { .. }
-        | Command::FrameClip { .. }) => properties::apply(project, mint, command),
+        | Command::FrameClip { .. }) => properties::apply(project, mint, command, locked),
         command @ (Command::DetachAudio { .. } | Command::ReattachAudio { .. }) => {
             audio::apply(project, mint, command)
         }
@@ -1367,6 +1417,7 @@ pub fn apply(
         command @ (Command::AddTimeline
         | Command::SetTimelineVideo { .. }
         | Command::SetTimelineBackground { .. }
+        | Command::SetTimelineLinkage { .. }
         | Command::RemoveTimeline { .. }
         | Command::RenameTimeline { .. }
         | Command::SelectTimeline { .. }
