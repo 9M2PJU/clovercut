@@ -28,7 +28,7 @@ The editing workflow is centred on a desktop computer: keyboard and mouse, a mul
 Built with a native **Rust** core and a **Slint** interface accelerated by WGSL GPU compute shaders, editing and local AI run on your own machine. Optional online libraries connect to their respective providers.
 
 <p align="center">
-  <img src="assets/screenshots/auto-captions.png" alt="clovercut timeline editor with auto-captions" width="1280" />
+  <img src="assets/screenshots/editor-workspace.png" alt="Clovercut desktop editor with layered video, animated stickers and a multitrack timeline" width="1280" />
 </p>
 <p align="center"><em>clovercut multi-track workspace: Media & creative tools (left), 4K GPU monitor (center), contextual inspector (right), and magnetic timeline (bottom).</em></p>
 
@@ -55,7 +55,7 @@ Online assets retain their own licences and availability.
 * **Full Styling & Export:** Customize fonts (Hanken Grotesk, Roboto, etc.), outline strokes, shadows, background boxes, and export clean `.srt` subtitle files.
 
 <p align="center">
-  <img src="assets/screenshots/caption-styling.png" alt="clovercut subtitle styling and font controls" width="1000" />
+  <img src="assets/screenshots/text-styling.png" alt="Clovercut text style presets and typography controls" width="1000" />
 </p>
 
 ### 2. Integrated GIPHY Animated Stickers

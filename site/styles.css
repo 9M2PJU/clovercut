@@ -624,8 +624,8 @@ h1 span {
   position: absolute;
   right: 0;
   top: 0;
-  transform: translateY(-8%);
-  width: calc(100% * 1920 / 530);
+  transform: translateY(-26%);
+  width: calc(100% * 1920 / 420);
   max-width: none;
 }
 .detail-caption {
@@ -672,10 +672,10 @@ h1 span {
   top: 0;
   transform: translateY(-10%);
   max-width: none;
-  width: calc(100% * 1920 / 540);
+  width: calc(100% * 1920 / 600);
 }
 .creative-card:first-child .library-crop>img {
-  transform: translateY(-22%);
+  transform: translateY(-24%);
 }
 .crop-expand {
   display: grid;

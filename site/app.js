@@ -1,15 +1,15 @@
 'use strict';
 (async () => {
   const views = [
-    {id:'captions', file:'auto-captions', label:'AI captions', title:'Captions, right where you edit.', description:'Generate on your device. Style them in the same workspace.', alt:'Clovercut desktop workspace with captions, a video preview, caption styling and a multitrack timeline'},
-    {id:'style', file:'caption-styling', label:'Text & styling', title:'Give every word your own style.', description:'Type presets, colour and placement alongside your preview.', alt:'Clovercut text style presets and caption typography controls'},
+    {id:'workspace', file:'editor-workspace', label:'Editor', title:'Your whole composition, in one workspace.', description:'Layer video, text and animated stickers on a compact multitrack timeline.', alt:'Clovercut desktop editor showing the Untitled project 10 composition, media library and multitrack timeline'},
+    {id:'style', file:'text-styling', label:'Text & styling', title:'Give every word your own style.', description:'Type presets, colour and placement alongside your preview.', alt:'Clovercut default title, text style presets and typography controls'},
     {id:'giphy', file:'giphy-stickers', label:'Stickers', title:'A little movement. A lot of personality.', description:'Search GIPHY, preview stickers and place them on the timeline.', alt:'Clovercut GIPHY library with an animated sticker applied over video'},
     {id:'audio', file:'audio-library', label:'Music & sound', title:'Find the sound your story needs.', description:'Separate music and sound effects, with track previews and licence information.', alt:'Clovercut YouTube Audio Library music list with sound effect categories and audio controls'},
     {id:'transitions', file:'transitions-shelf', label:'Transitions', title:'Find your way into the next scene.', description:'Preview transitions and keep your favourites within reach.', alt:'Clovercut transition library with preview thumbnails and favourite stars'},
     {id:'export', file:'export-dialog', label:'Export', title:'Finish with the settings you choose.', description:'Video, audio and output controls together in one export dialog.', alt:'Clovercut video export dialog showing output, encoding and audio settings'},
     {id:'start', file:'start-screen', label:'Start screen', title:'A clear place to start.', description:'Create a project, open an edit or find your next step.', alt:'Clovercut start screen with new project, open project and learning resources'}
   ];
-  const source = view => `site_assets/${view.file}.png?v=20261026`;
+  const source = view => `site_assets/${view.file}.png?v=20261027`;
   const counter = index => `${String(index+1).padStart(2,'0')} / ${String(views.length).padStart(2,'0')}`;
   const findIndex = id => views.findIndex(view => view.id === id);
   let selected = 0;
