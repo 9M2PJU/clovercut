@@ -112,6 +112,10 @@ jobs:
         expected=(
           "Clovercut-${VERSION}-x86_64.AppImage"
           "Clovercut-${VERSION}-aarch64.AppImage"
+          "Clovercut-${VERSION}-x86_64.deb"
+          "Clovercut-${VERSION}-aarch64.deb"
+          "Clovercut-${VERSION}-x86_64.rpm"
+          "Clovercut-${VERSION}-aarch64.rpm"
           "Clovercut-${VERSION}-windows-x86_64-setup.exe"
           "Clovercut-${VERSION}-windows-x86_64-portable.zip"
         )

@@ -1,50 +1,50 @@
-# Concat's Linux packages: one description for the .deb and the .rpm.
+# Clovercut's Linux packages: one description for the .deb and the .rpm.
 #
 # Built by build-app.yml with nfpm from the staged folder the AppImage is
 # also made of, so every Linux bundle ships the same files. The program lives
-# whole under /opt/concat - the binary finds its libraries in lib/ beside
+# whole under /opt/clovercut - the binary finds its libraries in lib/ beside
 # itself, by rpath, and nothing else on the system has to line up - with
 # a launcher on the path, a desktop entry and an icon where the desktop
 # looks for them. The version and architecture are handed in as
 # environment; the files are named relative to the staged folder, which
 # is where nfpm is run from:
 #
-#   cd stage/Concat-0.2.8-linux-x86_64
-#   VERSION=0.2.8 NFPM_ARCH=amd64 nfpm package -f ../../assets/linux/nfpm.yaml -p deb -t ..
-name: concat
+#   cd stage/Clovercut-0.1.8-linux-x86_64
+#   VERSION=0.1.8 NFPM_ARCH=amd64 nfpm package -f ../../assets/linux/nfpm.yaml -p deb -t ..
+name: clovercut
 arch: ${NFPM_ARCH}
 platform: linux
 version: ${VERSION}
 section: video
 priority: optional
-maintainer: Concat contributors <jub0trd@gmail.com>
-vendor: Concat contributors
-homepage: https://github.com/jub0t/Concat
+maintainer: Clovercut contributors <https://github.com/tulcoturo/clovercut>
+vendor: Clovercut contributors
+homepage: https://github.com/tulcoturo/clovercut
 license: AGPL-3.0-or-later
 description: |
-  Free and open source video editor.
-  Timeline editing, effects, transitions, titles, captions and speech,
+  Desktop-first, open-source video editor with local AI.
+  Timeline editing, effects, transitions, titles and on-device captions,
   with FFmpeg underneath and hardware-accelerated preview and export.
 
 contents:
-  - src: concat
-    dst: /opt/concat/concat
+  - src: clovercut
+    dst: /opt/clovercut/clovercut
     file_info:
       mode: 0755
   - src: lib/*
-    dst: /opt/concat/lib/
-  - src: pkg/concat
-    dst: /usr/bin/concat
+    dst: /opt/clovercut/lib/
+  - src: pkg/clovercut
+    dst: /usr/bin/clovercut
     file_info:
       mode: 0755
-  - src: pkg/concat.desktop
-    dst: /usr/share/applications/concat.desktop
-  - src: concat.png
-    dst: /usr/share/icons/hicolor/256x256/apps/concat.png
+  - src: pkg/io.github.tulcoturo.clovercut.desktop
+    dst: /usr/share/applications/io.github.tulcoturo.clovercut.desktop
+  - src: clovercut.png
+    dst: /usr/share/icons/hicolor/256x256/apps/clovercut.png
   - src: LICENSE
-    dst: /usr/share/doc/concat/LICENSE
+    dst: /usr/share/doc/clovercut/LICENSE
   - src: THIRD_PARTY_NOTICES.md
-    dst: /usr/share/doc/concat/THIRD_PARTY_NOTICES.md
+    dst: /usr/share/doc/clovercut/THIRD_PARTY_NOTICES.md
 
 # What the binary loads from the system rather than from lib/: the
 # toolkit the file dialogs use, sound, fonts and OpenGL. Named as each

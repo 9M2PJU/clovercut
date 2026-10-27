@@ -111,6 +111,30 @@ The desktop packages are available on [GitHub Releases](https://github.com/tulco
 
 Desktop is the primary supported workflow. Version 0.1.8 is desktop-only; mobile builds follow a separate schedule. The previous [Android 0.1.3 APK](https://github.com/tulcoturo/clovercut/releases/download/v0.1.3/Clovercut-0.1.3-android-arm64.apk) remains available.
 
+Native `.deb` and `.rpm` packages are built by CI from the next release on. Until then, Linux installs go through the AppImage, the one-line installer below, or the AUR.
+
+### Install on Linux
+One-line install (picks the native package for your distro, falls back to the AppImage):
+```bash
+curl -fsSL https://raw.githubusercontent.com/tulcoturo/clovercut/main/scripts/install.sh | sh
+```
+
+By distro, once native packages are published for your version (`X.Y.Z`):
+```bash
+# Debian / Ubuntu / Mint / Pop!_OS
+curl -fsSLO https://github.com/tulcoturo/clovercut/releases/download/vX.Y.Z/Clovercut-X.Y.Z-x86_64.deb
+sudo apt install ./Clovercut-X.Y.Z-x86_64.deb
+
+# Fedora / RHEL / openSUSE
+curl -fsSLO https://github.com/tulcoturo/clovercut/releases/download/vX.Y.Z/Clovercut-X.Y.Z-x86_64.rpm
+sudo dnf install ./Clovercut-X.Y.Z-x86_64.rpm
+
+# Arch / CachyOS / Manjaro / EndeavourOS (prebuilt AppImage repackaged)
+yay -S clovercut-bin
+# or: paru -S clovercut-bin
+```
+
+Packagers: `scripts/build-deb.sh` and `scripts/build-rpm.sh` build both formats from the staged Linux folder with only `dpkg-deb` / `rpmbuild` (`assets/linux/nfpm.yaml` keeps the equivalent nfpm description for CI). The AUR package lives in `assets/arch/` (`PKGBUILD` + `.SRCINFO`, package name `clovercut-bin`).
 
 ### Running on Linux
 ```bash

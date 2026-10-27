@@ -259,6 +259,16 @@ jobs:
         ARCH: ${{ matrix.appimage }}
       run: |
         scripts/build-appimage.sh "stage/Clovercut-${VERSION}-linux-${{ matrix.arch }}" "$ARCH" "stage/Clovercut-${VERSION}-${{ matrix.arch }}.AppImage"
+    - name: Package .deb and .rpm
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        set -euo pipefail
+        chmod +x scripts/build-deb.sh scripts/build-rpm.sh
+        ./scripts/build-deb.sh "stage/Clovercut-${VERSION}-linux-${{ matrix.arch }}" "$VERSION" "stage/Clovercut-${VERSION}-${{ matrix.arch }}.deb"
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y rpm
+        ./scripts/build-rpm.sh "stage/Clovercut-${VERSION}-linux-${{ matrix.arch }}" "$VERSION" "stage/Clovercut-${VERSION}-${{ matrix.arch }}.rpm"
+        ls -l stage/
     - name: Smoke test in clean distributions (Linux)
       timeout-minutes: 25
       env:
@@ -271,7 +281,10 @@ jobs:
     - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: Clovercut-linux-${{ matrix.arch }}
-        path: stage/*.AppImage
+        path: |-
+          stage/*.AppImage
+          stage/*.deb
+          stage/*.rpm
         if-no-files-found: error
 
   windows:
