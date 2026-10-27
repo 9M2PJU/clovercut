@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Jareer and Concat contributors
 
 import { I18n } from "../i18n.slint";
+import { TrackPaint } from "track-paint.slint";
 import { Theme } from "../theme/theme.slint";
 import { Glyph, Icon } from "../icons.slint";
 import { IconButton } from "../primitives/panel.slint";
@@ -263,15 +264,15 @@ component Header inherits Rectangle {
                     width: 24px;
                     height: 24px;
                     border-radius: Theme.r-sm;
-                    background: root.track.is-main ? Theme.accent.with-alpha(0.25) : Theme.line.with-alpha(0.18);
+                    background: TrackPaint.mark(root.track.kind).with-alpha(root.track.is-main ? 0.25 : 0.16);
                     border-width: root.track.is-main ? 1px : 0px;
-                    border-color: Theme.accent.with-alpha(0.6);
+                    border-color: TrackPaint.mark(root.track.kind).with-alpha(0.7);
                     Icon {
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                         glyph: root.kind-glyph(root.track.kind);
                         size: 13px;
-                        tint: root.track.is-main ? Theme.accent : Theme.fg-muted;
+                        tint: TrackPaint.mark(root.track.kind);
                     }
                 }
             }

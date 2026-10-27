@@ -613,6 +613,8 @@ impl Footprint {
 #[derive(Clone)]
 pub struct DropPlan {
     pub kind: ClipKind,
+    /// The typed lane whose colour the pending clip wears.
+    pub track_kind: crate::ui::TrackKind,
     pub label: String,
     /// The bin's media id, for a clip cut from a file. Empty for a title.
     pub media: String,
@@ -626,8 +628,22 @@ pub struct DropPlan {
 
 impl DropPlan {
     pub fn new(kind: ClipKind, label: String, media: String, duration: f64) -> Self {
+        let track_kind = if media.starts_with("sticker:") {
+            crate::ui::TrackKind::Sticker
+        } else if media.starts_with("caption:") {
+            crate::ui::TrackKind::Captions
+        } else {
+            match kind {
+                ClipKind::Audio => crate::ui::TrackKind::Audio,
+                ClipKind::Text => crate::ui::TrackKind::Text,
+                ClipKind::Shape => crate::ui::TrackKind::Sticker,
+                ClipKind::Filter | ClipKind::SoundLayer => crate::ui::TrackKind::Filter,
+                ClipKind::Video | ClipKind::Image => crate::ui::TrackKind::Video,
+            }
+        };
         Self {
             kind,
+            track_kind,
             label,
             media,
             start: 0.0,
@@ -1231,6 +1247,17 @@ fn audio_track_label(track: &model::AudioTrack, position: usize) -> String {
         channels => tf("studio.channels", &[&channels]),
     };
     format!("{name} · {layout}")
+}
+
+fn track_kind_of(kind: model::TrackKind) -> crate::ui::TrackKind {
+    match kind {
+        model::TrackKind::Video => crate::ui::TrackKind::Video,
+        model::TrackKind::Audio => crate::ui::TrackKind::Audio,
+        model::TrackKind::Text => crate::ui::TrackKind::Text,
+        model::TrackKind::Captions => crate::ui::TrackKind::Captions,
+        model::TrackKind::Sticker => crate::ui::TrackKind::Sticker,
+        model::TrackKind::Filter => crate::ui::TrackKind::Filter,
+    }
 }
 
 fn kind_of(clip: &Clip) -> ClipKind {
@@ -6093,6 +6120,7 @@ impl Studio {
                         self.drop = Some(DropPlan {
                             media: String::new(),
                             kind: ui_kind,
+                            track_kind: track_kind_of(anchor_track_kind),
                             label: clip.name.clone(),
                             start: (anchor.start + shift).max(0.0),
                             duration: clip.duration,
@@ -10960,14 +10988,7 @@ impl Studio {
                 .rev()
                 .map(|lane| {
                     let height = self.lane_height(lane);
-                    let kind = match self.track_kind(lane) {
-                        model::TrackKind::Video => crate::ui::TrackKind::Video,
-                        model::TrackKind::Audio => crate::ui::TrackKind::Audio,
-                        model::TrackKind::Text => crate::ui::TrackKind::Text,
-                        model::TrackKind::Captions => crate::ui::TrackKind::Captions,
-                        model::TrackKind::Sticker => crate::ui::TrackKind::Sticker,
-                        model::TrackKind::Filter => crate::ui::TrackKind::Filter,
-                    };
+                    let kind = track_kind_of(self.track_kind(lane));
                     let row = TrackData {
                         id: lane.id.as_str().into(),
                         visible: lane.visible,
@@ -11086,6 +11107,7 @@ impl Studio {
             Some(plan) => DropData {
                 active: true,
                 kind: plan.kind,
+                track_kind: plan.track_kind,
                 label: plan.label.as_str().into(),
                 start: self.lanes.local(plan.start),
                 duration: plan.duration as f32,

@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Clovercut contributors
+
+import { Theme } from "../theme/theme.slint";
+import { TrackKind } from "model.slint";
+
+// Track identity is independent of the file a clip uses: an animated
+// sticker stays a sticker even when its downloaded source is a video.
+export global TrackPaint {
+    public pure function mark(kind: TrackKind) -> color {
+        return kind == TrackKind.audio ? Theme.kind-audio
+            : kind == TrackKind.text ? Theme.kind-text
+            : kind == TrackKind.captions ? Theme.kind-captions
+            : kind == TrackKind.sticker ? Theme.kind-sticker
+            : kind == TrackKind.filter ? Theme.kind-filter
+            : Theme.kind-video;
+    }
+    public pure function well(kind: TrackKind) -> color {
+        return kind == TrackKind.audio ? Theme.kind-audio-well
+            : kind == TrackKind.text ? Theme.kind-text-well
+            : kind == TrackKind.captions ? Theme.kind-captions-well
+            : kind == TrackKind.sticker ? Theme.kind-sticker-well
+            : kind == TrackKind.filter ? Theme.kind-filter-well
+            : Theme.kind-video-well;
+    }
+}

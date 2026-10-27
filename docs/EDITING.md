@@ -18,6 +18,12 @@ captions and adjustment tracks. Manual Small, Medium and Large sizes remain
 available. Inspector width is adjustable, with its minimum derived from the
 active controls. A transition indicator spans both clips at the cut.
 
+Track colours identify content consistently in the lane icons, clip headers and
+drag previews: blue for video, green for audio, pink for text, gold for captions,
+orange for stickers and violet for adjustments. Global audio effects keep a teal
+clip colour. Downloaded animated stickers retain their sticker colour even when
+their media file is a video; light and dark themes use matching palettes.
+
 ## Text and colour
 
 Colour adjustment names, groups, wheels and curve channels follow the selected

@@ -5,7 +5,8 @@ import { Wave } from "../primitives/wave.slint";
 import { Theme } from "../theme/theme.slint";
 import { Fmt, Payload } from "../util.slint";
 import { Glyph, Icon } from "../icons.slint";
-import { ClipData, ClipKind, DropData, TimelineTool, TrackData } from "model.slint";
+import { ClipData, ClipKind, DropData, TimelineTool, TrackData, TrackKind } from "model.slint";
+import { TrackPaint } from "track-paint.slint";
 import { ContextMenu, MenuItemData } from "../primitives/context-menu.slint";
 
 // The lanes: the ruler, the banded track stack, the clips on it, the playhead
@@ -28,26 +29,16 @@ import { ContextMenu, MenuItemData } from "../primitives/context-menu.slint";
 // has to be painted as the clip it is about to become — and a ghost that is
 // the wrong colour is worse than no ghost.
 global Paint {
-    public pure function mark(kind: ClipKind) -> color {
-        return kind == ClipKind.audio ? Theme.kind-audio
-            : kind == ClipKind.image ? Theme.kind-image
-            : kind == ClipKind.text ? Theme.kind-text
-            : kind == ClipKind.filter ? Theme.kind-filter
-            : kind == ClipKind.shape ? Theme.kind-shape
-            : kind == ClipKind.sound-layer ? Theme.kind-sound-layer
-            : Theme.kind-video;
+    public pure function mark(kind: ClipKind, track-kind: TrackKind) -> color {
+        return kind == ClipKind.sound-layer ? Theme.kind-sound-layer : TrackPaint.mark(track-kind);
     }
-    public pure function well(kind: ClipKind) -> color {
-        return kind == ClipKind.audio ? Theme.kind-audio-well
-            : kind == ClipKind.image ? Theme.kind-image-well
-            : kind == ClipKind.text ? Theme.kind-text-well
-            : kind == ClipKind.filter ? Theme.kind-filter-well
-            : kind == ClipKind.shape ? Theme.kind-shape-well
-            : kind == ClipKind.sound-layer ? Theme.kind-sound-layer-well
-            : Theme.kind-video-well;
+    public pure function well(kind: ClipKind, track-kind: TrackKind) -> color {
+        return kind == ClipKind.sound-layer ? Theme.kind-sound-layer-well : TrackPaint.well(track-kind);
     }
-    public pure function badge(kind: ClipKind) -> Glyph {
-        return kind == ClipKind.audio ? Glyph.music
+    public pure function badge(kind: ClipKind, track-kind: TrackKind) -> Glyph {
+        return track-kind == TrackKind.sticker ? Glyph.sticker
+            : track-kind == TrackKind.captions ? Glyph.captions
+            : kind == ClipKind.audio ? Glyph.music
             : kind == ClipKind.image ? Glyph.image
             : kind == ClipKind.text ? Glyph.text-mark
             : kind == ClipKind.filter ? Glyph.filter
@@ -131,6 +122,7 @@ component Ramps inherits Rectangle {
 // ── one clip ─────────────────────────────────────────────────────────────────
 
 component Clip inherits Rectangle {
+    in property <TrackKind> track-kind;
     out property <length> grab-y: root.height / 2;
     in property <ClipData> item;
     in property <length> px-per-second;
@@ -172,9 +164,9 @@ component Clip inherits Rectangle {
     callback hovered(x: length);
     callback hover-ended();
 
-    property <color> mark: Paint.mark(root.item.kind);
-    property <color> well: Paint.well(root.item.kind);
-    property <Glyph> badge: Paint.badge(root.item.kind);
+    property <color> mark: Paint.mark(root.item.kind, root.track-kind);
+    property <color> well: Paint.well(root.item.kind, root.track-kind);
+    property <Glyph> badge: Paint.badge(root.item.kind, root.track-kind);
 
     /// The coloured name strip; the rest of the clip is its body. A title
     /// is all strip: its name is its words, and a body under it would show
@@ -361,15 +353,14 @@ component Clip inherits Rectangle {
 
         // The sound band under a video's frames: a hairline off the frames,
         // the waveform when the file has sound and its peaks have come, the
-        // centre line either way. In the video's blue, well and wave both:
-        // the band is part of the video clip, and green would say there
-        // was a sound clip here.
+        // centre line either way. The band shares the track colour:
+        // it belongs to this picture clip, not a separate audio clip.
         if root.banded && root.band-h > 0px: Rectangle {
             x: 0;
             y: root.frames-h;
             width: parent.width;
             height: root.band-h;
-            background: Theme.kind-video-well.with-alpha(0.55);
+            background: root.well.with-alpha(0.55);
             clip: true;
 
             Rectangle {
@@ -1623,6 +1614,7 @@ export component Lanes inherits Rectangle {
                 && self.y + self.height > root.ruler-height && self.y < root.height;
 
             item: entry;
+            track-kind: root.tracks[entry.row].kind;
             px-per-second: root.px-per-second;
             viewport-width: parent.width;
             tool: root.tool;
@@ -1800,7 +1792,7 @@ export component Lanes inherits Rectangle {
             // at the default zoom asks for a 12000px texture and the GPU
             // refuses past 8192. The children stay inside it on their own,
             // so nothing needs clipping.
-            background: Paint.well(root.drop.kind).with-alpha(0.85);
+            background: Paint.well(root.drop.kind, root.drop.track-kind).with-alpha(0.85);
             // The accent, not the kind's mark: this is a target, and every
             // other target in the window — the band, a selected clip — is
             // outlined in it.
@@ -1815,7 +1807,7 @@ export component Lanes inherits Rectangle {
                 // The corners the ghost's own rounding used to cut.
                 border-top-left-radius: Theme.r-sm;
                 border-top-right-radius: Theme.r-sm;
-                background: Paint.mark(root.drop.kind).with-alpha(0.85);
+                background: Paint.mark(root.drop.kind, root.drop.track-kind).with-alpha(0.85);
 
                 if parent.width > 30px: Text {
                     x: 7px;

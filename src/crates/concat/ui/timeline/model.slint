@@ -163,6 +163,8 @@ export struct DropData {
     /// payload this tree cannot read.
     active: bool,
     kind: ClipKind,
+    /// Track identity, including downloaded stickers and caption collections.
+    track-kind: TrackKind,
     /// What the clip will be called; drawn in the ghost's header.
     label: string,
     start: float,
