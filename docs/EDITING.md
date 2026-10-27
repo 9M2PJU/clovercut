@@ -12,7 +12,9 @@ The default playhead is white; an explicit custom colour remains respected.
 
 The timeline toolbar's plus button adds a timeline. Tabs appear when there is
 more than one timeline; existing rename, close and reorder actions remain.
-Automatic track height is compact; manual Small, Medium and Large sizes remain
+Automatic track heights use 80 px for the main video (the manual Medium height),
+64 px for other video and audio, 36 px for stickers and 28 px for text,
+captions and adjustment tracks. Manual Small, Medium and Large sizes remain
 available. Inspector width is adjustable, with its minimum derived from the
 active controls. A transition indicator spans both clips at the cut.
 

@@ -94,7 +94,7 @@ pub const MIN_DURATION: f32 = 1.0 / 60.0;
 const LANE_LARGE: f32 = 108.0;
 const LANE_MEDIUM: f32 = 80.0;
 const LANE_SMALL: f32 = 44.0;
-const LANE_AUTO: f32 = 48.0;
+const LANE_AUTO: f32 = 64.0;
 
 /// How long a title runs when it is placed: long enough to read, short
 /// enough that trimming it is a nudge rather than a fight.
@@ -2972,7 +2972,7 @@ impl Studio {
             TrackSize::Large => LANE_LARGE,
             TrackSize::Auto => {
                 if lane.is_main {
-                    64.0
+                    LANE_MEDIUM
                 } else {
                     match self.track_kind(lane) {
                         model::TrackKind::Video | model::TrackKind::Audio => LANE_AUTO,
