@@ -129,7 +129,7 @@ sudo apt install ./Clovercut-X.Y.Z-x86_64.deb
 curl -fsSLO https://github.com/tulcoturo/clovercut/releases/download/vX.Y.Z/Clovercut-X.Y.Z-x86_64.rpm
 sudo dnf install ./Clovercut-X.Y.Z-x86_64.rpm
 
-# Arch / CachyOS / Manjaro / EndeavourOS (prebuilt AppImage repackaged)
+# Arch / CachyOS / Manjaro / EndeavourOS (prebuilt AppImage repackaged, kept on the latest release by CI)
 yay -S clovercut-bin
 # or: paru -S clovercut-bin
 ```
