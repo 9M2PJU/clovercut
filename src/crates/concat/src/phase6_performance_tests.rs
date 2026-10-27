@@ -779,6 +779,7 @@ fn phase6_performance_and_memory_suite() {
                     tracking: 0.0,
                     max_width: 0.8,
                     max_height: 0.0,
+                    runs: Vec::new(),
                 },
                 3840,
                 2160,
