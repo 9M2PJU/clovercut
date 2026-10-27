@@ -11,11 +11,18 @@ Reviewed through `3d549940` (27 October 2026). The six commits after `9e20c562` 
 commits after `94f4255f`; the earlier adaptation batch starts at `2429c0ca`. Adaptations below are newer than the source used by the published
 0.1.6 release and are included in desktop release 0.1.7.
 
-### Unreleased follow-up
+### Desktop 0.1.8 follow-up
 
 A fresh fetch on 26 October still points to `9e20c562`; there are no newer
 upstream main commits beyond the reviewed batch. This follow-up stays outside
 the published `v0.1.7` tag.
+
+These follow-up adaptations are included in desktop 0.1.8. Their original
+validation records below describe checks at implementation time. A subsequent
+full Linux desktop build of `10a53e84` completed in 38 minutes with the established
+resource limits; its native smoke check passed on the RX 6600 XT, including
+Whisper and the required audio filters. Desktop packaging and release CI validate
+the versioned source separately.
 
 The independent ColourField correction from `870290a0` is adapted: the alpha
 swatch alternates by row plus column, so transparency is shown over a checker
